@@ -5,6 +5,12 @@
 ## Prepared For: Review and Approval
 ## Prepared By: Product and Engineering
 
+## Document Revision History
+
+| Version | Date | Author | Description |
+|---|---|---|---|
+| 1.0 | March 2, 2026 | Product and Engineering | Initial SRS for review and approval |
+
 ## 1. Introduction
 
 ### 1.1 Purpose
@@ -36,6 +42,30 @@ Out of scope for current release:
 - Headless: Backend-first architecture exposed via APIs, decoupled from frontend.
 - External IdP: Customer-managed identity provider used for authentication (OIDC/SAML).
 - Bootstrap Onboarding: Tenant subscription-time setup flow for identity and initial admin mapping.
+
+### 1.5 References
+- IEEE 830-1998: IEEE Recommended Practice for Software Requirements Specifications
+- ISO/IEC/IEEE 29148:2018: Systems and software engineering — Life cycle processes — Requirements engineering
+- `survey-engine-prd.md`: Product Requirements Document for Survey Engine v1.0
+- `survey-engine-srs-implementation-ready.md`: Implementation-Ready SRS with engineering-level detail
+- `architecture-flow.md`: Architecture and system flow diagrams
+- OWASP Application Security Verification Standard (ASVS) v4.0
+- OpenID Connect Core 1.0 Specification
+- SAML 2.0 Technical Overview (OASIS)
+- GDPR Regulation (EU) 2016/679
+
+### 1.6 Document Overview
+This document is organized as follows:
+- **Section 1** introduces the purpose, scope, definitions, references, and this overview.
+- **Section 2** provides the overall product description including product perspective, user classes, operating environment, constraints, and assumptions.
+- **Section 3** specifies the detailed functional requirements grouped by feature area.
+- **Section 4** defines external interface requirements (user, software, and communications).
+- **Section 5** defines non-functional requirements including performance, availability, security, compliance, and scalability.
+- **Section 6** specifies data requirements including storage, retention, and classification.
+- **Section 7** lists design and implementation constraints.
+- **Section 8** defines board-level acceptance criteria.
+- **Section 9** outlines the delivery roadmap.
+- **Section 10** provides the board approval rationale.
 
 ## 2. Overall Description
 
