@@ -43,10 +43,12 @@ Current survey workflows are fragmented across tools and lack consistency in des
   - Rating scale
 
 ### Campaign and Assignment (Generic)
-- Campaign model with configurable evaluation/collection windows
-- Audience and target assignment rules (evaluator -> target patterns)
-- Eligibility constraints (for example: one submission per evaluator-target-campaign key)
-- Reusable policy templates for domain-specific rollouts (education, corporate, NGO, public surveys)
+- Campaign model with configurable collection windows
+- Two campaign modes:
+  - **Open mode**: public distribution without pre-defined audience — anyone with the link can respond, controlled by access settings (quota, IP, CAPTCHA, etc.)
+  - **Assigned mode**: roster-based distribution with evaluator-target assignment rules and eligibility constraints
+- Eligibility constraints in assigned mode (for example: one submission per respondent-subject-campaign key)
+- Reusable policy templates across domains (education, corporate, NGO, public surveys)
 
 ### Audience/Roster Integration
 - Sync audience datasets from external systems (SIS/HRMS/CRM/API/CSV)
@@ -110,8 +112,9 @@ Current survey workflows are fragmented across tools and lack consistency in des
 
 ## 7. Key User Flows
 1. Creator builds survey -> configures logic/style/settings -> publishes.
-2. Respondent opens survey link/embed -> submits response.
-3. Manager reviews dashboard/report -> filters segments -> compares performance.
+2. Creator creates campaign (open or assigned mode) -> distributes via link/embed/email.
+3. Respondent opens survey link/embed -> submits response.
+4. Manager reviews dashboard/report -> filters segments -> compares performance.
 
 ## 8. Functional Requirements (MVP)
 - FR1: User can create/edit/delete surveys.
@@ -122,7 +125,7 @@ Current survey workflows are fragmented across tools and lack consistency in des
 - FR6: System shows overview metrics and question-level reports.
 - FR7: User can distribute survey via link, embed, and email.
 - FR8: Subscriber can onboard via external IdP and bootstrap tenant activation.
-- FR9: System supports generic campaign, assignment, and eligibility policies.
+- FR9: System supports open (public) and assigned (roster-based) campaign modes.
 - FR10: System supports anonymity-preserving response mode with anti-duplicate enforcement.
 - FR11: System supports hierarchical rollup reporting for organizational structures.
 

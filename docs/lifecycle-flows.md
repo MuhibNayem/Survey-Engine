@@ -146,32 +146,45 @@ sequenceDiagram
 ## 2. Campaign Lifecycle
 
 ### 2.1 Overview
-A campaign defines a time-bound window during which a specific survey version is distributed to a configured audience. Campaigns carry assignment rules, eligibility constraints, and closure conditions. The lifecycle manages roster synchronization, assignment generation, activation, monitoring, and closure.
+A campaign defines a time-bound window during which a specific survey version is distributed to respondents. Campaigns operate in one of two modes:
+
+- **Open mode**: Public distribution — anyone with the survey link can respond. No roster, assignment rules, or eligibility constraints required. Access is governed by survey-level controls (quota, IP, CAPTCHA, device, email restrictions).
+- **Assigned mode**: Roster-based distribution with respondent-subject assignment rules and eligibility constraints. Requires roster sync and assignment configuration before activation.
+
+The lifecycle manages configuration, optional roster synchronization, assignment generation (assigned mode only), activation, monitoring, and closure.
 
 ### 2.2 State Diagram
 ```mermaid
 stateDiagram-v2
   [*] --> Draft: Create campaign
 
-  Draft --> Configuring: Begin setup
-  Configuring --> Draft: Save progress
+  Draft --> SelectMode: Choose mode
+  SelectMode --> OpenConfig: Open mode
+  SelectMode --> AssignedConfig: Assigned mode
 
-  state Configuring {
-    [*] --> SurveyBinding: Attach survey version
-    SurveyBinding --> RosterSetup: Import/sync audience
-    RosterSetup --> RulesConfig: Configure assignment rules
-    RulesConfig --> EligibilityConfig: Set eligibility constraints
-    EligibilityConfig --> ValidationCheck: Validate completeness
+  state OpenConfig {
+    [*] --> BindSurvey_Open: Attach survey version
+    BindSurvey_Open --> SetAccessControls: Configure quota/CAPTCHA/IP/email
+    SetAccessControls --> OpenReady: Validate
   }
 
-  Configuring --> ReadyToActivate: All config valid + roster synced
-  ReadyToActivate --> Active: Admin activates (manual or scheduled)
+  state AssignedConfig {
+    [*] --> BindSurvey_Assigned: Attach survey version
+    BindSurvey_Assigned --> RosterSetup: Import/sync audience
+    RosterSetup --> RulesConfig: Configure assignment rules
+    RulesConfig --> EligibilityConfig: Set eligibility constraints
+    EligibilityConfig --> AssignedReady: Validate completeness
+  }
+
+  OpenConfig --> ReadyToActivate: Config valid
+  AssignedConfig --> ReadyToActivate: Config valid + roster synced
+  ReadyToActivate --> Active: Admin activates
 
   Active --> Paused: Admin pauses campaign
   Paused --> Active: Admin resumes campaign
 
-  Active --> Closing: End date reached OR quota met OR manual close
-  Closing --> Closed: All in-flight responses finalized
+  Active --> Closing: End date OR quota OR manual close
+  Closing --> Closed: In-flight responses finalized
 
   Closed --> Archived: Retention policy or manual archive
 ```
@@ -251,16 +264,17 @@ sequenceDiagram
 
 ### 2.4 Campaign Configuration Checklist (Activation Gate)
 
-| # | Check | Required? | Details |
-|---|---|---|---|
-| 1 | Survey version bound | Yes | Must reference a published, non-archived survey version |
-| 2 | Campaign window set | Yes | `start_at` and `end_at` must be valid; `end_at > start_at` |
-| 3 | Roster synced | Yes | At least one valid audience record present |
-| 4 | Assignment rules configured | Yes | At least one rule mapping evaluators to targets |
-| 5 | Eligibility constraints set | Recommended | Default: one attempt per constraint_key if not configured |
-| 6 | Closure rules configured | Recommended | Date-based closure is auto-set from window; quota is optional |
-| 7 | No unresolved roster mappings | Yes | All evaluator/target references must resolve to valid audience records |
-| 8 | Survey not closed/archived | Yes | Bound survey must still be in `published` state |
+| # | Check | Open Mode | Assigned Mode | Details |
+|---|---|---|---|---|
+| 1 | Survey version bound | Required | Required | Must reference a published, non-archived survey version |
+| 2 | Campaign window set | Required | Required | `start_at` and `end_at` must be valid; `end_at > start_at` |
+| 3 | Access controls configured | Recommended | Recommended | Quota, CAPTCHA, IP, email, device restrictions |
+| 4 | Roster synced | N/A | Required | At least one valid audience record present |
+| 5 | Assignment rules configured | N/A | Required | At least one rule mapping respondents to subjects |
+| 6 | Eligibility constraints set | N/A | Recommended | Default: one attempt per constraint_key if not configured |
+| 7 | No unresolved roster mappings | N/A | Required | All respondent/subject references must resolve to valid audience records |
+| 8 | Closure rules configured | Recommended | Recommended | Date-based closure auto-set from window; quota optional |
+| 9 | Survey not closed/archived | Required | Required | Bound survey must still be in `published` state |
 
 ### 2.5 Closure Conditions
 ```mermaid
@@ -286,9 +300,10 @@ flowchart TD
 ```
 
 ### 2.6 Implementation Notes
+- **Campaign modes**: The `mode` field on `Campaign` entity (`open` or `assigned`) determines which configuration steps and runtime checks apply. Open mode bypasses roster sync, assignment generation, and eligibility enforcement.
 - **Campaign–Survey binding**: A campaign binds to a specific `survey_version_id`, not to the survey itself. If the survey is republished (new version), existing campaigns continue using their bound version. New campaigns can bind to the new version.
-- **Roster sync jobs**: Roster syncs should be idempotent. Use `external_subject_id` + `source_ref` as the upsert key. Maintain `hash_key` on `AudienceRecord` for efficient change detection on re-sync.
-- **Assignment instance generation**: When rules are configured and roster is present, the engine generates all valid `(evaluator, target)` pairs as `AssignmentInstance` records. Each gets a `constraint_key` (e.g., `eval:{eval_id}:target:{target_id}:campaign:{campaign_id}`) used for dedup and attempt tracking.
+- **Roster sync jobs** (assigned mode): Roster syncs should be idempotent. Use `external_subject_id` + `source_ref` as the upsert key. Maintain `hash_key` on `AudienceRecord` for efficient change detection on re-sync.
+- **Assignment instance generation** (assigned mode): When rules are configured and roster is present, the engine generates all valid `(respondent, subject)` pairs as `AssignmentInstance` records. Each gets a `constraint_key` (e.g., `respondent:{rid}:subject:{sid}:campaign:{cid}`) used for dedup and attempt tracking.
 - **Pause semantics**: Pausing stops new response initiations but does not expire in-flight responses. Resuming picks up where it left off with no data loss.
 - **Grace period**: Configurable per campaign. Default: 30 minutes after closure trigger. In-flight responses not completed within the grace period are marked `expired`.
 
@@ -569,22 +584,24 @@ Every `AudienceRecord` stores:
 ## 5. Assignment and Eligibility Flow
 
 ### 5.1 Overview
-The assignment engine generates specific `(evaluator, target)` pairs from the audience roster based on configured rules. Eligibility constraints control how many times each unique combination can submit a response. This flow is the core mechanism that enables structured survey campaigns (e.g., 360° feedback, peer review, manager evaluations) while remaining domain-agnostic.
+The assignment engine generates specific `(respondent, subject)` pairs from the audience roster based on configured rules. Eligibility constraints control how many times each unique combination can submit a response. This flow is the core mechanism that enables structured survey campaigns (e.g., 360° feedback, peer review, manager evaluations) while remaining domain-agnostic.
+
+> **Note**: This entire flow applies only to **assigned mode** campaigns. Open mode campaigns skip assignment and eligibility entirely.
 
 ### 5.2 Assignment Generation Flow
 ```mermaid
 flowchart TD
   A[Assignment Rules Configured] --> B[Load Audience Records]
-  B --> C[Apply Evaluator Filter]
-  C --> D[Evaluator Pool]
-  B --> E[Apply Target Filter]
-  E --> F[Target Pool]
-  D --> G[Generate Cartesian Pairs based on Policy]
+  B --> C[Apply Respondent Filter]
+  C --> D[Respondent Pool]
+  B --> E[Apply Subject Filter]
+  E --> F[Subject Pool]
+  D --> G[Generate Pairs based on Policy]
   F --> G
   G --> H{Policy type?}
-  H -->|all_to_all| I[Every evaluator × every target]
-  H -->|group_match| J[Evaluators matched to targets by group attribute]
-  H -->|explicit_mapping| K[Use explicit evaluator-target mapping from roster]
+  H -->|all_to_all| I[Every respondent x every subject]
+  H -->|group_match| J[Respondents matched to subjects by group attribute]
+  H -->|explicit_mapping| K[Use explicit respondent-subject mapping from roster]
   I --> L[Generate AssignmentInstances]
   J --> L
   K --> L
@@ -605,7 +622,7 @@ sequenceDiagram
   R->>RT: Attempt to start survey
   RT->>AE: Check eligibility (respondent_id, campaign_id)
 
-  AE->>DB: Find AssignmentInstance where evaluator_id = respondent_id AND campaign_id = campaign_id
+  AE->>DB: Find AssignmentInstance where respondent_id = respondent AND campaign_id = campaign_id
   DB-->>AE: AssignmentInstance(s) found
 
   alt No assignment found
@@ -633,8 +650,8 @@ sequenceDiagram
 
 | Campaign Type | Key Template | Example |
 |---|---|---|
-| Simple survey (one per person) | `campaign:{cid}:evaluator:{eid}` | `campaign:42:evaluator:user_101` |
-| Peer review (one per pair) | `campaign:{cid}:evaluator:{eid}:target:{tid}` | `campaign:42:evaluator:user_101:target:user_205` |
+| Simple survey (one per person) | `campaign:{cid}:respondent:{rid}` | `campaign:42:respondent:user_101` |
+| Structured review (one per pair) | `campaign:{cid}:respondent:{rid}:subject:{sid}` | `campaign:42:respondent:user_101:subject:user_205` |
 | Multi-attempt allowed | Same key + `max_attempts > 1` | Allow up to 3 submissions per key |
 
 ### 5.5 Assignment Rule Example
@@ -660,7 +677,10 @@ sequenceDiagram
 ```
 This rule means: *"All students and peers evaluate instructors within their same department."*
 
+> **Note**: The `evaluator_filter` and `target_filter` naming in the JSON is a convention for the rule engine. In domain-neutral terms, these map to "respondent group" and "subject group" respectively.
+
 ### 5.6 Implementation Notes
+- **Assigned mode only**: This entire flow applies only to campaigns with `mode=assigned`. Open mode campaigns skip assignment and eligibility entirely — the runtime service allows any authenticated or anonymous access per survey settings.
 - **Lazy vs. eager generation**: Eager generation (pre-compute all pairs at activation) is recommended for campaigns with < 100K assignments. For larger campaigns, consider lazy evaluation at runtime.
 - **Constraint key uniqueness**: The `constraint_key` column on `AssignmentInstance` must be indexed for fast lookups during response initiation.
 - **Re-assignment on roster change**: If a roster re-sync adds new participants mid-campaign, the engine should generate new `AssignmentInstance` records without affecting existing ones. Removed participants' assignments are soft-deleted.

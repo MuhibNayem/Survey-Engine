@@ -359,7 +359,7 @@ Manager/Admin      Campaign Engine      Roster Adapter      External Source
     |------------------->|                    |                    |
 2. Attach survey version |                    |                    |
     |------------------->|                    |                    |
-3. Configure rules (evaluator->target, constraints)             |
+3. Configure rules (respondent->subject, constraints)             |
     |------------------->|                    |                    |
 4. Trigger roster sync                        |                    |
     |------------------->|------------------->|------------------->|

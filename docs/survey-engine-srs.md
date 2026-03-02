@@ -186,9 +186,12 @@ The system is a cloud-native, API-first platform composed of modular services:
 
 ### 3.10 Campaigns, Audience Integration, Assignment, and Privacy
 - FR-100: System shall support generic campaign windows with configurable start/end/closure rules.
-- FR-101: System shall support audience/roster sync from external sources (API/CSV/connectors) without domain lock-in.
-- FR-102: System shall support policy-driven assignment rules between evaluator groups and target groups.
-- FR-103: System shall enforce eligibility and attempt constraints using configurable uniqueness keys.
+- FR-100a: System shall support two campaign modes:
+  - **Open mode**: public distribution without pre-defined audience. Access governed by survey-level controls (quota, IP, CAPTCHA, device, email restrictions).
+  - **Assigned mode**: roster-based distribution with respondent-subject assignment rules and eligibility constraints.
+- FR-101: System shall support audience/roster sync from external sources (API/CSV/connectors) without domain lock-in (assigned mode).
+- FR-102: System shall support policy-driven assignment rules between respondent groups and subject groups (assigned mode).
+- FR-103: System shall enforce eligibility and attempt constraints using configurable uniqueness keys (assigned mode).
 - FR-104: System shall support anonymity mode where identity is masked in reports while eligibility and dedup controls remain enforceable.
 
 ### 3.11 API and Developer Experience (Headless)

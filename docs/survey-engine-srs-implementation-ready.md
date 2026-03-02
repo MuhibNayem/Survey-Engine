@@ -232,13 +232,16 @@ Architecture constraints:
 
 ### 7.11 Campaigns, Audience Sync, Assignment, and Eligibility
 - FR-100: Create campaign with configured start/end windows and closure conditions.
+- FR-100a: System shall support two campaign modes:
+  - **Open mode**: public distribution without pre-defined audience. Any respondent with the survey link can participate. Access governed by survey-level controls (quota, IP, CAPTCHA, device, email). Roster sync, assignment rules, and eligibility constraints are not required.
+  - **Assigned mode**: roster-based distribution with respondent-subject assignment rules and eligibility constraints. Roster sync is required before activation.
 - FR-101: Bind campaign to one or more survey versions.
-- FR-102: Ingest audience/roster records via API and CSV import.
-- FR-103: Support connector-based roster sync jobs with execution status and error logs.
-- FR-104: Define evaluator-target assignment policies using rule expressions.
-- FR-105: Enforce attempt constraints using uniqueness keys (e.g., evaluator + target + campaign).
+- FR-102: Ingest audience/roster records via API and CSV import (assigned mode).
+- FR-103: Support connector-based roster sync jobs with execution status and error logs (assigned mode).
+- FR-104: Define respondent-subject assignment policies using rule expressions (assigned mode).
+- FR-105: Enforce attempt constraints using uniqueness keys (e.g., respondent + subject + campaign) (assigned mode).
 - FR-106: Support policy templates reusable across tenants/workspaces.
-- FR-107: Maintain source lineage for synced roster records.
+- FR-107: Maintain source lineage for synced roster records (assigned mode).
 
 ### 7.12 Privacy and Anonymity Controls
 - FR-110: Support anonymity mode at campaign or survey level.
@@ -355,6 +358,21 @@ Architecture constraints:
   - Segment sample below threshold: segment details suppressed.
 - Postconditions: Confidentiality preserved while maintaining response integrity controls.
 
+### UC-08 Open Mode Campaign (Public Survey)
+- Actor: Survey Manager
+- Preconditions: Published survey version available; campaign write permission.
+- Main flow:
+  1. Create campaign in open mode.
+  2. Set campaign window (start/end dates).
+  3. Attach survey version.
+  4. Configure access controls (quota, CAPTCHA, IP/email rules).
+  5. Activate campaign (no roster or assignment rules required).
+  6. Distribute link/embed/email.
+- Alternate flows:
+  - Quota reached: survey closes automatically.
+  - End date reached: campaign transitions to closed.
+- Postconditions: Campaign is live. Any respondent meeting access controls can submit.
+
 ## 9. Data Model Baseline
 
 ### 9.1 Core Entities
@@ -369,11 +387,11 @@ Architecture constraints:
 - Response(id, survey_version_id, status, started_at, completed_at, quality_flags)
 - Answer(id, response_id, question_id, value_json)
 - ParticipantMetadata(id, response_id, key, value)
-- Campaign(id, workspace_id, name, status, start_at, end_at, closure_rules_json)
+- Campaign(id, workspace_id, name, mode, status, start_at, end_at, closure_rules_json)
 - CampaignSurveyBinding(id, campaign_id, survey_version_id)
 - AudienceRecord(id, tenant_id, source_type, source_ref, external_subject_id, attributes_json, hash_key)
-- AssignmentRule(id, campaign_id, evaluator_filter_json, target_filter_json, policy_json)
-- AssignmentInstance(id, campaign_id, evaluator_id, target_id, status, constraint_key)
+- AssignmentRule(id, campaign_id, respondent_filter_json, subject_filter_json, policy_json)
+- AssignmentInstance(id, campaign_id, respondent_id, subject_id, status, constraint_key)
 - EligibilityConstraint(id, campaign_id, key_template, max_attempts, policy_json)
 - AuditEvent(id, tenant_id, actor_id, action, resource_type, resource_id, payload, created_at)
 - WebhookSubscription(id, tenant_id, event_type, endpoint, secret, status)
