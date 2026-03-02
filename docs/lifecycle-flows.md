@@ -188,8 +188,7 @@ sequenceDiagram
   participant RT as Runtime Service
   participant DB as Database
 
-  rect rgb(240, 248, 255)
-    Note over M,DB: Phase 1 — Campaign Configuration
+  Note over M,DB: Phase 1 — Campaign Configuration
     M->>CE: Create campaign (name, window, closure rules)
     CE->>DB: Insert Campaign(status=draft)
     CE-->>M: campaign_id
@@ -198,11 +197,9 @@ sequenceDiagram
     CE->>SDS: Verify survey_version_id exists and is published
     SDS-->>CE: Confirmed
     CE->>DB: Insert CampaignSurveyBinding
-    CE-->>M: Survey version bound
-  end
+  CE-->>M: Survey version bound
 
-  rect rgb(255, 248, 240)
-    Note over M,DB: Phase 2 — Roster Sync
+  Note over M,DB: Phase 2 — Roster Sync
     M->>CE: Trigger roster sync (source config)
     CE->>RA: Start sync job
     RA->>ES: Pull audience records (API/CSV/connector)
@@ -215,12 +212,10 @@ sequenceDiagram
       CE-->>M: Review quarantined records
     else All valid
       RA->>DB: Upsert AudienceRecord entries (with source lineage)
-      RA-->>CE: Sync complete (N records)
-    end
+    RA-->>CE: Sync complete (N records)
   end
 
-  rect rgb(240, 255, 240)
-    Note over M,DB: Phase 3 — Assignment Rules and Eligibility
+  Note over M,DB: Phase 3 — Assignment Rules and Eligibility
     M->>CE: Configure assignment rules (evaluator filter → target filter)
     CE->>DB: Insert AssignmentRule(s)
 
@@ -233,29 +228,24 @@ sequenceDiagram
     else All mapped
       CE->>CE: Generate AssignmentInstance records
       CE->>DB: Insert AssignmentInstance(s) with constraint_key
-      CE-->>M: Assignment generation complete. Ready to activate.
-    end
+    CE-->>M: Assignment generation complete. Ready to activate.
   end
 
-  rect rgb(255, 240, 255)
-    Note over M,DB: Phase 4 — Activation and Runtime
+  Note over M,DB: Phase 4 — Activation and Runtime
     M->>CE: Activate campaign
     CE->>DB: Update Campaign(status=active)
     CE->>RT: Register active campaign for runtime enforcement
     CE-->>M: Campaign is live
 
-    Note over RT: Runtime enforces assignment + eligibility on each response attempt
-  end
+  Note over RT: Runtime enforces assignment + eligibility on each response attempt
 
-  rect rgb(255, 255, 240)
-    Note over M,DB: Phase 5 — Monitoring and Closure
+  Note over M,DB: Phase 5 — Monitoring and Closure
     CE->>CE: Scheduled check: end_date reached? quota met?
     alt Closure condition met
       CE->>DB: Update Campaign(status=closing)
       CE->>RT: Stop accepting new response initiations
       CE->>CE: Wait for in-flight responses to finalize (grace period)
       CE->>DB: Update Campaign(status=closed)
-    end
   end
 ```
 
@@ -363,8 +353,7 @@ sequenceDiagram
   participant DB as Data Store
   participant WH as Webhook Service
 
-  rect rgb(255, 245, 245)
-    Note over R,WH: Phase 1 — Access Control
+  Note over R,WH: Phase 1 — Access Control
     R->>RT: Open survey link/embed
     RT->>RE: Evaluate access controls
     RE->>RE: Check password (if enabled)
@@ -383,11 +372,9 @@ sequenceDiagram
       RT->>DB: Create Response(status=initiated, started_at=now)
       RT->>WH: Emit response.started event
       RT-->>R: Render first survey page
-    end
   end
 
-  rect rgb(245, 255, 245)
-    Note over R,WH: Phase 2 — Response Collection (Page by Page)
+  Note over R,WH: Phase 2 — Response Collection (Page by Page)
     loop Each survey page
       R->>RT: Submit page answers
       RT->>RE: Validate answers against rules
@@ -405,11 +392,9 @@ sequenceDiagram
         RI->>DB: Update Response(status=in_progress)
         RT-->>R: Render next page
       end
-    end
   end
 
-  rect rgb(245, 245, 255)
-    Note over R,WH: Phase 3 — Final Submit and Quality
+  Note over R,WH: Phase 3 — Final Submit and Quality
     R->>RT: Final submit
     RT->>RE: Final validation (all required answered?)
     RE-->>RT: Validation result
@@ -429,8 +414,7 @@ sequenceDiagram
       RT->>WH: Emit response.flagged event
     end
 
-    RT-->>R: Show finish message (configurable)
-  end
+  RT-->>R: Show finish message (configurable)
 ```
 
 ### 3.4 Access Control Pipeline (Evaluation Order)
@@ -695,7 +679,7 @@ flowchart LR
   P --> E[Embed Code]
   P --> EM[Email Invitation]
 
-  L --> L1[URL: /s/{survey_slug}?v={version}&c={campaign_id}]
+  L --> L1["URL: /s/{survey_slug}?v={version}&c={campaign_id}"]
   L --> L2[URL includes tracking params]
 
   E --> E1[iframe embed]
@@ -1110,19 +1094,16 @@ sequenceDiagram
   participant SE as Survey Engine
   participant IDP as Customer IdP
 
-  rect rgb(240, 248, 255)
-    Note over SA,IDP: Phase 1 — Tenant Provisioning
+  Note over SA,IDP: Phase 1 — Tenant Provisioning
     SA->>SS: Subscribe to plan
     SS->>SE: Create tenant (plan_id, admin_email)
     SE->>SE: Create Tenant(status=onboarding)
     SE->>SE: Create default Workspace
     SE->>SE: Create TenantOnboardingState(status=onboarding)
     SE-->>SS: Onboarding URL + tenant_id
-    SS-->>SA: Welcome email with onboarding link
-  end
+  SS-->>SA: Welcome email with onboarding link
 
-  rect rgb(240, 255, 240)
-    Note over SA,IDP: Phase 2 — IdP Configuration
+  Note over SA,IDP: Phase 2 — IdP Configuration
     SA->>SE: Open onboarding wizard
     SE-->>SA: Step 1: Enter IdP metadata
 
@@ -1134,11 +1115,9 @@ sequenceDiagram
     SE->>SE: Store mapping_json in TenantIdentityConfig
 
     SE-->>SA: Step 3: Configure role mappings
-    SA->>SE: Submit group-to-role mappings (e.g., "admins" → TenantAdmin)
-  end
+  SA->>SE: Submit group-to-role mappings (e.g., "admins" to TenantAdmin)
 
-  rect rgb(255, 248, 240)
-    Note over SA,IDP: Phase 3 — Validation
+  Note over SA,IDP: Phase 3 — Validation
     SA->>SE: Test IdP connection
     SE->>IDP: Attempt OIDC discovery / SAML metadata fetch
     IDP-->>SE: IdP metadata response
@@ -1148,12 +1127,10 @@ sequenceDiagram
       SE-->>SA: Error details (unreachable, invalid metadata, missing claims)
     else Validation passed
       SE->>SE: Update TenantIdentityConfig(status=validated, validated_at)
-      SE-->>SA: Connection valid ✓ — proceed to first login
-    end
+    SE-->>SA: Connection valid — proceed to first login
   end
 
-  rect rgb(255, 240, 255)
-    Note over SA,IDP: Phase 4 — First Login and Activation
+  Note over SA,IDP: Phase 4 — First Login and Activation
     SA->>SE: Initiate first SSO login
     SE->>IDP: Redirect with auth request (OIDC code flow / SAML AuthnRequest)
     IDP-->>SA: Login page
@@ -1165,9 +1142,8 @@ sequenceDiagram
     SE->>SE: Create User record (JIT provisioning)
     SE->>SE: Assign TenantAdmin role
     SE->>SE: Update Tenant(status=active)
-    SE->>SE: Update TenantOnboardingState(status=completed, completed_at)
-    SE-->>SA: Admin console access granted ✓
-  end
+  SE->>SE: Update TenantOnboardingState(status=completed, completed_at)
+  SE-->>SA: Admin console access granted
 ```
 
 ### 10.4 Setup-Later Mode Timeline
