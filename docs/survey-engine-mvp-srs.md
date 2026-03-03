@@ -307,11 +307,33 @@ Minimum business errors in code include:
 * Super admin can update plan definitions and quota changes are enforced in runtime paths.  
 * DB constraints reject cross-tenant relational mismatches.
 
-## **10\. Known Gaps / Future Extensions**
+## **10\. MVP Readiness Statement**
+
+### **10.1 Current Maturity**
+
+The authentication model and survey response access model are considered **MVP-ready** for pilot/beta use:
+
+* Tenant-level responder auth configuration (no per-campaign auth duplication).  
+* Campaign access control supports both `PUBLIC` and `PRIVATE` modes.  
+* Private responder flows support:
+  * Signed launch token validation with replay protection (`jti`)
+  * OIDC authorization code flow with callback and one-time responder access code exchange
+* Dynamic tenant claim mapping supports required/optional claims with fail-closed validation.  
+* Admin authentication includes access token + refresh token rotation.  
+* Auth configuration changes are audit logged.  
+* End-to-end test suite passes with these behaviors.
+
+### **10.2 MVP Caveat**
+
+This maturity level is suitable for MVP release and early tenant onboarding, but it is not a final enterprise-hardening endpoint.
+
+## **11\. Known Gaps / Future Extensions**
 
 * Replace mock payment gateway with production provider integration (webhooks, retry, reconciliation).  
 * Add quota dimensions (storage, API rate, monthly response caps, feature flags).  
 * Add richer analytics/reporting data products.  
 * Extend admin RBAC and policy packs for enterprise governance.  
 * Add dedicated theming management API surface.  
-* Upgrade signed launch token validation to full JWT/JWS interoperability profile with explicit `kid`-based key management and replay-store backed nonce enforcement.
+* Add production-grade secret management and key lifecycle controls (KMS/Vault backed encryption, scheduled rotation, operational playbooks).  
+* Add auth abuse protections (rate limits, anomaly controls, lockout policy) on public/auth endpoints.  
+* Expand live IdP interoperability certification matrix and operational monitoring coverage.
