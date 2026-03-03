@@ -12,6 +12,12 @@ public enum ErrorCode {
     QUESTION_MAX_SCORE_INVALID("Question max score must be greater than 0"),
     SURVEY_IMMUTABLE_AFTER_PUBLISH("Survey is immutable after publish"),
     INVALID_LIFECYCLE_TRANSITION("Lifecycle transition is not allowed"),
+    // --- Response Collection & Locking (SRS §4.7, §8) ---
+    RESPONSE_LOCKED("Response is locked and cannot be modified"),
+    RESPONSE_NOT_LOCKED("Response is not in locked state"),
+    CAMPAIGN_NOT_ACTIVE("Campaign is not in active state"),
+    RESPONSE_QUOTA_EXCEEDED("Response quota for this campaign has been reached"),
+    DUPLICATE_RESPONSE("A response from this device/IP already exists"),
 
     // --- General ---
     RESOURCE_NOT_FOUND("Requested resource not found"),

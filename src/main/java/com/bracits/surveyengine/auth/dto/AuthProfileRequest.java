@@ -1,0 +1,45 @@
+package com.bracits.surveyengine.auth.dto;
+
+import com.bracits.surveyengine.auth.entity.AuthenticationMode;
+import com.bracits.surveyengine.auth.entity.FallbackPolicy;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AuthProfileRequest {
+
+    @NotNull(message = "Campaign ID is required")
+    private UUID campaignId;
+
+    @NotNull(message = "Auth mode is required")
+    private AuthenticationMode authMode;
+
+    private String issuer;
+    private String audience;
+    private String jwksEndpoint;
+    private Integer clockSkewSeconds;
+    private Integer tokenTtlSeconds;
+    private String signingSecret;
+    private FallbackPolicy fallbackPolicy;
+
+    private List<ClaimMappingRequest> claimMappings;
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ClaimMappingRequest {
+        private String externalClaim;
+        private String internalField;
+        @Builder.Default
+        private boolean required = false;
+    }
+}
