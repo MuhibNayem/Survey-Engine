@@ -1,0 +1,42 @@
+spring:
+  # --- PostgreSQL (prod) — injected via environment ---
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  # --- JPA (prod) ---
+  jpa:
+    show-sql: false
+
+  # --- Redis (prod) ---
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  # --- RabbitMQ (prod) ---
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+  # --- H2 Console disabled ---
+  h2:
+    console:
+      enabled: false
+
+# --- Logging (prod) ---
+logging:
+  level:
+    com.bracits.surveyengine: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN

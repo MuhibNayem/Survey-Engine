@@ -1,0 +1,31 @@
+package com.bracits.surveyengine.common.exception;
+
+/**
+ * Business error codes used across the Survey Engine.
+ * Maps to SRS §5.4 validation errors and general application error codes.
+ */
+public enum ErrorCode {
+
+    // --- Scoring & Validation (SRS §5.4) ---
+    INVALID_WEIGHT_SUM("Category weights must total exactly 100%"),
+    CATEGORY_MAX_SCORE_ZERO("Category max score cannot be zero"),
+    QUESTION_MAX_SCORE_INVALID("Question max score must be greater than 0"),
+    SURVEY_IMMUTABLE_AFTER_PUBLISH("Survey is immutable after publish"),
+    INVALID_LIFECYCLE_TRANSITION("Lifecycle transition is not allowed"),
+
+    // --- General ---
+    RESOURCE_NOT_FOUND("Requested resource not found"),
+    VALIDATION_FAILED("Request validation failed"),
+    ACCESS_DENIED("Access denied"),
+    INTERNAL_ERROR("An unexpected error occurred");
+
+    private final String defaultMessage;
+
+    ErrorCode(String defaultMessage) {
+        this.defaultMessage = defaultMessage;
+    }
+
+    public String getDefaultMessage() {
+        return defaultMessage;
+    }
+}

@@ -1,0 +1,168 @@
+package com.bracits.surveyengine.campaign.service;
+
+import com.bracits.surveyengine.campaign.dto.*;
+import com.bracits.surveyengine.campaign.entity.*;
+import com.bracits.surveyengine.campaign.repository.CampaignRepository;
+import com.bracits.surveyengine.campaign.repository.CampaignSettingsRepository;
+import com.bracits.surveyengine.common.exception.BusinessException;
+import com.bracits.surveyengine.common.exception.ErrorCode;
+import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.survey.entity.SurveyLifecycleState;
+import com.bracits.surveyengine.survey.entity.SurveySnapshot;
+import com.bracits.surveyengine.survey.repository.SurveyRepository;
+import com.bracits.surveyengine.survey.service.SurveyService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Implementation of {@link CampaignService}.
+ */
+@Service
+@RequiredArgsConstructor
+public class CampaignServiceImpl implements CampaignService {
+
+    private final CampaignRepository campaignRepository;
+    private final CampaignSettingsRepository settingsRepository;
+    private final SurveyRepository surveyRepository;
+    private final SurveyService surveyService;
+
+    @Override
+    @Transactional
+    public CampaignResponse create(CampaignRequest request) {
+        // Verify survey exists
+        surveyRepository.findById(request.getSurveyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Survey", request.getSurveyId()));
+
+        Campaign campaign = Campaign.builder()
+                .name(request.getName())
+                .description(request.getDescription())
+                .surveyId(request.getSurveyId())
+                .authMode(request.getAuthMode() != null ? request.getAuthMode() : AuthMode.PUBLIC)
+                .build();
+        campaign = campaignRepository.save(campaign);
+
+        // Create default settings
+        CampaignSettings settings = CampaignSettings.builder()
+                .campaignId(campaign.getId())
+                .build();
+        settingsRepository.save(settings);
+
+        return toResponse(campaign);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CampaignResponse getById(UUID id) {
+        return toResponse(findOrThrow(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CampaignResponse> getAllActive() {
+        return campaignRepository.findByActiveTrue().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public CampaignResponse update(UUID id, CampaignRequest request) {
+        Campaign campaign = findOrThrow(id);
+        campaign.setName(request.getName());
+        campaign.setDescription(request.getDescription());
+        if (request.getAuthMode() != null) {
+            campaign.setAuthMode(request.getAuthMode());
+        }
+        campaign = campaignRepository.save(campaign);
+        return toResponse(campaign);
+    }
+
+    @Override
+    @Transactional
+    public void deactivate(UUID id) {
+        Campaign campaign = findOrThrow(id);
+        campaign.setActive(false);
+        campaignRepository.save(campaign);
+    }
+
+    @Override
+    @Transactional
+    public CampaignResponse updateSettings(UUID campaignId, CampaignSettingsRequest request) {
+        Campaign campaign = findOrThrow(campaignId);
+        CampaignSettings settings = settingsRepository.findByCampaignId(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("CampaignSettings", campaignId));
+
+        settings.setPassword(request.getPassword());
+        settings.setCaptchaEnabled(request.isCaptchaEnabled());
+        settings.setOneResponsePerDevice(request.isOneResponsePerDevice());
+        settings.setIpRestrictionEnabled(request.isIpRestrictionEnabled());
+        settings.setEmailRestrictionEnabled(request.isEmailRestrictionEnabled());
+        settings.setResponseQuota(request.getResponseQuota());
+        settings.setCloseDate(request.getCloseDate());
+        settings.setSessionTimeoutMinutes(request.getSessionTimeoutMinutes());
+        settings.setShowQuestionNumbers(request.isShowQuestionNumbers());
+        settings.setShowProgressIndicator(request.isShowProgressIndicator());
+        settings.setAllowBackButton(request.isAllowBackButton());
+        settings.setStartMessage(request.getStartMessage());
+        settings.setFinishMessage(request.getFinishMessage());
+        settings.setHeaderHtml(request.getHeaderHtml());
+        settings.setFooterHtml(request.getFooterHtml());
+        settings.setCollectName(request.isCollectName());
+        settings.setCollectEmail(request.isCollectEmail());
+        settings.setCollectPhone(request.isCollectPhone());
+        settings.setCollectAddress(request.isCollectAddress());
+
+        settingsRepository.save(settings);
+        return toResponse(campaign);
+    }
+
+    /**
+     * Activates the campaign, linking it to the latest survey snapshot.
+     * The referenced survey must be in PUBLISHED state.
+     */
+    @Override
+    @Transactional
+    public CampaignResponse activate(UUID id) {
+        Campaign campaign = findOrThrow(id);
+        UUID surveyId = campaign.getSurveyId();
+
+        var survey = surveyRepository.findById(surveyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Survey", surveyId));
+        if (survey.getLifecycleState() != SurveyLifecycleState.PUBLISHED) {
+            throw new BusinessException(ErrorCode.INVALID_LIFECYCLE_TRANSITION,
+                    "Survey must be in PUBLISHED state to activate a campaign");
+        }
+
+        SurveySnapshot snapshot = surveyService.getLatestSnapshot(surveyId);
+        campaign.setSurveySnapshotId(snapshot.getId());
+        campaign.setStatus(CampaignStatus.ACTIVE);
+        campaign = campaignRepository.save(campaign);
+        return toResponse(campaign);
+    }
+
+    private Campaign findOrThrow(UUID id) {
+        return campaignRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", id));
+    }
+
+    private CampaignResponse toResponse(Campaign c) {
+        return CampaignResponse.builder()
+                .id(c.getId())
+                .name(c.getName())
+                .description(c.getDescription())
+                .surveyId(c.getSurveyId())
+                .surveySnapshotId(c.getSurveySnapshotId())
+                .authMode(c.getAuthMode())
+                .status(c.getStatus())
+                .active(c.isActive())
+                .createdBy(c.getCreatedBy())
+                .createdAt(c.getCreatedAt())
+                .updatedBy(c.getUpdatedBy())
+                .updatedAt(c.getUpdatedAt())
+                .build();
+    }
+}

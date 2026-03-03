@@ -1,0 +1,284 @@
+# Survey Engine MVP — Phased Implementation Action Plan
+
+> **Stack:** Spring Boot 4.0.3 · Java 25 · Gradle · PostgreSQL · Flyway · Redis · RabbitMQ  
+> **SRS Reference:** [survey-engine-mvp-srs.md](file:///home/amnayem/Projects/personal/Survey-Engine/docs/survey-engine-mvp-srs.md)
+
+---
+
+## Project State Summary
+
+| Aspect | Status |
+|---|---|
+| Bootstrap class | ✅ [SurveyEngineApplication.java](file:///home/amnayem/Projects/personal/Survey-Engine/src/main/java/com/bracits/surveyengine/SurveyEngineApplication.java) |
+| Build config | ✅ Gradle with all infra deps (JPA, Flyway, Redis, RabbitMQ, Security/OAuth2, Actuator, OTel) |
+| Entities / Services / Controllers | ❌ None — greenfield |
+| DB Migrations | ❌ None |
+| Application config | ❌ Only `spring.application.name` |
+| Test infra | ✅ Testcontainers (RabbitMQ) + JaCoCo |
+
+---
+
+## Package Structure (Proposed)
+
+```
+com.bracits.surveyengine
+├── config/                  # Spring config, security, Redis, RabbitMQ beans
+├── common/
+│   ├── audit/               # Audit trail entity & interceptor
+│   ├── exception/           # Global exception handler, error codes
+│   └── versioning/          # Snapshot/version helpers
+├── questionbank/
+│   ├── entity/              # Question, Category, QuestionVersion, CategoryVersion
+│   ├── repository/
+│   ├── dto/
+│   ├── service/
+│   └── controller/
+├── survey/
+│   ├── entity/              # Survey, SurveyPage, SurveyQuestion, SurveySnapshot, SkipLogicRule
+│   ├── repository/
+│   ├── dto/
+│   ├── service/
+│   └── controller/
+├── campaign/
+│   ├── entity/              # Campaign, DistributionConfig, CampaignSettings
+│   ├── repository/
+│   ├── dto/
+│   ├── service/
+│   └── controller/
+├── response/
+│   ├── entity/              # SurveyResponse, Answer, ResponseLock, ReopenAudit
+│   ├── repository/
+│   ├── dto/
+│   ├── service/
+│   └── controller/
+├── scoring/
+│   ├── entity/              # WeightProfile, CategoryWeight
+│   ├── dto/
+│   ├── service/             # ScoringEngine
+│   └── controller/
+├── analytics/
+│   ├── dto/
+│   ├── service/
+│   └── controller/
+├── auth/
+│   ├── config/              # AuthProfile, ClaimMapping entities
+│   ├── token/               # SignedLaunchTokenValidator
+│   ├── sso/                 # ExternalSsoTrustHandler
+│   └── service/
+├── distribution/
+│   ├── dto/
+│   ├── service/             # Link, embed, email generation
+│   └── controller/
+└── theming/
+    ├── entity/              # ThemeTemplate, SurveyTheme
+    ├── dto/
+    ├── service/
+    └── controller/
+```
+
+---
+
+## Phase Breakdown
+
+### Phase 1 — Foundation & Infrastructure  
+> **Goal:** Bootable app with DB, migrations, security skeleton, audit, global error handling.
+
+| # | Deliverable | SRS Ref |
+|---|---|---|
+| 1.1 | `application.yml` profiles (`dev`, `test`, `prod`) — DB, Redis, RabbitMQ, Flyway config | §6 |
+| 1.2 | Flyway baseline migration `V1__baseline.sql` (empty schema marker) | §6.2 |
+| 1.3 | Global exception handler (`@RestControllerAdvice`) with standard error response DTO | §5.4 |
+| 1.4 | Base audit entity (`createdBy`, `createdAt`, `updatedBy`, `updatedAt`) using JPA `@EntityListeners` | §7 |
+| 1.5 | Audit log entity & repository for explicit business audit events (publish, activation, auth changes) | §7, §4.8.4 |
+| 1.6 | Security config skeleton — permit-all for now, placeholder for OAuth2 resource server | §4.9 |
+| 1.7 | Testcontainers config for PostgreSQL + Redis (extend existing RabbitMQ setup) | — |
+| 1.8 | Health check endpoint via Actuator | §7 |
+
+**Tests:** App context loads, Flyway migration runs, Actuator `/health` returns UP.
+
+---
+
+### Phase 2 — Question Bank & Category Model  
+> **Goal:** Reusable question bank with versioned categories. (SRS §4.2)
+
+| # | Deliverable | SRS Ref |
+|---|---|---|
+| 2.1 | `Question` entity (text, type enum [RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE], maxScore, version) | §4.1, §4.2 |
+| 2.2 | `QuestionVersion` entity — immutable snapshot per version tag | §4.2 |
+| 2.3 | `Category` entity (name, description, version) | §4.2 |
+| 2.4 | `CategoryVersion` entity with `CategoryQuestionMapping` (question ref + per-question weight) | §4.2 |
+| 2.5 | Flyway migration `V2__question_bank.sql` | — |
+| 2.6 | CRUD services & REST controllers for Question and Category | §4.2 |
+| 2.7 | Version-creation logic: editing a published question/category creates a new version | §4.2 |
+
+**Tests:**  
+- Unit: Version creation, category-question mapping, weight assignment.  
+- Integration: Full CRUD cycle, version immutability enforced.
+
+---
+
+### Phase 3 — Survey Builder & Lifecycle  
+> **Goal:** Survey authoring, page/question ordering, skip logic, lifecycle state machine. (SRS §4.1, §4.6)
+
+| # | Deliverable | SRS Ref |
+|---|---|---|
+| 3.1 | [Survey](file:///home/amnayem/Projects/personal/Survey-Engine/src/main/java/com/bracits/surveyengine/SurveyEngineApplication.java#6-14) entity (title, description, lifecycle state, settings JSON) | §4.1 |
+| 3.2 | `SurveyPage` entity (order, title) | §4.1 |
+| 3.3 | `SurveyQuestion` entity (page ref, order, mandatory flag, answer config) | §4.1 |
+| 3.4 | `SkipLogicRule` entity (source question, condition, target page/question) | §4.1 |
+| 3.5 | `SurveySnapshot` entity — frozen copy of survey + categories + questions at publish time | §4.2, §4.6 |
+| 3.6 | Lifecycle state machine service: Draft → Published → Closed → Results Published → Archived | §4.6 |
+| 3.7 | Reopen policy: Closed → Published only with audited reason + actor | §4.6 |
+| 3.8 | Immutability enforcement: reject structure changes after Published | §4.6 |
+| 3.9 | Flyway migration `V3__survey.sql` | — |
+| 3.10 | REST controllers for survey CRUD, page/question management, lifecycle transitions | §4.1, §4.6 |
+
+**Tests:**  
+- Unit: State machine transitions (valid + invalid), immutability guard.  
+- Integration: Build survey → publish → verify snapshot frozen → reject modification.
+
+---
+
+### Phase 4 — Campaign, Settings, Distribution & Theming  
+> **Goal:** Campaign container, survey settings, distribution channels, basic theming. (SRS §4.3–§4.5, §4.8, §4.4)
+
+| # | Deliverable | SRS Ref |
+|---|---|---|
+| 4.1 | `Campaign` entity (survey ref, auth mode, status, distribution config) | §4.5, §4.6 |
+| 4.2 | `CampaignSettings` entity/embedded (password, CAPTCHA, one-per-device, IP/email restrictions, quota, close date, session timeout) | §4.5 |
+| 4.3 | `RespondentMetadata` entity/embedded fields (name, email, address, phone, date/time) | §4.3 |
+| 4.4 | Behavior & layout settings (question numbers, progress indicator, back button, start/finish messages, header/footer) | §4.5 |
+| 4.5 | Distribution service: generate public/private links, HTML embed snippet, WordPress embed, JS embed code, email distribution trigger | §4.8 |
+| 4.6 | `ThemeTemplate` + `SurveyTheme` entities; predefined template seeding | §4.4 |
+| 4.7 | Flyway migration `V4__campaign_distribution_theming.sql` | — |
+| 4.8 | REST controllers for campaign CRUD, settings, distribution, theming | §4.3–§4.5, §4.8 |
+
+**Tests:**  
+- Unit: Settings validation, link generation, embed snippet format.  
+- Integration: Campaign lifecycle with settings enforcement.
+
+---
+
+### Phase 5 — Scoring & Weight Profiles  
+> **Goal:** Weighted scoring engine with strict validation. (SRS §5)
+
+| # | Deliverable | SRS Ref |
+|---|---|---|
+| 5.1 | `WeightProfile` entity (name, campaign ref) | §5.1 |
+| 5.2 | `CategoryWeight` entity (category ref, weight percentage) | §5.1 |
+| 5.3 | Scoring engine service implementing the exact formula: raw → normalized → weighted → step total | §5.2 |
+| 5.4 | Validation rules: `INVALID_WEIGHT_SUM`, `CATEGORY_MAX_SCORE_ZERO`, `QUESTION_MAX_SCORE_INVALID`, `SURVEY_IMMUTABLE_AFTER_PUBLISH`, `INVALID_LIFECYCLE_TRANSITION` | §5.3, §5.4 |
+| 5.5 | Activation blocker: reject publish when weights ≠ 100% | §5.3 |
+| 5.6 | Flyway migration `V5__scoring.sql` | — |
+| 5.7 | REST controllers for weight profile CRUD, manual score recalculation trigger | §5 |
+
+**Tests:**  
+- Unit: Scoring formula with known inputs/outputs, boundary cases (zero max, negative, exactly 100%).  
+- Integration: End-to-end score calculation against published survey snapshot.
+
+---
+
+### Phase 6 — Response Collection, Locking & Analytics  
+> **Goal:** Survey runtime, response submission, locking, dashboard, reports. (SRS §4.7, §8)
+
+| # | Deliverable | SRS Ref |
+|---|---|---|
+| 6.1 | `SurveyResponse` entity (respondent ref, campaign ref, answers, status, submitted timestamp) | §4.7 |
+| 6.2 | `Answer` entity (question ref, value, score) | §4.7 |
+| 6.3 | Runtime settings enforcement (CAPTCHA, one-per-device, IP/email check, quota, expiry) | §4.5 |
+| 6.4 | Response locking service: lock on submit, admin-only reopen with reason/actor/window | §8 |
+| 6.5 | `ReopenAudit` entity capturing full reopen history | §8 |
+| 6.6 | Analytics service: traffic chart data, completion rate, incomplete count | §4.7 |
+| 6.7 | Reports service: question-level breakdown, participant counts, filter/segment, comparative analysis | §4.7 |
+| 6.8 | Flyway migration `V6__responses_analytics.sql` | — |
+| 6.9 | REST controllers for response submission, response locking/reopen, analytics, reports | §4.7, §8 |
+
+**Tests:**  
+- Unit: Locking logic, reopen policy, analytics aggregation.  
+- Integration: Submit → lock → attempt modify (rejected) → admin reopen → re-submit → verify audit trail.
+
+---
+
+### Phase 7 — Authentication, Audit & Production Hardening  
+> **Goal:** External auth modes, full audit logging, NFR compliance. (SRS §4.9, §7)
+
+| # | Deliverable | SRS Ref |
+|---|---|---|
+| 7.1 | `AuthProfile` entity (tenant, issuer, audience, JWKS endpoint, clock skew, TTL) | §4.9.3 |
+| 7.2 | `ClaimMapping` entity (external user ID → respondent ID, email, org/group claims) | §4.9.3 |
+| 7.3 | Public Anonymous mode — no auth, controls only | §4.9.2 |
+| 7.4 | Signed Launch Token mode — token validator (signature, issuer, audience, expiry, nonce/replay guard via Redis) | §4.9.2 |
+| 7.5 | External SSO Trust mode — OIDC/JWT/SAML gateway integration | §4.9.2 |
+| 7.6 | Fallback policy config (SSO required / anonymous fallback / disable on failure) | §4.9.3 |
+| 7.7 | Key rotation support without downtime | §4.9.4 |
+| 7.8 | Auth config audit logging (actor, timestamp, before/after values) | §4.9.4 |
+| 7.9 | Deterministic auth error codes for invalid tokens/assertions | §4.9.4 |
+| 7.10 | Respondent session scoping: tenant-scoped + campaign-scoped | §4.9.4 |
+| 7.11 | Privacy: mask/store sensitive respondent fields per policy | §7 |
+| 7.12 | P95 latency validation (≤ 500ms survey submit) | §7 |
+| 7.13 | Flyway migration `V7__auth_audit.sql` | — |
+
+**Tests:**  
+- Unit: Token validation, claim mapping, replay guard, error codes.  
+- Integration: Full auth flow per mode, key rotation, audit trail verification.
+
+---
+
+## Phase Dependency Graph
+
+```mermaid
+graph LR
+    P1["Phase 1<br/>Foundation"] --> P2["Phase 2<br/>Question Bank"]
+    P2 --> P3["Phase 3<br/>Survey Builder"]
+    P3 --> P4["Phase 4<br/>Campaign & Distribution"]
+    P3 --> P5["Phase 5<br/>Scoring"]
+    P4 --> P6["Phase 6<br/>Responses & Analytics"]
+    P5 --> P6
+    P6 --> P7["Phase 7<br/>Auth & Hardening"]
+    P1 --> P7
+```
+
+---
+
+## SRS Acceptance Criteria → Phase Mapping
+
+| Acceptance Criterion (SRS §9) | Phase |
+|---|---|
+| Build and publish surveys using categories from question bank | P2 + P3 |
+| Campaign distributes via link/embed/email | P4 |
+| Runtime enforces settings (CAPTCHA, limits, closures, restrictions) | P6 |
+| Reports show completion and answer breakdown | P6 |
+| Weighted scoring computed exactly per formula | P5 |
+| Activation blocked when weights ≠ 100% | P5 |
+| Admin configures external auth trust; validates test tokens | P7 |
+| Respondents access surveys without SE login when external auth configured | P7 |
+| Post-publish modification attempts rejected | P3 |
+| Question/category edits after publish create new versions | P2 |
+| Submitted responses locked unless admin reopen policy applied | P6 |
+
+---
+
+## Test Strategy
+
+| Layer | Tool | Scope |
+|---|---|---|
+| Unit Tests | JUnit 5 + Mockito | Services, state machines, scoring engine, validators |
+| Integration Tests | Spring Boot Test + Testcontainers (PostgreSQL, Redis, RabbitMQ) | Full REST API flows, DB persistence, lifecycle transitions |
+| Coverage Gate | JaCoCo (already configured — 35% bundle, 40% service package) | Enforced via `./gradlew check` |
+| Mutation Testing | PIT (already configured) | Service layer critical paths |
+
+**Run all tests:** `./gradlew clean test`  
+**Run with coverage verification:** `./gradlew clean check`
+
+---
+
+## Verification Plan
+
+Each phase will be verified by:
+
+1. **`./gradlew clean test`** — all unit + integration tests pass.
+2. **`./gradlew clean check`** — JaCoCo coverage thresholds met.
+3. **Manual API smoke test** — key endpoints exercised via `curl` or HTTP client against a running dev instance (`./gradlew bootRun`).
+
+> [!IMPORTANT]
+> This plan covers **only** the scope defined in [survey-engine-mvp-srs.md](file:///home/amnayem/Projects/personal/Survey-Engine/docs/survey-engine-mvp-srs.md). Items listed in §2.2 (AI insights, BI pipelines, advanced multi-tenant perms) and §10 (future extensions) are explicitly excluded.

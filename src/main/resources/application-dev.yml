@@ -1,0 +1,45 @@
+spring:
+  # --- PostgreSQL (dev) ---
+  datasource:
+    url: jdbc:postgresql://localhost:5432/survey_engine_dev
+    username: survey_dev
+    password: survey_dev_pass
+    driver-class-name: org.postgresql.Driver
+
+  # --- JPA (dev) ---
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # --- Redis (dev) ---
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # --- RabbitMQ (dev) ---
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  # --- H2 Console (dev) ---
+  h2:
+    console:
+      enabled: false
+
+# --- Actuator (dev) ---
+management:
+  endpoint:
+    health:
+      show-details: always
+
+# --- Logging (dev) ---
+logging:
+  level:
+    com.bracits.surveyengine: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG

@@ -1,0 +1,22 @@
+spring:
+  # --- Testcontainers manages datasource, Redis, RabbitMQ automatically via @ServiceConnection ---
+
+  # --- JPA (test) ---
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # --- Flyway (test) ---
+  flyway:
+    enabled: true
+    clean-disabled: false
+
+# --- Logging (test) ---
+logging:
+  level:
+    com.bracits.surveyengine: DEBUG
+    org.springframework.web: DEBUG
