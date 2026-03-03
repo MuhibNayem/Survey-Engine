@@ -2,20 +2,18 @@ package com.bracits.surveyengine.auth.service;
 
 import com.bracits.surveyengine.auth.dto.TokenValidationResult;
 
-import java.util.UUID;
-
 /**
  * Service contract for token validation across auth modes.
- * SRS §4.9.2, §4.9.4
+ * Validates respondent tokens against the tenant's auth profile.
  */
 public interface TokenValidationService {
 
     /**
-     * Validates a token against the campaign's auth profile.
+     * Validates a respondent token against the tenant's auth profile.
      *
-     * @param campaignId the campaign ID
-     * @param token      the token to validate (signed launch token or JWT)
+     * @param tenantId the tenant ID whose auth config to use
+     * @param token    the token to validate (signed launch token or JWT)
      * @return validation result with mapped claims or error
      */
-    TokenValidationResult validateToken(UUID campaignId, String token);
+    TokenValidationResult validateToken(String tenantId, String token);
 }

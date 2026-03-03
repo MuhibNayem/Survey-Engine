@@ -13,7 +13,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class AuthProfileResponse {
     private UUID id;
-    private UUID campaignId;
+    private String tenantId;
     private AuthenticationMode authMode;
     private String issuer;
     private String audience;

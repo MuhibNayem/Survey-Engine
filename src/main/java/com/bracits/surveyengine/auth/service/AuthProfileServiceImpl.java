@@ -28,7 +28,7 @@ public class AuthProfileServiceImpl implements AuthProfileService {
     @Transactional
     public AuthProfileResponse create(AuthProfileRequest request) {
         AuthProfile profile = AuthProfile.builder()
-                .campaignId(request.getCampaignId())
+                .tenantId(request.getTenantId())
                 .authMode(request.getAuthMode())
                 .issuer(request.getIssuer())
                 .audience(request.getAudience())
@@ -110,9 +110,9 @@ public class AuthProfileServiceImpl implements AuthProfileService {
 
     @Override
     @Transactional(readOnly = true)
-    public AuthProfileResponse getByCampaignId(UUID campaignId) {
-        AuthProfile profile = authProfileRepository.findByCampaignId(campaignId)
-                .orElseThrow(() -> new ResourceNotFoundException("AuthProfile for campaign", campaignId));
+    public AuthProfileResponse getByTenantId(String tenantId) {
+        AuthProfile profile = authProfileRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("AuthProfile for tenant " + tenantId));
         return toResponse(profile);
     }
 
@@ -157,7 +157,7 @@ public class AuthProfileServiceImpl implements AuthProfileService {
 
         return AuthProfileResponse.builder()
                 .id(p.getId())
-                .campaignId(p.getCampaignId())
+                .tenantId(p.getTenantId())
                 .authMode(p.getAuthMode())
                 .issuer(p.getIssuer())
                 .audience(p.getAudience())

@@ -38,8 +38,8 @@ public class TokenValidationServiceImpl implements TokenValidationService {
 
     @Override
     @Transactional(readOnly = true)
-    public TokenValidationResult validateToken(UUID campaignId, String token) {
-        Optional<AuthProfile> profileOpt = authProfileRepository.findByCampaignId(campaignId);
+    public TokenValidationResult validateToken(String tenantId, String token) {
+        Optional<AuthProfile> profileOpt = authProfileRepository.findByTenantId(tenantId);
 
         // No auth profile configured → default to public anonymous
         if (profileOpt.isEmpty()) {

@@ -7,7 +7,7 @@ import java.util.UUID;
 
 /**
  * Service contract for auth profile management.
- * SRS §4.9.3
+ * Auth profiles are configured per tenant (not per campaign).
  */
 public interface AuthProfileService {
 
@@ -15,7 +15,7 @@ public interface AuthProfileService {
 
     AuthProfileResponse update(UUID id, AuthProfileRequest request);
 
-    AuthProfileResponse getByCampaignId(UUID campaignId);
+    AuthProfileResponse getByTenantId(String tenantId);
 
     AuthProfileResponse rotateKey(UUID id);
 }

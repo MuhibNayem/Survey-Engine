@@ -1,12 +1,13 @@
 -- =====================================================
 -- Survey Engine — Authentication, Audit & Hardening
 -- SRS §4.9, §7
+-- Auth profiles are per-tenant (not per-campaign)
 -- =====================================================
 
--- Auth Profiles (per campaign)
+-- Auth Profiles (per tenant — one config for all campaigns under a tenant)
 CREATE TABLE auth_profile (
     id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
-    campaign_id         UUID            NOT NULL UNIQUE REFERENCES campaign(id) ON DELETE CASCADE,
+    tenant_id           VARCHAR(255)    NOT NULL UNIQUE,
     auth_mode           VARCHAR(30)     NOT NULL DEFAULT 'PUBLIC_ANONYMOUS',
     issuer              VARCHAR(500),
     audience            VARCHAR(500),

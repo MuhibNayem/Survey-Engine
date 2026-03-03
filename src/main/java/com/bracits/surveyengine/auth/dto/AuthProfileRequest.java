@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -15,8 +14,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public class AuthProfileRequest {
 
-    @NotNull(message = "Campaign ID is required")
-    private UUID campaignId;
+    @NotNull(message = "Tenant ID is required")
+    private String tenantId;
 
     @NotNull(message = "Auth mode is required")
     private AuthenticationMode authMode;

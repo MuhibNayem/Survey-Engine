@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Authentication profile for a campaign — defines how respondents
- * are authenticated before accessing the survey.
+ * Authentication profile for a tenant — defines how respondents
+ * are authenticated before accessing any survey under this tenant.
  * <p>
- * SRS §4.9.3: "Admin shall configure auth trust per campaign with
- * issuer, audience, JWKS endpoint, clock skew, and TTL."
+ * Configured once per tenant by the admin subscriber.
+ * All campaigns under the tenant inherit this auth config.
  */
 @Entity
 @Table(name = "auth_profile")
@@ -28,8 +28,8 @@ public class AuthProfile extends AuditableEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "campaign_id", nullable = false, unique = true)
-    private UUID campaignId;
+    @Column(name = "tenant_id", nullable = false, unique = true)
+    private String tenantId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_mode", nullable = false, length = 30)

@@ -1,6 +1,10 @@
 package com.bracits.surveyengine.survey;
 
 import com.bracits.surveyengine.TestcontainersConfiguration;
+import com.bracits.surveyengine.admin.dto.AuthResponse;
+import com.bracits.surveyengine.admin.dto.RegisterRequest;
+import com.bracits.surveyengine.admin.service.AdminAuthService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +23,25 @@ class SurveyControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @Autowired
+    private AdminAuthService adminAuthService;
+
+    private String bearerToken;
+
+    @BeforeEach
+    void setUp() {
+        try {
+            AuthResponse auth = adminAuthService.register(RegisterRequest.builder()
+                    .fullName("SC Test").email("sc-test@example.com")
+                    .password("securepass123").tenantId("sc-tenant").build());
+            bearerToken = "Bearer " + auth.getAccessToken();
+        } catch (Exception e) {
+            AuthResponse auth = adminAuthService.login(
+                    com.bracits.surveyengine.admin.dto.LoginRequest.builder()
+                            .email("sc-test@example.com").password("securepass123").build());
+            bearerToken = "Bearer " + auth.getAccessToken();
+        }
+    }
 
     @Test
     void shouldCreateSurveyViaApi() throws Exception {
@@ -30,6 +53,7 @@ class SurveyControllerIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/v1/surveys")
+                .header("Authorization", bearerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
                 .andExpect(status().isCreated())
@@ -47,6 +71,7 @@ class SurveyControllerIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/v1/surveys")
+                .header("Authorization", bearerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
                 .andExpect(status().isBadRequest());
@@ -55,6 +80,7 @@ class SurveyControllerIntegrationTest {
     @Test
     void shouldListSurveys() throws Exception {
         mockMvc.perform(get("/api/v1/surveys")
+                .header("Authorization", bearerToken)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());

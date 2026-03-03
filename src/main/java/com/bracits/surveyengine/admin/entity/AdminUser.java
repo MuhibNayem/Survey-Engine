@@ -1,0 +1,47 @@
+package com.bracits.surveyengine.admin.entity;
+
+import com.bracits.surveyengine.common.audit.AuditableEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.UUID;
+
+/**
+ * Engine-owned admin user entity.
+ * Admin users register and login through the engine itself.
+ * Respondent auth is separate and configured externally per campaign.
+ */
+@Entity
+@Table(name = "admin_user")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class AdminUser extends AuditableEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
+
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
+    @Column(name = "full_name", nullable = false)
+    private String fullName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 30)
+    @Builder.Default
+    private AdminRole role = AdminRole.ADMIN;
+
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
+
+    @Column(name = "active", nullable = false)
+    @Builder.Default
+    private boolean active = true;
+}

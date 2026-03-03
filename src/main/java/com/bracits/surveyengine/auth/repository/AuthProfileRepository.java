@@ -9,5 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface AuthProfileRepository extends JpaRepository<AuthProfile, UUID> {
-    Optional<AuthProfile> findByCampaignId(UUID campaignId);
+    Optional<AuthProfile> findByTenantId(String tenantId);
 }

@@ -38,9 +38,9 @@ public class AuthController {
         return ResponseEntity.ok(authProfileService.update(id, request));
     }
 
-    @GetMapping("/profiles/campaign/{campaignId}")
-    public ResponseEntity<AuthProfileResponse> getByCampaign(@PathVariable UUID campaignId) {
-        return ResponseEntity.ok(authProfileService.getByCampaignId(campaignId));
+    @GetMapping("/profiles/tenant/{tenantId}")
+    public ResponseEntity<AuthProfileResponse> getByTenant(@PathVariable String tenantId) {
+        return ResponseEntity.ok(authProfileService.getByTenantId(tenantId));
     }
 
     @PostMapping("/profiles/{id}/rotate-key")
@@ -48,11 +48,12 @@ public class AuthController {
         return ResponseEntity.ok(authProfileService.rotateKey(id));
     }
 
-    @PostMapping("/validate/{campaignId}")
+    /** Respondent token validation — per tenant */
+    @PostMapping("/validate/{tenantId}")
     public ResponseEntity<TokenValidationResult> validateToken(
-            @PathVariable UUID campaignId,
+            @PathVariable String tenantId,
             @RequestBody(required = false) String token) {
-        return ResponseEntity.ok(tokenValidationService.validateToken(campaignId, token));
+        return ResponseEntity.ok(tokenValidationService.validateToken(tenantId, token));
     }
 
     @GetMapping("/profiles/{id}/audit")
