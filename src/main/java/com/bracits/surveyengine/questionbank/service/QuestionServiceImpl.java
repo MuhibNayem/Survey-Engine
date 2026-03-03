@@ -1,12 +1,14 @@
 package com.bracits.surveyengine.questionbank.service;
 
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
 import com.bracits.surveyengine.questionbank.dto.QuestionRequest;
 import com.bracits.surveyengine.questionbank.dto.QuestionResponse;
 import com.bracits.surveyengine.questionbank.entity.Question;
 import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import com.bracits.surveyengine.questionbank.repository.QuestionRepository;
 import com.bracits.surveyengine.questionbank.repository.QuestionVersionRepository;
+import com.bracits.surveyengine.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,14 +29,18 @@ public class QuestionServiceImpl implements QuestionService {
 
     private final QuestionRepository questionRepository;
     private final QuestionVersionRepository questionVersionRepository;
+    private final TenantService tenantService;
 
     @Override
     @Transactional
     public QuestionResponse create(QuestionRequest request) {
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        tenantService.ensureProvisioned(tenantId);
         Question question = Question.builder()
                 .text(request.getText())
                 .type(request.getType())
                 .maxScore(request.getMaxScore())
+                .tenantId(tenantId)
                 .build();
         question = questionRepository.save(question);
 
@@ -52,7 +58,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     @Transactional(readOnly = true)
     public List<QuestionResponse> getAllActive() {
-        return questionRepository.findByActiveTrue().stream()
+        return questionRepository.findByActiveTrueAndTenantId(TenantSupport.currentTenantOrDefault()).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -95,13 +101,14 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     @Transactional(readOnly = true)
     public QuestionVersion getLatestVersion(UUID questionId) {
+        findOrThrow(questionId);
         return questionVersionRepository
                 .findTopByQuestionIdOrderByVersionNumberDesc(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("QuestionVersion", questionId));
     }
 
     private Question findOrThrow(UUID id) {
-        return questionRepository.findById(id)
+        return questionRepository.findByIdAndTenantId(id, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("Question", id));
     }
 

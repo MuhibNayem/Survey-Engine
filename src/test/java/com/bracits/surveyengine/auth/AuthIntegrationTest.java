@@ -10,6 +10,7 @@ import com.bracits.surveyengine.auth.entity.FallbackPolicy;
 import com.bracits.surveyengine.auth.repository.AuthConfigAuditRepository;
 import com.bracits.surveyengine.auth.service.AuthProfileService;
 import com.bracits.surveyengine.auth.service.TokenValidationService;
+import com.bracits.surveyengine.common.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -75,18 +77,81 @@ class AuthIntegrationTest {
                                 .audience("test-audience")
                                 .claimMappings(List.of(
                                                 AuthProfileRequest.ClaimMappingRequest.builder()
+                                                                .externalClaim("sub")
+                                                                .internalField("respondentId")
+                                                                .required(true)
+                                                                .build(),
+                                                AuthProfileRequest.ClaimMappingRequest.builder()
                                                                 .externalClaim("email")
                                                                 .internalField("email")
                                                                 .build()))
                                 .build());
 
                 String token = createSignedToken(secret,
-                                "{\"sub\":\"user-123\",\"iss\":\"test-issuer\",\"aud\":\"test-audience\",\"email\":\"user@test.com\",\"exp\":%d}"
-                                                .formatted(Instant.now().plusSeconds(3600).getEpochSecond()));
+                                "{\"sub\":\"user-123\",\"iss\":\"test-issuer\",\"aud\":\"test-audience\",\"email\":\"user@test.com\",\"jti\":\"%s\",\"iat\":%d,\"exp\":%d}"
+                                                .formatted(
+                                                                UUID.randomUUID(),
+                                                                Instant.now().getEpochSecond(),
+                                                                Instant.now().plusSeconds(3600).getEpochSecond()));
 
                 TokenValidationResult result = tokenValidationService.validateToken("tenant-signed-1", token);
                 assertThat(result.isValid()).isTrue();
                 assertThat(result.getRespondentId()).isEqualTo("user-123");
+        }
+
+        @Test
+        void shouldApplyDefaultClaimMappingsWhenNotProvided() throws Exception {
+                String secret = "test-secret-default-mapping";
+
+                authProfileService.create(AuthProfileRequest.builder()
+                                .tenantId("tenant-default-mapping-1")
+                                .authMode(AuthenticationMode.SIGNED_LAUNCH_TOKEN)
+                                .signingSecret(secret)
+                                .build());
+
+                String token = createSignedToken(secret,
+                                "{\"sub\":\"default-user-1\",\"jti\":\"%s\",\"iat\":%d,\"exp\":%d}"
+                                                .formatted(
+                                                                UUID.randomUUID(),
+                                                                Instant.now().getEpochSecond(),
+                                                                Instant.now().plusSeconds(3600).getEpochSecond()));
+
+                TokenValidationResult result = tokenValidationService.validateToken("tenant-default-mapping-1", token);
+                assertThat(result.isValid()).isTrue();
+                assertThat(result.getRespondentId()).isEqualTo("default-user-1");
+        }
+
+        @Test
+        void shouldRejectClaimMappingsWithoutRequiredRespondentId() {
+                assertThatThrownBy(() -> authProfileService.create(AuthProfileRequest.builder()
+                                .tenantId("tenant-invalid-mapping-1")
+                                .authMode(AuthenticationMode.EXTERNAL_SSO_TRUST)
+                                .claimMappings(List.of(
+                                                AuthProfileRequest.ClaimMappingRequest.builder()
+                                                                .externalClaim("email")
+                                                                .internalField("email")
+                                                                .required(true)
+                                                                .build()))
+                                .build()))
+                                .isInstanceOf(BusinessException.class)
+                                .hasMessageContaining("respondentId");
+        }
+
+        @Test
+        void shouldUseSecureDefaultOidcScopesWhenNotProvided() {
+                AuthProfileResponse created = authProfileService.create(AuthProfileRequest.builder()
+                                .tenantId("tenant-oidc-scopes-1")
+                                .authMode(AuthenticationMode.EXTERNAL_SSO_TRUST)
+                                .build());
+                assertThat(created.getOidcScopes()).isEqualTo("openid email profile");
+
+                AuthProfileResponse updated = authProfileService.update(created.getId(), AuthProfileRequest.builder()
+                                .tenantId("tenant-oidc-scopes-1")
+                                .authMode(AuthenticationMode.EXTERNAL_SSO_TRUST)
+                                .oidcScopes("profile")
+                                .build());
+                assertThat(updated.getOidcScopes()).contains("profile");
+                assertThat(updated.getOidcScopes()).contains("openid");
         }
 
         @Test
@@ -100,8 +165,11 @@ class AuthIntegrationTest {
                                 .build());
 
                 String token = createSignedToken(secret,
-                                "{\"sub\":\"user-1\",\"exp\":%d}"
-                                                .formatted(Instant.now().minusSeconds(3600).getEpochSecond()));
+                                "{\"sub\":\"user-1\",\"jti\":\"%s\",\"iat\":%d,\"exp\":%d}"
+                                                .formatted(
+                                                                UUID.randomUUID(),
+                                                                Instant.now().minusSeconds(7200).getEpochSecond(),
+                                                                Instant.now().minusSeconds(3600).getEpochSecond()));
 
                 TokenValidationResult result = tokenValidationService.validateToken("tenant-expired-1", token);
                 assertThat(result.isValid()).isFalse();
@@ -117,12 +185,39 @@ class AuthIntegrationTest {
                                 .build());
 
                 String token = createSignedToken("wrong-secret",
-                                "{\"sub\":\"user-1\",\"exp\":%d}"
-                                                .formatted(Instant.now().plusSeconds(3600).getEpochSecond()));
+                                "{\"sub\":\"user-1\",\"jti\":\"%s\",\"iat\":%d,\"exp\":%d}"
+                                                .formatted(
+                                                                UUID.randomUUID(),
+                                                                Instant.now().getEpochSecond(),
+                                                                Instant.now().plusSeconds(3600).getEpochSecond()));
 
                 TokenValidationResult result = tokenValidationService.validateToken("tenant-badsig-1", token);
                 assertThat(result.isValid()).isFalse();
                 assertThat(result.getErrorCode()).isEqualTo("AUTH_SSO_REQUIRED");
+        }
+
+        @Test
+        void shouldRejectReplayTokenByJti() throws Exception {
+                String secret = "test-secret-replay";
+
+                authProfileService.create(AuthProfileRequest.builder()
+                                .tenantId("tenant-replay-1")
+                                .authMode(AuthenticationMode.SIGNED_LAUNCH_TOKEN)
+                                .signingSecret(secret)
+                                .build());
+
+                String token = createSignedToken(secret,
+                                "{\"sub\":\"user-1\",\"jti\":\"replay-jti-1\",\"iat\":%d,\"exp\":%d}"
+                                                .formatted(
+                                                                Instant.now().getEpochSecond(),
+                                                                Instant.now().plusSeconds(3600).getEpochSecond()));
+
+                TokenValidationResult first = tokenValidationService.validateToken("tenant-replay-1", token);
+                assertThat(first.isValid()).isTrue();
+
+                TokenValidationResult second = tokenValidationService.validateToken("tenant-replay-1", token);
+                assertThat(second.isValid()).isFalse();
+                assertThat(second.getErrorCode()).isEqualTo("AUTH_SSO_REQUIRED");
         }
 
         // ===== Key Rotation + Audit =====
@@ -183,14 +278,18 @@ class AuthIntegrationTest {
         // ===== Helper =====
 
         private String createSignedToken(String secret, String payloadJson) throws Exception {
-                String payloadBase64 = Base64.getEncoder()
+                String headerJson = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
+                String headerBase64 = Base64.getUrlEncoder().withoutPadding()
+                                .encodeToString(headerJson.getBytes(StandardCharsets.UTF_8));
+                String payloadBase64 = Base64.getUrlEncoder().withoutPadding()
                                 .encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8));
+                String signingInput = headerBase64 + "." + payloadBase64;
 
                 Mac mac = Mac.getInstance("HmacSHA256");
                 mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-                String sig = Base64.getEncoder()
-                                .encodeToString(mac.doFinal(payloadBase64.getBytes(StandardCharsets.UTF_8)));
+                String sig = Base64.getUrlEncoder().withoutPadding()
+                                .encodeToString(mac.doFinal(signingInput.getBytes(StandardCharsets.UTF_8)));
 
-                return payloadBase64 + "." + sig;
+                return signingInput + "." + sig;
         }
 }

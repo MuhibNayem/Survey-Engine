@@ -4,11 +4,13 @@ import com.bracits.surveyengine.common.audit.AuditLogService;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
 import com.bracits.surveyengine.questionbank.service.QuestionService;
 import com.bracits.surveyengine.survey.dto.*;
 import com.bracits.surveyengine.survey.entity.*;
 import com.bracits.surveyengine.survey.repository.SurveyRepository;
 import com.bracits.surveyengine.survey.repository.SurveySnapshotRepository;
+import com.bracits.surveyengine.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,13 +49,17 @@ public class SurveyServiceImpl implements SurveyService {
     private final SurveySnapshotRepository snapshotRepository;
     private final QuestionService questionService;
     private final AuditLogService auditLogService;
+    private final TenantService tenantService;
 
     @Override
     @Transactional
     public SurveyResponse create(SurveyRequest request) {
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        tenantService.ensureProvisioned(tenantId);
         Survey survey = Survey.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
+                .tenantId(tenantId)
                 .build();
 
         if (request.getPages() != null) {
@@ -96,7 +102,7 @@ public class SurveyServiceImpl implements SurveyService {
     @Override
     @Transactional(readOnly = true)
     public List<SurveyResponse> getAllActive() {
-        return surveyRepository.findByActiveTrue().stream()
+        return surveyRepository.findByActiveTrueAndTenantId(TenantSupport.currentTenantOrDefault()).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -205,6 +211,7 @@ public class SurveyServiceImpl implements SurveyService {
     @Override
     @Transactional(readOnly = true)
     public SurveySnapshot getLatestSnapshot(UUID surveyId) {
+        findOrThrow(surveyId);
         return snapshotRepository
                 .findTopBySurveyIdOrderByVersionNumberDesc(surveyId)
                 .orElseThrow(() -> new ResourceNotFoundException("SurveySnapshot", surveyId));
@@ -272,7 +279,7 @@ public class SurveyServiceImpl implements SurveyService {
     }
 
     private Survey findOrThrow(UUID id) {
-        return surveyRepository.findById(id)
+        return surveyRepository.findByIdAndTenantId(id, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("Survey", id));
     }
 

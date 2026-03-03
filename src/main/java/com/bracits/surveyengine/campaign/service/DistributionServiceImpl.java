@@ -6,6 +6,7 @@ import com.bracits.surveyengine.campaign.entity.DistributionChannelType;
 import com.bracits.surveyengine.campaign.repository.CampaignRepository;
 import com.bracits.surveyengine.campaign.repository.DistributionChannelRepository;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +33,7 @@ public class DistributionServiceImpl implements DistributionService {
     @Override
     @Transactional
     public List<DistributionChannelResponse> generateChannels(UUID campaignId) {
-        campaignRepository.findById(campaignId)
+        campaignRepository.findByIdAndTenantId(campaignId, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
 
         List<DistributionChannel> channels = new ArrayList<>();
@@ -71,6 +72,8 @@ public class DistributionServiceImpl implements DistributionService {
     @Override
     @Transactional(readOnly = true)
     public List<DistributionChannelResponse> getChannels(UUID campaignId) {
+        campaignRepository.findByIdAndTenantId(campaignId, TenantSupport.currentTenantOrDefault())
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
         return channelRepository.findByCampaignId(campaignId).stream()
                 .map(this::toResponse)
                 .toList();

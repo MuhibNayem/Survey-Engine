@@ -40,6 +40,9 @@ public class Question extends AuditableEntity {
     @Column(name = "current_version", nullable = false)
     private Integer currentVersion;
 
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
+
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;

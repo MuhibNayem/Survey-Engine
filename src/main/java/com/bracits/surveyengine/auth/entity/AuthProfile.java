@@ -48,6 +48,26 @@ public class AuthProfile extends AuditableEntity {
     @Column(name = "jwks_endpoint")
     private String jwksEndpoint;
 
+    /** OIDC discovery URL (/.well-known/openid-configuration) */
+    @Column(name = "oidc_discovery_url")
+    private String oidcDiscoveryUrl;
+
+    /** OIDC client identifier */
+    @Column(name = "oidc_client_id")
+    private String oidcClientId;
+
+    /** OIDC client secret (stored encrypted in production) */
+    @Column(name = "oidc_client_secret")
+    private String oidcClientSecret;
+
+    /** OIDC callback URI registered in IdP */
+    @Column(name = "oidc_redirect_uri")
+    private String oidcRedirectUri;
+
+    /** OIDC scopes requested during authorization flow */
+    @Column(name = "oidc_scopes")
+    private String oidcScopes;
+
     /** Allowed clock skew in seconds for token validation */
     @Column(name = "clock_skew_seconds")
     @Builder.Default

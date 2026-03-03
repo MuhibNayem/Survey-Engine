@@ -20,6 +20,8 @@ public class ResponseSubmissionRequest {
     private String respondentIdentifier;
     private String respondentIp;
     private String respondentDeviceFingerprint;
+    private String responderToken;
+    private String responderAccessCode;
 
     private List<AnswerRequest> answers;
 

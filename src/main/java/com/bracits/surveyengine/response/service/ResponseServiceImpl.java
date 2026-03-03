@@ -1,6 +1,13 @@
 package com.bracits.surveyengine.response.service;
 
+import com.bracits.surveyengine.auth.dto.TokenValidationResult;
+import com.bracits.surveyengine.auth.dto.ResponderAccessIdentity;
+import com.bracits.surveyengine.auth.entity.AuthenticationMode;
+import com.bracits.surveyengine.auth.repository.AuthProfileRepository;
+import com.bracits.surveyengine.auth.service.OidcResponderAuthService;
+import com.bracits.surveyengine.auth.service.TokenValidationService;
 import com.bracits.surveyengine.campaign.entity.Campaign;
+import com.bracits.surveyengine.campaign.entity.AuthMode;
 import com.bracits.surveyengine.campaign.entity.CampaignSettings;
 import com.bracits.surveyengine.campaign.entity.CampaignStatus;
 import com.bracits.surveyengine.campaign.repository.CampaignRepository;
@@ -8,6 +15,8 @@ import com.bracits.surveyengine.campaign.repository.CampaignSettingsRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
+import com.bracits.surveyengine.subscription.service.PlanQuotaService;
 import com.bracits.surveyengine.response.dto.ResponseSubmissionRequest;
 import com.bracits.surveyengine.response.dto.SurveyResponseResponse;
 import com.bracits.surveyengine.response.entity.Answer;
@@ -36,6 +45,10 @@ public class ResponseServiceImpl implements ResponseService {
     private final SurveyResponseRepository responseRepository;
     private final CampaignRepository campaignRepository;
     private final CampaignSettingsRepository settingsRepository;
+    private final TokenValidationService tokenValidationService;
+    private final AuthProfileRepository authProfileRepository;
+    private final PlanQuotaService planQuotaService;
+    private final OidcResponderAuthService oidcResponderAuthService;
 
     @Override
     @Transactional
@@ -49,17 +62,22 @@ public class ResponseServiceImpl implements ResponseService {
                     "Campaign %s is not active".formatted(campaign.getId()));
         }
 
+        // 2. Enforce access mode (PUBLIC vs PRIVATE)
+        enforceAccessMode(campaign, request);
+
         // 2. Enforce runtime settings
         CampaignSettings settings = settingsRepository.findByCampaignId(campaign.getId())
                 .orElse(null);
         if (settings != null) {
-            enforceSettings(settings, request, campaign.getId());
+            enforceSettings(settings, request, campaign.getId(), campaign.getTenantId());
         }
+        enforcePlanResponseQuota(campaign.getId(), campaign.getTenantId());
 
         // 3. Build and save response
         SurveyResponse surveyResponse = SurveyResponse.builder()
                 .campaignId(campaign.getId())
                 .surveySnapshotId(campaign.getSurveySnapshotId())
+                .tenantId(campaign.getTenantId())
                 .respondentIdentifier(request.getRespondentIdentifier())
                 .respondentIp(request.getRespondentIp())
                 .respondentDeviceFingerprint(request.getRespondentDeviceFingerprint())
@@ -90,6 +108,60 @@ public class ResponseServiceImpl implements ResponseService {
         return toResponse(surveyResponse);
     }
 
+    private void enforceAccessMode(Campaign campaign, ResponseSubmissionRequest request) {
+        if (campaign.getAuthMode() == AuthMode.PUBLIC) {
+            return;
+        }
+
+        if (request.getResponderAccessCode() != null && !request.getResponderAccessCode().isBlank()) {
+            ResponderAccessIdentity identity = oidcResponderAuthService.consumeAccessCode(
+                    request.getResponderAccessCode(), campaign.getTenantId(), campaign.getId());
+            if ((request.getRespondentIdentifier() == null || request.getRespondentIdentifier().isBlank())
+                    && identity.getEmail() != null && !identity.getEmail().isBlank()) {
+                request.setRespondentIdentifier(identity.getEmail());
+            }
+            return;
+        }
+
+        if (request.getResponderToken() == null || request.getResponderToken().isBlank()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Responder token or access code is required for private campaigns");
+        }
+
+        String tenantId = campaign.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Campaign tenant is not configured");
+        }
+
+        var profile = authProfileRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCESS_DENIED,
+                        "No tenant auth profile configured for private campaign"));
+
+        if (profile.getAuthMode() == AuthenticationMode.PUBLIC_ANONYMOUS) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Private campaign requires tenant auth mode other than PUBLIC_ANONYMOUS");
+        }
+
+        TokenValidationResult validation = tokenValidationService.validateToken(tenantId, request.getResponderToken());
+        if (!validation.isValid()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Responder authentication failed: " + validation.getErrorMessage());
+        }
+
+        // Private mode must not degrade to anonymous fallback.
+        if (validation.getRespondentId() != null && validation.getRespondentId().startsWith("anon-")) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Anonymous access is not allowed for private campaigns");
+        }
+
+        // Populate identifier from auth context when client didn't supply one.
+        if ((request.getRespondentIdentifier() == null || request.getRespondentIdentifier().isBlank())
+                && validation.getEmail() != null && !validation.getEmail().isBlank()) {
+            request.setRespondentIdentifier(validation.getEmail());
+        }
+    }
+
     @Override
     @Transactional(readOnly = true)
     public SurveyResponseResponse getById(UUID id) {
@@ -99,7 +171,10 @@ public class ResponseServiceImpl implements ResponseService {
     @Override
     @Transactional(readOnly = true)
     public List<SurveyResponseResponse> getByCampaignId(UUID campaignId) {
-        return responseRepository.findByCampaignId(campaignId).stream()
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        campaignRepository.findByIdAndTenantId(campaignId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+        return responseRepository.findByCampaignIdAndTenantId(campaignId, tenantId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -112,11 +187,11 @@ public class ResponseServiceImpl implements ResponseService {
      * - Email restriction (respondent identifier dedup)
      */
     private void enforceSettings(CampaignSettings settings,
-            ResponseSubmissionRequest request, UUID campaignId) {
+            ResponseSubmissionRequest request, UUID campaignId, String campaignTenantId) {
         // Quota check
         if (settings.getResponseQuota() != null) {
-            long currentCount = responseRepository.countByCampaignIdAndStatus(
-                    campaignId, ResponseStatus.LOCKED);
+            long currentCount = responseRepository.countByCampaignIdAndStatusAndTenantId(
+                    campaignId, ResponseStatus.LOCKED, campaignTenantId);
             if (currentCount >= settings.getResponseQuota()) {
                 throw new BusinessException(ErrorCode.RESPONSE_QUOTA_EXCEEDED,
                         "Campaign quota of %d responses has been reached"
@@ -132,8 +207,8 @@ public class ResponseServiceImpl implements ResponseService {
 
         // One response per device
         if (settings.isOneResponsePerDevice() && request.getRespondentDeviceFingerprint() != null) {
-            if (responseRepository.existsByCampaignIdAndRespondentDeviceFingerprint(
-                    campaignId, request.getRespondentDeviceFingerprint())) {
+            if (responseRepository.existsByCampaignIdAndRespondentDeviceFingerprintAndTenantId(
+                    campaignId, request.getRespondentDeviceFingerprint(), campaignTenantId)) {
                 throw new BusinessException(ErrorCode.DUPLICATE_RESPONSE,
                         "A response from this device already exists");
             }
@@ -141,8 +216,8 @@ public class ResponseServiceImpl implements ResponseService {
 
         // IP restriction
         if (settings.isIpRestrictionEnabled() && request.getRespondentIp() != null) {
-            if (responseRepository.existsByCampaignIdAndRespondentIp(
-                    campaignId, request.getRespondentIp())) {
+            if (responseRepository.existsByCampaignIdAndRespondentIpAndTenantId(
+                    campaignId, request.getRespondentIp(), campaignTenantId)) {
                 throw new BusinessException(ErrorCode.DUPLICATE_RESPONSE,
                         "A response from this IP address already exists");
             }
@@ -150,8 +225,8 @@ public class ResponseServiceImpl implements ResponseService {
 
         // Email restriction
         if (settings.isEmailRestrictionEnabled() && request.getRespondentIdentifier() != null) {
-            if (responseRepository.existsByCampaignIdAndRespondentIdentifier(
-                    campaignId, request.getRespondentIdentifier())) {
+            if (responseRepository.existsByCampaignIdAndRespondentIdentifierAndTenantId(
+                    campaignId, request.getRespondentIdentifier(), campaignTenantId)) {
                 throw new BusinessException(ErrorCode.DUPLICATE_RESPONSE,
                         "A response from this email already exists");
             }
@@ -159,8 +234,21 @@ public class ResponseServiceImpl implements ResponseService {
     }
 
     private SurveyResponse findOrThrow(UUID id) {
-        return responseRepository.findById(id)
+        return responseRepository.findByIdAndTenantId(id, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("SurveyResponse", id));
+    }
+
+    private void enforcePlanResponseQuota(UUID campaignId, String campaignTenantId) {
+        Integer maxResponses = planQuotaService.getMaxResponsesPerCampaign(campaignTenantId);
+        if (maxResponses == null) {
+            return;
+        }
+        long currentCount = responseRepository.countByCampaignIdAndStatusAndTenantId(
+                campaignId, ResponseStatus.LOCKED, campaignTenantId);
+        if (currentCount >= maxResponses) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED,
+                    "Plan quota exceeded: max responses per campaign=" + maxResponses);
+        }
     }
 
     private SurveyResponseResponse toResponse(SurveyResponse r) {

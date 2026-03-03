@@ -7,6 +7,9 @@ import com.bracits.surveyengine.campaign.repository.CampaignSettingsRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
+import com.bracits.surveyengine.subscription.service.PlanQuotaService;
+import com.bracits.surveyengine.tenant.service.TenantService;
 import com.bracits.surveyengine.survey.entity.SurveyLifecycleState;
 import com.bracits.surveyengine.survey.entity.SurveySnapshot;
 import com.bracits.surveyengine.survey.repository.SurveyRepository;
@@ -29,19 +32,25 @@ public class CampaignServiceImpl implements CampaignService {
     private final CampaignSettingsRepository settingsRepository;
     private final SurveyRepository surveyRepository;
     private final SurveyService surveyService;
+    private final PlanQuotaService planQuotaService;
+    private final TenantService tenantService;
 
     @Override
     @Transactional
     public CampaignResponse create(CampaignRequest request) {
+        String tenantId = resolveTenantId();
+        tenantService.ensureProvisioned(tenantId);
+        planQuotaService.enforceCampaignQuota(tenantId);
         // Verify survey exists
-        surveyRepository.findById(request.getSurveyId())
+        surveyRepository.findByIdAndTenantId(request.getSurveyId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Survey", request.getSurveyId()));
 
         Campaign campaign = Campaign.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .surveyId(request.getSurveyId())
-                .authMode(request.getAuthMode() != null ? request.getAuthMode() : AuthMode.PUBLIC)
+                .tenantId(tenantId)
+                .authMode(normalizeAccessMode(request.getAuthMode()))
                 .build();
         campaign = campaignRepository.save(campaign);
 
@@ -63,7 +72,7 @@ public class CampaignServiceImpl implements CampaignService {
     @Override
     @Transactional(readOnly = true)
     public List<CampaignResponse> getAllActive() {
-        return campaignRepository.findByActiveTrue().stream()
+        return campaignRepository.findByActiveTrueAndTenantId(resolveTenantId()).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -75,7 +84,7 @@ public class CampaignServiceImpl implements CampaignService {
         campaign.setName(request.getName());
         campaign.setDescription(request.getDescription());
         if (request.getAuthMode() != null) {
-            campaign.setAuthMode(request.getAuthMode());
+            campaign.setAuthMode(normalizeAccessMode(request.getAuthMode()));
         }
         campaign = campaignRepository.save(campaign);
         return toResponse(campaign);
@@ -130,7 +139,7 @@ public class CampaignServiceImpl implements CampaignService {
         Campaign campaign = findOrThrow(id);
         UUID surveyId = campaign.getSurveyId();
 
-        var survey = surveyRepository.findById(surveyId)
+        var survey = surveyRepository.findByIdAndTenantId(surveyId, resolveTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Survey", surveyId));
         if (survey.getLifecycleState() != SurveyLifecycleState.PUBLISHED) {
             throw new BusinessException(ErrorCode.INVALID_LIFECYCLE_TRANSITION,
@@ -145,7 +154,7 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     private Campaign findOrThrow(UUID id) {
-        return campaignRepository.findById(id)
+        return campaignRepository.findByIdAndTenantId(id, resolveTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", id));
     }
 
@@ -164,5 +173,16 @@ public class CampaignServiceImpl implements CampaignService {
                 .updatedBy(c.getUpdatedBy())
                 .updatedAt(c.getUpdatedAt())
                 .build();
+    }
+
+    private AuthMode normalizeAccessMode(AuthMode requested) {
+        if (requested == null || requested == AuthMode.PUBLIC) {
+            return AuthMode.PUBLIC;
+        }
+        return AuthMode.PRIVATE;
+    }
+
+    private String resolveTenantId() {
+        return TenantSupport.currentTenantOrDefault();
     }
 }

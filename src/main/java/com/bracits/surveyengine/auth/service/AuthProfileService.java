@@ -2,7 +2,9 @@ package com.bracits.surveyengine.auth.service;
 
 import com.bracits.surveyengine.auth.dto.AuthProfileRequest;
 import com.bracits.surveyengine.auth.dto.AuthProfileResponse;
+import com.bracits.surveyengine.auth.dto.ProviderTemplateResponse;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -18,4 +20,8 @@ public interface AuthProfileService {
     AuthProfileResponse getByTenantId(String tenantId);
 
     AuthProfileResponse rotateKey(UUID id);
+
+    List<ProviderTemplateResponse> listProviderTemplates();
+
+    ProviderTemplateResponse getProviderTemplate(String providerCode);
 }

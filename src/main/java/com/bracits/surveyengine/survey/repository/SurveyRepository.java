@@ -6,11 +6,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface SurveyRepository extends JpaRepository<Survey, UUID> {
-    List<Survey> findByActiveTrue();
+    List<Survey> findByActiveTrueAndTenantId(String tenantId);
 
-    List<Survey> findByLifecycleStateAndActiveTrue(SurveyLifecycleState state);
+    List<Survey> findByLifecycleStateAndActiveTrueAndTenantId(SurveyLifecycleState state, String tenantId);
+
+    Optional<Survey> findByIdAndTenantId(UUID id, String tenantId);
 }

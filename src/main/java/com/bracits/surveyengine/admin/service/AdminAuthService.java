@@ -10,6 +10,9 @@ import com.bracits.surveyengine.admin.repository.AdminUserRepository;
 import com.bracits.surveyengine.admin.repository.RefreshTokenRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
+import com.bracits.surveyengine.subscription.service.PlanQuotaService;
+import com.bracits.surveyengine.subscription.service.SubscriptionService;
+import com.bracits.surveyengine.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,6 +35,9 @@ public class AdminAuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final TenantService tenantService;
+    private final SubscriptionService subscriptionService;
+    private final PlanQuotaService planQuotaService;
 
     @Value("${survey-engine.jwt.refresh-ttl-seconds:604800}")
     private long refreshTtlSeconds; // 7 days default
@@ -42,6 +48,9 @@ public class AdminAuthService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESPONSE,
                     "Email already registered: " + request.getEmail());
         }
+        tenantService.ensureProvisioned(request.getTenantId());
+        subscriptionService.ensureTrial(request.getTenantId());
+        planQuotaService.enforceAdminUserQuota(request.getTenantId());
 
         AdminUser user = AdminUser.builder()
                 .email(request.getEmail())

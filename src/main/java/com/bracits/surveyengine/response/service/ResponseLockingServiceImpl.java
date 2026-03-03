@@ -3,6 +3,7 @@ package com.bracits.surveyengine.response.service;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
 import com.bracits.surveyengine.response.dto.ReopenRequest;
 import com.bracits.surveyengine.response.dto.SurveyResponseResponse;
 import com.bracits.surveyengine.response.entity.ReopenAudit;
@@ -70,7 +71,7 @@ public class ResponseLockingServiceImpl implements ResponseLockingService {
     }
 
     private SurveyResponse findOrThrow(UUID id) {
-        return responseRepository.findById(id)
+        return responseRepository.findByIdAndTenantId(id, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("SurveyResponse", id));
     }
 

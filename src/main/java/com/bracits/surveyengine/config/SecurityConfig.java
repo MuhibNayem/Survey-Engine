@@ -1,6 +1,7 @@
 package com.bracits.surveyengine.config;
 
 import com.bracits.surveyengine.admin.filter.JwtAuthenticationFilter;
+import com.bracits.surveyengine.subscription.service.SubscriptionEnforcementFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -9,6 +10,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -26,9 +28,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final SubscriptionEnforcementFilter subscriptionEnforcementFilter;
 
-        public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                        SubscriptionEnforcementFilter subscriptionEnforcementFilter) {
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+                this.subscriptionEnforcementFilter = subscriptionEnforcementFilter;
         }
 
         @Bean
@@ -40,11 +45,15 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
                                                 // Public — admin registration & login
                                                 .requestMatchers("/api/v1/admin/auth/**").permitAll()
+                                                .requestMatchers("/api/v1/admin/subscriptions/**").authenticated()
                                                 // Public — health checks
                                                 .requestMatchers("/actuator/**").permitAll()
+                                                .requestMatchers(HttpMethod.PUT, "/api/v1/admin/plans/**")
+                                                .hasRole("SUPER_ADMIN")
                                                 // Public — respondent-facing (external auth handled separately per
                                                 // campaign)
                                                 .requestMatchers("/api/v1/auth/validate/**").permitAll()
+                                                .requestMatchers("/api/v1/auth/respondent/oidc/**").permitAll()
                                                 .requestMatchers("/api/v1/responses").permitAll()
 
                                                 // Admin endpoints — require engine-issued JWT
@@ -57,7 +66,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/v1/responses/**").authenticated()
 
                                                 .anyRequest().authenticated())
-                                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterAfter(subscriptionEnforcementFilter, JwtAuthenticationFilter.class);
 
                 return http.build();
         }

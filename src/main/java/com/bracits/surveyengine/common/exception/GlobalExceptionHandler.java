@@ -80,6 +80,8 @@ public class GlobalExceptionHandler {
         return switch (errorCode) {
             case RESOURCE_NOT_FOUND -> HttpStatus.NOT_FOUND;
             case INVALID_LIFECYCLE_TRANSITION, SURVEY_IMMUTABLE_AFTER_PUBLISH -> HttpStatus.CONFLICT;
+            case SUBSCRIPTION_INACTIVE -> HttpStatus.PAYMENT_REQUIRED;
+            case QUOTA_EXCEEDED, RESPONSE_QUOTA_EXCEEDED -> HttpStatus.TOO_MANY_REQUESTS;
             case ACCESS_DENIED -> HttpStatus.FORBIDDEN;
             case INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
             default -> HttpStatus.BAD_REQUEST;

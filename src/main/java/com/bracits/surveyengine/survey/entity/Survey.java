@@ -45,6 +45,9 @@ public class Survey extends AuditableEntity {
     @Builder.Default
     private Integer currentVersion = 1;
 
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
+
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     @Builder.Default

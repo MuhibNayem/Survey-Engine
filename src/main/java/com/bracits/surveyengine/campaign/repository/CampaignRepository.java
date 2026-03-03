@@ -6,13 +6,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
-    List<Campaign> findByActiveTrue();
+    List<Campaign> findByActiveTrueAndTenantId(String tenantId);
 
-    List<Campaign> findBySurveyIdAndActiveTrue(UUID surveyId);
+    List<Campaign> findBySurveyIdAndActiveTrueAndTenantId(UUID surveyId, String tenantId);
 
-    List<Campaign> findByStatusAndActiveTrue(CampaignStatus status);
+    List<Campaign> findByStatusAndActiveTrueAndTenantId(CampaignStatus status, String tenantId);
+
+    Optional<Campaign> findByIdAndTenantId(UUID id, String tenantId);
+
+    long countByTenantIdAndActiveTrue(String tenantId);
 }

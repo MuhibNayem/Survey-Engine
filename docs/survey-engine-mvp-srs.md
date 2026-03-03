@@ -1,307 +1,317 @@
 # **Software Requirements Specification (SRS)**
 
-## **Survey Engine MVP**
+## **Survey Engine MVP (Implemented Baseline)**
 
 | Field | Value |
 | ----- | ----- |
 | Document Title | Survey Engine MVP SRS |
-| Version | 1.0 |
+| Version | 2.0 |
 | Date | March 3, 2026 |
 | Prepared For | Product and Engineering |
 | Classification | Internal |
+| Status | Reflects implemented code and schema |
 
 ## **1\. Purpose**
 
-Define the MVP requirements for a Survey Engine that supports survey authoring, response collection, controlled distribution, analytics, and weighted scoring for category-based evaluation.
+Define the implemented MVP requirements for a multi-tenant Survey Engine that supports survey authoring, campaign distribution, response collection, scoring, tenant-scoped authentication, and SaaS subscription/plan controls.
 
 ## **2\. Scope**
 
-### **2.1 In Scope (MVP)**
+### **2.1 In Scope (Implemented)**
 
-* Survey and campaign creation using reusable question categories.  
-* Question bank and category management.  
-* Survey runtime with required/optional questions and skip logic.  
-* Respondent metadata collection.  
-* Survey-level settings and restrictions.  
-* Basic theming/styling.  
-* Results dashboard and reporting.  
-* Weighted scoring by question and category.
+* Multi-tenant data model with tenant isolation in service/repository layer and DB constraints.  
+* Engine-owned admin authentication (register/login/refresh tokens).  
+* Admin RBAC using JWT roles (`SUPER_ADMIN`, `ADMIN`, `EDITOR`, `VIEWER`).  
+* Question bank and category CRUD with version snapshots.  
+* Survey CRUD with lifecycle transitions and immutable published snapshots.  
+* Campaign CRUD, runtime settings, activation, and distribution channel generation.  
+* Responder submission, response locking, reopen workflow, and basic analytics.  
+* Campaign access mode (`PUBLIC`/`PRIVATE`) with tenant-level external auth profile for private responder access.  
+* Weighted scoring with profile validation and deterministic calculation.  
+* SaaS subscription domain (tenant subscription, plan catalog, mock payment success flow).  
+* Super-admin plan catalog management and tenant plan quota enforcement.
 
-### **2.2 Out of Scope (Post-MVP)**
+### **2.2 Out of Scope (Current Codebase)**
 
-* Advanced AI insights.  
-* External BI warehouse pipelines.  
-* Multi-tenant enterprise permission matrix beyond basic role controls.
+* Real payment gateway integration (currently mock-success gateway).  
+* Per-feature usage metering beyond implemented quotas (admin users, active campaigns, responses per campaign).  
+* Advanced analytics (time-series traffic dashboards, segmentation UI, BI pipelines).  
+* Full enterprise permission matrix beyond role-based API controls.  
+* Public API for theme template lifecycle (theme tables exist but dedicated theming controller is not implemented).  
+* Native SAML protocol stack, native LDAP bind integration, and provider-specific SDK integrations for each IdP vendor.
 
 ## **3\. Definitions**
 
-* Survey: A questionnaire instance delivered to respondents.  
-* Campaign: A delivery container for one survey and its distribution settings.  
-* Question Bank: Repository of reusable questions.  
-* Category: A logical grouping of questions from the question bank.  
-* Weight Profile: Category weight configuration used by evaluator/step scoring.
+* **Tenant**: Organizational boundary for data ownership and access isolation.  
+* **Survey**: Authoring container of pages/questions and lifecycle state.  
+* **Campaign**: Delivery container for one survey snapshot with runtime settings.  
+* **Question Bank**: Reusable questions used by categories/surveys.  
+* **Category**: Grouping of questions with versioned mappings.  
+* **Weight Profile**: Category weight model used for score computation.  
+* **Auth Profile**: Tenant-level respondent auth trust configuration.  
+* **Subscription**: Tenant billing state and active plan assignment.  
+* **Plan Definition**: Super-admin managed pricing/quota configuration for plan codes.
 
 ## **4\. Functional Requirements**
 
-### **4.1 Survey Builder**
+### **4.1 Admin Authentication and Authorization**
 
-* Support single-page and multi-page survey flows.  
-* Add and order questions.  
-* Mark questions as mandatory or optional.  
-* Define skip logic (conditional navigation).  
-* Configure answer choice ordering for single and multiple-choice questions.  
-* Support question types:  
-  * Rank  
-  * Rating scale
+* Engine issues admin JWT access tokens and refresh tokens.  
+* Supported admin auth endpoints: register, login, refresh.  
+* JWT contains tenant and role claims and populates request tenant context.  
+* API authorization is role-aware; plan update endpoint requires `SUPER_ADMIN`.
 
-### **4.2 Question Bank and Category Model**
+### **4.2 Multi-Tenancy and Data Isolation**
 
-* System shall maintain a reusable question bank.  
-* System shall allow creation of categories consisting of bank questions.  
-* A survey/campaign shall use categories, not ad-hoc unmanaged question lists.  
-* Questions may have per-question weight.  
-* Categories may have category weight within an evaluator weight profile.  
-* Question bank items and category definitions shall be versioned.  
-* When an admin creates/publishes a survey, the survey shall reference immutable tagged versions (snapshot) of categories and questions.  
-* Post-publish edits to bank questions/categories shall create new versions and must not mutate already-tagged survey content.  
-* Historical results must remain reproducible against the original published snapshot.
+* Core entities are tenant-owned via `tenant_id`: question, category, survey, campaign, weight_profile, auth_profile, survey_response, admin_user.  
+* Tenant ownership is enforced in service/repository access patterns for admin operations.  
+* DB-level tenant integrity is enforced with foreign keys to `tenant` and tenant-consistent composite FKs on major relationships.  
+* Cross-tenant access is rejected for protected admin operations.
 
-### **4.3 Respondent Form Fields (Metadata)**
+### **4.3 Question Bank and Category Model**
 
-* Support optional metadata capture before or during survey:  
-  * Name  
-  * Email  
-  * Address  
-  * Phone  
-  * Date/Time
+* Create, read, update, deactivate questions.  
+* Create, read, update, deactivate categories.  
+* Question and category version snapshots are generated on create/update.  
+* Category mappings reference versioned question snapshots.
 
-### **4.4 Styling and Theming**
+### **4.4 Survey Builder and Lifecycle**
 
-* Select visual style from predefined templates.  
-* Configure custom style per survey.
+* Create, read, update, deactivate surveys with pages/questions.  
+* Lifecycle transitions supported:
+  * `DRAFT -> PUBLISHED`
+  * `PUBLISHED -> CLOSED`
+  * `CLOSED -> RESULTS_PUBLISHED`
+  * `RESULTS_PUBLISHED -> ARCHIVED`
+  * `CLOSED -> PUBLISHED` (reopen with reason)
+* Publishing creates immutable survey snapshot data.  
+* Structural modifications are blocked after publish.
 
-### **4.5 Survey Settings**
+### **4.5 Campaign Management and Access Modes**
 
-#### **General Controls**
+* Create, read, update, deactivate campaigns.  
+* Activate campaign only when linked survey is `PUBLISHED`.  
+* Campaign access mode is:
+  * `PUBLIC`: responder auth token not required.
+  * `PRIVATE`: responder token required and validated through tenant auth profile.
+* Deprecated compatibility values (`SIGNED_TOKEN`, `SSO`) are normalized to private access behavior.
 
-* Password protection.  
-* CAPTCHA protection.  
-* One response per device/computer.  
-* IP restrictions.  
-* Email restrictions.  
-* Authentication mode selection per campaign:  
-  * Public (anonymous link)  
-  * External SSO required (subscriber-managed auth)  
-  * Token-gated access (signed launch token)
+### **4.6 Campaign Runtime Settings**
 
-#### **Behavior Controls**
+* Configurable controls:
+  * Password
+  * CAPTCHA
+  * One response per device
+  * IP restriction
+  * Email restriction
+  * Response quota
+  * Close date/time
+  * Session timeout
+  * Question numbers / progress indicator / back button
+  * Start/finish/header/footer messages
+  * Optional metadata capture flags
+* Runtime checks are enforced during response submission.
 
-* Close survey by date/time.  
-* Close survey by response quota.  
-* Show/hide question numbers.  
-* Show/hide progress indicator.  
-* Show/hide back button.  
-* Session timeout reset for incomplete responses.
+### **4.7 Distribution**
 
-#### **Start/Finish and Layout**
+* Generate and list campaign distribution channels:
+  * Public link
+  * Private link tokenized URL
+  * HTML embed
+  * WordPress embed
+  * JavaScript embed
+  * Email channel template
 
-* Configurable start message.  
-* Configurable finish message.  
-* Configurable header.  
-* Configurable footer.
+### **4.8 Respondent Authentication (Tenant-Scoped)**
 
-### **4.6 Survey and Campaign Lifecycle**
+#### **4.8.1 Provider Strategy**
 
-* Lifecycle states:  
-  * Draft  
-  * Published/Open  
-  * Closed  
-  * Results Published  
-  * Archived  
-* Allowed forward transitions:  
-  * Draft \-\> Published/Open  
-  * Published/Open \-\> Closed  
-  * Closed \-\> Results Published  
-  * Results Published \-\> Archived  
-* Reopen policy:  
-  * Closed \-\> Published/Open only when admin reopen policy allows it.  
-  * Reopen action must be explicitly audited with reason and actor.  
-* After transition to Published/Open, survey structure is immutable:  
-  * No add/remove/reorder of categories or questions.  
-  * No change to scoring weights or logic for that published snapshot.  
-  * No change to mandatory flags or answer configuration for that published snapshot.
+* Auth profile is configured per tenant, not per campaign.  
+* Integration strategy is protocol-first, not provider-specific code per vendor:
+  * OIDC/OAuth2 trust mode for modern IdPs (Keycloak, Okta, Auth0, Google, Entra ID, etc.).
+  * Signed launch token mode as universal fallback when subscriber cannot provide OIDC.
+  * Identity broker pattern for legacy SAML/LDAP environments (broker translates to OIDC/JWT for Survey Engine).
+* Native SAML and LDAP protocol implementations are not required for MVP.
 
-### **4.7 Results and Analytics**
+#### **4.8.2 Supported Modes**
 
-#### **Overview Dashboard**
+* `PUBLIC_ANONYMOUS`  
+* `SIGNED_LAUNCH_TOKEN`  
+* `EXTERNAL_SSO_TRUST`
 
-* Traffic chart by day/time.  
-* Total completed surveys.  
-* Completion rate.  
-* Incomplete response count.
+#### **4.8.2.1 Tenant Claim Mapping Rules**
 
-#### **Reports**
+* Claim mapping is tenant-scoped and configurable per auth profile.
+* Mapping supports required and optional rules using:
+  * `externalClaim` -> claim name/path from IdP token payload.
+  * `internalField` -> normalized engine identity field.
+  * `required` -> fail authentication when claim is missing.
+* `respondentId` mapping is mandatory and must be marked required.
+* Default mapping (applied when admin does not configure mappings):
+  * `sub` -> `respondentId` (required)
+  * `email` -> `email` (optional)
+* Validation is fail-closed when required claims are absent.
 
-* Question-level answer breakdown.  
-* Participant counts and participant metadata view.  
-* Filter and segment-based analysis.  
-* Comparative analysis across answers and metadata dimensions.
+#### **4.8.3 Fallback Policies**
 
-### **4.8 Distribution and Integration**
+* `SSO_REQUIRED`  
+* `ANONYMOUS_FALLBACK`  
+* `DISABLE_ON_FAILURE`
 
-* Public/private direct links.  
-* HTML embed.  
-* WordPress embed.  
-* JavaScript/front-end embed.  
-* Email distribution.
+#### **4.8.4 Private Campaign Enforcement**
 
-### **4.9 Authentication and Access (Best MVP Options)**
+* Private campaign submission requires:
+  * campaign `AuthMode=PRIVATE`
+  * tenant auth profile present
+  * auth profile mode not `PUBLIC_ANONYMOUS`
+  * valid responder token
+  * anonymous fallback is rejected for private access.
 
-#### **4.8.1 Auth Ownership Model**
+#### **4.8.5 Signed Launch Token Operational Model**
 
-* Survey Engine shall not be the primary identity provider for respondent users.  
-* Subscriber identity is externally managed by subscriber IdP/auth systems.  
-* Survey Engine admin user configures auth trust and claim mapping inside Survey Engine.
+* Subscriber backend must generate and sign a launch token after authenticating its own user.  
+* Subscriber must configure tenant signing key/secret in its backend runtime and keep it private.  
+* Survey Engine validates signature and claims before accepting response submission.  
+* This model is intended to support legacy/custom enterprise identity systems without requiring Survey Engine to implement those protocols directly.
 
-#### **4.8.2 Supported Auth Modes (MVP)**
+#### **4.8.6 Security Hardening Requirements (Production)**
 
-* Public Anonymous Mode  
-  * No identity assertion required.  
-  * Protected by campaign controls (password, CAPTCHA, IP/email/device limits, quota, expiry).  
-* Signed Launch Token Mode  
-  * Subscriber launches a survey with a short-lived signed token containing respondent identity/context.  
-  * Survey Engine validates signature, issuer, audience, expiry, and nonce/replay guard.  
-* External SSO Trust Mode  
-  * Survey Engine trusts subscriber IdP assertions (OIDC/JWT/SAML gateway handoff).  
-  * No separate Survey Engine login for respondents.
+* Token transport should avoid long-lived bearer tokens in query strings; prefer short-lived exchange code or secure POST/header transport where possible.  
+* Replay protection is mandatory (`jti`/nonce + server-side replay cache/store).  
+* Strict claim validation is mandatory (issuer, audience, expiry, clock skew, subject/email mapping, tenant binding).  
+* Signing key lifecycle must support rotation with key identifiers (`kid`) and dual-key validation windows.  
+* Auth failures must return deterministic error codes and be audit logged.
+* Claim mapping/profile updates are audit logged with before/after snapshots.
 
-#### **4.8.3 Admin Configuration Requirements**
+#### **4.8.7 OIDC Scope Defaults**
 
-* Configure per-tenant/per-subscriber auth profile:  
-  * Issuer  
-  * Audience  
-  * Verification key/JWKS endpoint/certificate  
-  * Allowed clock skew  
-  * Token TTL policy  
-* Configure claim mappings:  
-  * External user ID \-\> respondent external ID  
-  * Email claim \-\> respondent email  
-  * Optional organization/group claims for eligibility rules  
-* Configure fallback policy:  
-  * SSO required  
-  * Allow anonymous fallback  
-  * Disable launch if token validation fails
+* Secure default scopes: `openid email profile`.
+* Tenant admin may override scopes in auth profile.
+* `openid` is always enforced even when custom scopes are provided.
 
-#### **4.8.4 Security and Audit Requirements**
+#### **4.8.8 Provider Templates (UI/API Contract)**
 
-* All auth config changes must be audit logged with actor, timestamp, and before/after values.  
-* Signature key rotation must be supported without downtime.  
-* Replay protection is mandatory for signed launch mode.  
-* Invalid tokens/assertions must return deterministic auth error codes.  
-* Respondent sessions must be tenant-scoped and campaign-scoped.
+* Engine exposes provider setup templates for:
+  * `OKTA`
+  * `AUTH0`
+  * `AZURE_AD`
+  * `KEYCLOAK`
+* API:
+  * `GET /api/v1/auth/providers/templates`
+  * `GET /api/v1/auth/providers/templates/{providerCode}`
+* Response contract includes:
+  * `providerCode`, `displayName`, `description`
+  * `defaultScopes`
+  * `defaultClaimMappings`
+  * `requiredConfigFields`
+* UI should render template metadata as prefill guidance and allow tenant-level overrides before save.
 
-## **5\. Scoring and Weighting Requirements**
+### **4.9 Responses, Locking, and Analytics**
 
-### **5.1 Core Flow**
+* Responder can submit to active campaign endpoint.  
+* On successful submit, response is auto-locked.  
+* Admin can lock/reopen responses; reopen is audited with reason/window.  
+* Analytics endpoint returns totals and completion-related counts per campaign.
 
-1. Sum all question scores in each category.  
-2. Normalize category score by category maximum.  
-3. Apply category weight percentage.  
-4. Sum weighted category scores for final evaluator-step total.
+### **4.10 Scoring and Weighting**
 
-### **5.2 Formula**
+* Create/update/deactivate weight profiles per campaign.  
+* Validate profile category weights must total exactly 100%.  
+* Score calculation uses normalized category scoring and weighted aggregation.
 
-For each category:
+### **4.11 SaaS Subscription and Plans**
 
-* Raw Category Score \= sum(obtained marks for category questions)  
-* Max Category Score \= sum(max marks for category questions)  
-* Category Normalized % \= (Raw Category Score / Max Category Score) x 100  
-* Category Weighted Score \= Category Normalized % x Category Weight %
+* Tenant subscription records include plan, status, billing period, and activity state.  
+* Subscription checkout uses mock payment gateway and records transaction success.  
+* Subscription and plan metadata are available via admin subscription endpoint.  
+* Plan catalog is DB-driven (`plan_definition`) and editable by super admin.  
+* Active quotas enforced from plan definition:
+  * max active campaigns per tenant
+  * max responses per campaign
+  * max active admin users per tenant
+* Admin API operations require active subscription (with configured endpoint exemptions for auth/subscription flows).
 
-Evaluator-Step total:
+### **4.12 Identity Provider Compatibility Requirements**
 
-* Step Total \= sum(Category Weighted Score across all categories)
+* The engine is expected to support any provider that can issue standards-compliant OIDC/JWT tokens matching tenant configuration.  
+* Providers that cannot issue compatible tokens must integrate through:
+  * subscriber-side signed launch token generation, or
+  * identity broker translation to OIDC/JWT.  
+* “Any provider” support is therefore defined as standards compatibility or adapter/broker compatibility, not native protocol implementation for every legacy identity system.
 
-### **5.3 Constraints**
+## **5\. Data and Schema Requirements**
 
-* Category weights in one evaluator weight profile must total exactly 100%.  
-* At survey configuration time, total category weights must not exceed 100%.  
-* Final publish/activate validation requires total \= 100%.  
-* Question max score must be \> 0\.  
-* Category with zero max score is invalid for scoring.
+### **5.1 Core Tenant Model**
 
-### **5.4 Validation Errors (Minimum)**
+* `tenant` is canonical owner table for tenant IDs.  
+* Tenant is provisioned automatically on registration and on tenant-scoped writes when required.
 
-* INVALID\_WEIGHT\_SUM when category weights are not exactly 100% at activation.  
-* CATEGORY\_MAX\_SCORE\_ZERO when category max score is zero.  
-* QUESTION\_MAX\_SCORE\_INVALID when max score \<= 0\.  
-* SURVEY\_IMMUTABLE\_AFTER\_PUBLISH when modification is attempted after publish.  
-* INVALID\_LIFECYCLE\_TRANSITION when state transition is not allowed.
+### **5.2 Integrity Constraints**
 
-## **6\. High-Level Architecture**
+* Tenant FK constraints exist on tenant-owned tables.  
+* Composite tenant consistency constraints include:
+  * `campaign(survey_id, tenant_id) -> survey(id, tenant_id)`
+  * `weight_profile(campaign_id, tenant_id) -> campaign(id, tenant_id)`
+  * `survey_response(campaign_id, tenant_id) -> campaign(id, tenant_id)`
 
-### **6.1 Logical Components**
+### **5.3 Auth and Billing Tables**
 
-* Survey Builder Service  
-* Survey Runtime/Rendering Service  
-* Response Collection Service  
-* Rules Engine (skip logic and restrictions)  
-* Analytics and Reporting Service  
-* Integration/Delivery Service (links, embeds, email)  
-* Admin UI  
-* Respondent UI
+* Admin auth: `admin_user`, `refresh_token`.  
+* Respondent auth config: `auth_profile`, `claim_mapping`, `auth_config_audit`.  
+* SaaS billing: `tenant_subscription`, `payment_transaction`, `plan_definition`.
 
-### **6.2 Data Domains**
+## **6\. API Surface (Implemented)**
 
-* Survey definitions (pages, questions, logic, style, settings)  
-* Question bank and category mappings  
-* Versioned question/category entities and published survey snapshots  
-* Campaign definitions and distribution config  
-* Responses (answers, completion status, timestamps)  
-* Respondent metadata  
-* Access-control constraints (password, IP, email, device)  
-* Reporting aggregates and analytical snapshots
+* Admin auth: `/api/v1/admin/auth/**`  
+* Plan management: `/api/v1/admin/plans` (PUT requires `SUPER_ADMIN`)  
+* Subscription: `/api/v1/admin/subscriptions/me`, `/api/v1/admin/subscriptions/checkout`  
+* Question bank: `/api/v1/questions/**`, `/api/v1/categories/**`  
+* Surveys: `/api/v1/surveys/**`  
+* Campaigns: `/api/v1/campaigns/**`  
+* Scoring: `/api/v1/scoring/**`  
+* Auth profiles/validation: `/api/v1/auth/**`
+  * Includes provider template endpoints for onboarding UI.
+* Responses: `/api/v1/responses/**` and public submit `/api/v1/responses`
 
-## **7\. Non-Functional Requirements (MVP)**
+## **7\. Non-Functional Requirements (Implemented Baseline)**
 
-* Availability target: 99.5% monthly.  
-* P95 survey submit latency: \<= 500 ms under agreed MVP load.  
-* All scoring operations must be deterministic and reproducible.  
-* Audit logs required for survey publish, campaign activation, and weight profile changes.  
-* Audit logs required for auth profile creation/update/deletion and claim mapping changes.  
-* Survey snapshot/version resolution must be deterministic for all report and scoring queries.  
-* Privacy: mask/store sensitive respondent fields per policy.
+* Stateless JWT-based admin auth.  
+* Deterministic survey snapshot and scoring behavior.  
+* Auditing on key lifecycle/auth configuration actions.  
+* Tenant isolation enforced in both application access paths and DB constraints.  
+* Error contract via centralized exception handling with business error codes.
 
-## **8\. Response Locking Policy**
+## **8\. Validation and Error Handling**
 
-* After successful submission, a response becomes read-only/locked.  
-* A locked response cannot be modified by the respondent.  
-* Controlled reopen is admin-only and policy-driven.  
-* Reopen must capture:  
-  * reason  
-  * actor  
-  * timestamp  
-  * allowed edit window  
-* Any reopened response edit history must be retained for audit.
+Minimum business errors in code include:
 
-## **9\. Acceptance Criteria**
+* `INVALID_WEIGHT_SUM`  
+* `CATEGORY_MAX_SCORE_ZERO`  
+* `QUESTION_MAX_SCORE_INVALID`  
+* `SURVEY_IMMUTABLE_AFTER_PUBLISH`  
+* `INVALID_LIFECYCLE_TRANSITION`  
+* `CAMPAIGN_NOT_ACTIVE`  
+* `RESPONSE_QUOTA_EXCEEDED`  
+* `QUOTA_EXCEEDED`  
+* `SUBSCRIPTION_INACTIVE`  
+* `ACCESS_DENIED`
 
-* Users can build and publish surveys using categories from the question bank.  
-* Campaign can distribute surveys via link/embed/email.  
-* Runtime enforces settings (captcha, limits, closures, restrictions).  
-* Reports show completion and answer breakdown.  
-* Weighted scoring is computed exactly per formula.  
-* Activation is blocked when category weights do not equal 100%.  
-* Admin can configure external auth trust per subscriber and successfully validate test tokens/assertions.  
-* Respondents can access surveys without Survey Engine-managed login when external auth is configured.  
-* Post-publish modification attempts to survey snapshots are rejected.  
-* Question/category edits after publishing create new versions without changing published surveys.  
-* Submitted responses are locked read-only unless an admin-controlled reopen policy is applied.
+## **9\. Acceptance Criteria (Implemented)**
 
-## **10\. Future Extensions**
+* Tenant-scoped admin can create and manage questions, categories, surveys, campaigns, and scoring profiles.  
+* Published survey snapshot remains immutable for historical consistency.  
+* Campaign activation fails for non-published survey.  
+* Public campaigns accept anonymous responders; private campaigns require valid tenant-authenticated responder token.  
+* Response submissions enforce runtime settings and lock on submit.  
+* Tenant subscriptions can be checked out successfully through mock payment.  
+* Super admin can update plan definitions and quota changes are enforced in runtime paths.  
+* DB constraints reject cross-tenant relational mismatches.
 
-* Versioned question bank with approval workflow.  
-* Advanced scoring models (z-score, benchmark percentile, normalization families).  
-* AI-assisted insights and anomaly detection.  
-* Multi-tenant enterprise policy packs.
+## **10\. Known Gaps / Future Extensions**
 
+* Replace mock payment gateway with production provider integration (webhooks, retry, reconciliation).  
+* Add quota dimensions (storage, API rate, monthly response caps, feature flags).  
+* Add richer analytics/reporting data products.  
+* Extend admin RBAC and policy packs for enterprise governance.  
+* Add dedicated theming management API surface.  
+* Upgrade signed launch token validation to full JWT/JWS interoperability profile with explicit `kid`-based key management and replay-store backed nonce enforcement.

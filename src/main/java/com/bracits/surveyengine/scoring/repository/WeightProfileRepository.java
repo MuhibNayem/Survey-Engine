@@ -5,9 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface WeightProfileRepository extends JpaRepository<WeightProfile, UUID> {
-    List<WeightProfile> findByCampaignIdAndActiveTrue(UUID campaignId);
+    List<WeightProfile> findByCampaignIdAndActiveTrueAndTenantId(UUID campaignId, String tenantId);
+
+    Optional<WeightProfile> findByIdAndTenantId(UUID id, String tenantId);
 }

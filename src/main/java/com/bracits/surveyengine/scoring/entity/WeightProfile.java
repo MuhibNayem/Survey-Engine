@@ -33,6 +33,9 @@ public class WeightProfile extends AuditableEntity {
     @Column(name = "campaign_id", nullable = false)
     private UUID campaignId;
 
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
+
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;

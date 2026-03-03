@@ -33,6 +33,9 @@ public class SurveyResponse {
     @Column(name = "survey_snapshot_id", nullable = false)
     private UUID surveySnapshotId;
 
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
+
     @Column(name = "respondent_identifier")
     private String respondentIdentifier;
 

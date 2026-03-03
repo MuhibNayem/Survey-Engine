@@ -1,5 +1,8 @@
 package com.bracits.surveyengine.response.service;
 
+import com.bracits.surveyengine.campaign.repository.CampaignRepository;
+import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
 import com.bracits.surveyengine.response.dto.CampaignAnalytics;
 import com.bracits.surveyengine.response.entity.ResponseStatus;
 import com.bracits.surveyengine.response.repository.SurveyResponseRepository;
@@ -21,14 +24,22 @@ import java.util.UUID;
 public class AnalyticsServiceImpl implements AnalyticsService {
 
     private final SurveyResponseRepository responseRepository;
+    private final CampaignRepository campaignRepository;
 
     @Override
     @Transactional(readOnly = true)
     public CampaignAnalytics getAnalytics(UUID campaignId) {
-        long total = responseRepository.countByCampaignId(campaignId);
-        long submitted = responseRepository.countByCampaignIdAndStatus(campaignId, ResponseStatus.SUBMITTED);
-        long locked = responseRepository.countByCampaignIdAndStatus(campaignId, ResponseStatus.LOCKED);
-        long inProgress = responseRepository.countByCampaignIdAndStatus(campaignId, ResponseStatus.IN_PROGRESS);
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        campaignRepository.findByIdAndTenantId(campaignId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+
+        long total = responseRepository.countByCampaignIdAndTenantId(campaignId, tenantId);
+        long submitted = responseRepository.countByCampaignIdAndStatusAndTenantId(
+                campaignId, ResponseStatus.SUBMITTED, tenantId);
+        long locked = responseRepository.countByCampaignIdAndStatusAndTenantId(
+                campaignId, ResponseStatus.LOCKED, tenantId);
+        long inProgress = responseRepository.countByCampaignIdAndStatusAndTenantId(
+                campaignId, ResponseStatus.IN_PROGRESS, tenantId);
 
         long completedCount = submitted + locked;
         BigDecimal completionRate = total > 0

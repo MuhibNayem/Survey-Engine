@@ -22,5 +22,9 @@ public class CampaignRequest {
     @NotNull(message = "Survey ID is required")
     private UUID surveyId;
 
+    /**
+     * Campaign access mode: PUBLIC or PRIVATE.
+     * Auth details remain tenant-scoped via AuthProfile.
+     */
     private AuthMode authMode;
 }

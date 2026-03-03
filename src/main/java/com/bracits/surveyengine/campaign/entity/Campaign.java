@@ -38,6 +38,9 @@ public class Campaign extends AuditableEntity {
     @Column(name = "survey_snapshot_id")
     private UUID surveySnapshotId;
 
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_mode", nullable = false, length = 30)
     @Builder.Default

@@ -1,10 +1,12 @@
 package com.bracits.surveyengine.questionbank.service;
 
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
 import com.bracits.surveyengine.questionbank.dto.*;
 import com.bracits.surveyengine.questionbank.entity.*;
 import com.bracits.surveyengine.questionbank.repository.CategoryRepository;
 import com.bracits.surveyengine.questionbank.repository.CategoryVersionRepository;
+import com.bracits.surveyengine.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,13 +28,17 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
     private final CategoryVersionRepository categoryVersionRepository;
     private final QuestionService questionService;
+    private final TenantService tenantService;
 
     @Override
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        tenantService.ensureProvisioned(tenantId);
         Category category = Category.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .tenantId(tenantId)
                 .build();
         category = categoryRepository.save(category);
 
@@ -52,7 +58,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllActive() {
-        return categoryRepository.findByActiveTrue().stream()
+        return categoryRepository.findByActiveTrueAndTenantId(TenantSupport.currentTenantOrDefault()).stream()
                 .map(cat -> {
                     CategoryVersion version = categoryVersionRepository
                             .findTopByCategoryIdOrderByVersionNumberDesc(cat.getId())
@@ -120,7 +126,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     private Category findOrThrow(UUID id) {
-        return categoryRepository.findById(id)
+        return categoryRepository.findByIdAndTenantId(id, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("Category", id));
     }
 

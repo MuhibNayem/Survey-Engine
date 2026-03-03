@@ -3,6 +3,7 @@ package com.bracits.surveyengine.scoring.service;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
 import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import com.bracits.surveyengine.questionbank.repository.CategoryRepository;
 import com.bracits.surveyengine.questionbank.repository.CategoryVersionRepository;
@@ -40,7 +41,8 @@ public class ScoringEngineServiceImpl implements ScoringEngineService {
         @Override
         @Transactional(readOnly = true)
         public ScoreResult calculateScore(UUID weightProfileId, Map<UUID, BigDecimal> categoryRawScores) {
-                WeightProfile profile = weightProfileRepository.findById(weightProfileId)
+                String tenantId = TenantSupport.currentTenantOrDefault();
+                WeightProfile profile = weightProfileRepository.findByIdAndTenantId(weightProfileId, tenantId)
                                 .orElseThrow(() -> new ResourceNotFoundException("WeightProfile", weightProfileId));
 
                 List<ScoreResult.CategoryScoreDetail> categoryScoreDetails = new ArrayList<>();
@@ -51,7 +53,7 @@ public class ScoringEngineServiceImpl implements ScoringEngineService {
                         BigDecimal rawScore = categoryRawScores.getOrDefault(categoryId, BigDecimal.ZERO);
 
                         // Determine category max score from the latest version's question mappings
-                        BigDecimal maxScore = calculateCategoryMaxScore(categoryId);
+                        BigDecimal maxScore = calculateCategoryMaxScore(categoryId, tenantId);
                         if (maxScore.compareTo(BigDecimal.ZERO) <= 0) {
                                 throw new BusinessException(ErrorCode.CATEGORY_MAX_SCORE_ZERO,
                                                 "Category %s has max score of zero; cannot normalize"
@@ -92,8 +94,8 @@ public class ScoringEngineServiceImpl implements ScoringEngineService {
          * all questions in the latest category version, weighted by their mapping
          * weight.
          */
-        private BigDecimal calculateCategoryMaxScore(UUID categoryId) {
-                categoryRepository.findById(categoryId)
+        private BigDecimal calculateCategoryMaxScore(UUID categoryId, String tenantId) {
+                categoryRepository.findByIdAndTenantId(categoryId, tenantId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Category", categoryId));
 
                 return categoryVersionRepository

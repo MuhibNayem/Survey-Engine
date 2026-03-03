@@ -3,12 +3,15 @@ package com.bracits.surveyengine.scoring.service;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.bracits.surveyengine.common.tenant.TenantSupport;
+import com.bracits.surveyengine.campaign.repository.CampaignRepository;
 import com.bracits.surveyengine.scoring.dto.CategoryWeightRequest;
 import com.bracits.surveyengine.scoring.dto.WeightProfileRequest;
 import com.bracits.surveyengine.scoring.dto.WeightProfileResponse;
 import com.bracits.surveyengine.scoring.entity.CategoryWeight;
 import com.bracits.surveyengine.scoring.entity.WeightProfile;
 import com.bracits.surveyengine.scoring.repository.WeightProfileRepository;
+import com.bracits.surveyengine.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,13 +32,20 @@ public class WeightProfileServiceImpl implements WeightProfileService {
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100.00");
 
     private final WeightProfileRepository weightProfileRepository;
+    private final CampaignRepository campaignRepository;
+    private final TenantService tenantService;
 
     @Override
     @Transactional
     public WeightProfileResponse create(WeightProfileRequest request) {
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        tenantService.ensureProvisioned(tenantId);
+        campaignRepository.findByIdAndTenantId(request.getCampaignId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", request.getCampaignId()));
         WeightProfile profile = WeightProfile.builder()
                 .name(request.getName())
                 .campaignId(request.getCampaignId())
+                .tenantId(tenantId)
                 .build();
 
         if (request.getCategoryWeights() != null) {
@@ -62,7 +72,10 @@ public class WeightProfileServiceImpl implements WeightProfileService {
     @Override
     @Transactional(readOnly = true)
     public List<WeightProfileResponse> getByCampaignId(UUID campaignId) {
-        return weightProfileRepository.findByCampaignIdAndActiveTrue(campaignId).stream()
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        campaignRepository.findByIdAndTenantId(campaignId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+        return weightProfileRepository.findByCampaignIdAndActiveTrueAndTenantId(campaignId, tenantId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -116,7 +129,7 @@ public class WeightProfileServiceImpl implements WeightProfileService {
     }
 
     private WeightProfile findOrThrow(UUID id) {
-        return weightProfileRepository.findById(id)
+        return weightProfileRepository.findByIdAndTenantId(id, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("WeightProfile", id));
     }
 

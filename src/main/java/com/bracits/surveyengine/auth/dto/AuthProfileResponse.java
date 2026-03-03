@@ -18,6 +18,10 @@ public class AuthProfileResponse {
     private String issuer;
     private String audience;
     private String jwksEndpoint;
+    private String oidcDiscoveryUrl;
+    private String oidcClientId;
+    private String oidcRedirectUri;
+    private String oidcScopes;
     private Integer clockSkewSeconds;
     private Integer tokenTtlSeconds;
     private Integer activeKeyVersion;
