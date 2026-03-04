@@ -49,11 +49,15 @@
             questions: {
                 questionId: string;
                 categoryId?: string;
+                categoryWeightPercentage?: number;
                 sortOrder: number;
                 mandatory: boolean;
             }[];
         }[]
     >([]);
+    let addFromCategoryState = $state<
+        Record<number, { categoryId: string; weightPercentage: number }>
+    >({});
     let formLoading = $state(false);
     let formError = $state<string | null>(null);
 
@@ -147,6 +151,7 @@
         formTitle = "";
         formDescription = "";
         formPages = [{ title: "Page 1", sortOrder: 1, questions: [] }];
+        addFromCategoryState = {};
         formError = null;
         dialogOpen = true;
     }
@@ -161,10 +166,12 @@
             questions: p.questions.map((q) => ({
                 questionId: q.questionId,
                 categoryId: q.categoryId,
+                categoryWeightPercentage: q.categoryWeightPercentage,
                 sortOrder: q.sortOrder,
                 mandatory: q.mandatory,
             })),
         }));
+        addFromCategoryState = {};
         formError = null;
         dialogOpen = true;
     }
@@ -178,6 +185,7 @@
                 questions: [],
             },
         ];
+        addFromCategoryState = {};
     }
 
     function removePage(pIdx: number) {
@@ -186,6 +194,7 @@
             ...p,
             sortOrder: i + 1,
         }));
+        addFromCategoryState = {};
     }
 
     function addQuestionToPage(pIdx: number) {
@@ -211,7 +220,58 @@
         formPages = [...formPages];
     }
 
-    function addCategoryToPage(pIdx: number, categoryId: string) {
+    function removeCategoryFromPage(pIdx: number, categoryId: string) {
+        const page = formPages[pIdx];
+        page.questions = page.questions
+            .filter((q) => q.categoryId !== categoryId)
+            .map((q, i) => ({
+                ...q,
+                sortOrder: i + 1,
+            }));
+        formPages = [...formPages];
+    }
+
+    function setAddFromCategorySelection(pIdx: number, categoryId: string) {
+        const current = addFromCategoryState[pIdx] ?? {
+            categoryId: "",
+            weightPercentage: 0,
+        };
+        addFromCategoryState = {
+            ...addFromCategoryState,
+            [pIdx]: { ...current, categoryId },
+        };
+    }
+
+    function setAddFromCategoryWeight(pIdx: number, weightPercentage: number) {
+        const current = addFromCategoryState[pIdx] ?? {
+            categoryId: "",
+            weightPercentage: 0,
+        };
+        addFromCategoryState = {
+            ...addFromCategoryState,
+            [pIdx]: { ...current, weightPercentage },
+        };
+    }
+
+    function setCategoryWeightForAllQuestions(
+        categoryId: string,
+        weightPercentage: number,
+    ) {
+        for (const page of formPages) {
+            for (const question of page.questions) {
+                if (question.categoryId === categoryId) {
+                    question.categoryWeightPercentage = weightPercentage;
+                }
+            }
+        }
+        formPages = [...formPages];
+    }
+
+    function addCategoryToPage(
+        pIdx: number,
+        categoryId: string,
+        categoryWeightPercentage: number,
+    ) {
         const category = allCategories.find((c) => c.id === categoryId);
         if (!category) return;
 
@@ -226,12 +286,37 @@
             .map((mapping, i) => ({
                 questionId: mapping.questionId,
                 categoryId: category.id,
+                categoryWeightPercentage,
                 sortOrder: nextSortOrder + i,
                 mandatory: true,
             }));
 
         page.questions = [...page.questions, ...newQuestions];
         formPages = [...formPages];
+    }
+
+    function addSelectedCategoryToPage(pIdx: number) {
+        const state = addFromCategoryState[pIdx];
+        if (!state?.categoryId) {
+            formError = "Select a category to add.";
+            return;
+        }
+        if (
+            !Number.isFinite(state.weightPercentage) ||
+            state.weightPercentage <= 0 ||
+            state.weightPercentage > 100
+        ) {
+            formError = "Category weight must be > 0 and <= 100.";
+            return;
+        }
+        const normalizedWeight = Number(state.weightPercentage.toFixed(2));
+        addCategoryToPage(pIdx, state.categoryId, normalizedWeight);
+        setCategoryWeightForAllQuestions(state.categoryId, normalizedWeight);
+        addFromCategoryState = {
+            ...addFromCategoryState,
+            [pIdx]: { categoryId: "", weightPercentage: 0 },
+        };
+        formError = null;
     }
 
     function getCategoryName(id: string): string {
@@ -243,11 +328,88 @@
         return q?.text ?? "";
     }
 
+    function getPageCategoryIds(
+        page: (typeof formPages)[number],
+    ): string[] {
+        const ids: string[] = [];
+        for (const question of page.questions) {
+            if (!question.categoryId) continue;
+            if (!ids.includes(question.categoryId)) {
+                ids.push(question.categoryId);
+            }
+        }
+        return ids;
+    }
+
+    function getPageQuestionsByCategory(
+        page: (typeof formPages)[number],
+        categoryId: string,
+    ): { question: (typeof formPages)[number]["questions"][number]; index: number }[] {
+        return page.questions
+            .map((question, index) => ({ question, index }))
+            .filter(({ question }) => question.categoryId === categoryId);
+    }
+
+    function getPageUncategorizedQuestions(
+        page: (typeof formPages)[number],
+    ): { question: (typeof formPages)[number]["questions"][number]; index: number }[] {
+        return page.questions
+            .map((question, index) => ({ question, index }))
+            .filter(({ question }) => !question.categoryId);
+    }
+
+    function getCategoryWeightForPage(
+        page: (typeof formPages)[number],
+        categoryId: string,
+    ): number {
+        const question = page.questions.find((q) => q.categoryId === categoryId);
+        return Number(question?.categoryWeightPercentage ?? 0);
+    }
+
+    function validateCategoryWeights(): string | null {
+        const categoryWeights = new Map<string, number>();
+        for (const page of formPages) {
+            for (const question of page.questions) {
+                if (!question.categoryId) continue;
+                const weight = Number(question.categoryWeightPercentage);
+                if (!Number.isFinite(weight) || weight <= 0 || weight > 100) {
+                    return `Category '${getCategoryName(question.categoryId)}' has invalid weight.`;
+                }
+                const previous = categoryWeights.get(question.categoryId);
+                const normalized = Number(weight.toFixed(2));
+                if (
+                    previous !== undefined &&
+                    Math.abs(previous - normalized) > 0.001
+                ) {
+                    return `Category '${getCategoryName(question.categoryId)}' must use the same weight across all its questions.`;
+                }
+                categoryWeights.set(question.categoryId, normalized);
+            }
+        }
+
+        if (categoryWeights.size > 0) {
+            const total = Array.from(categoryWeights.values()).reduce(
+                (sum, w) => sum + w,
+                0,
+            );
+            if (Math.abs(total - 100) > 0.001) {
+                return `Category weights must sum to 100%. Current total: ${total.toFixed(2)}%.`;
+            }
+        }
+        return null;
+    }
+
     async function handleSubmit(e: Event) {
         e.preventDefault();
         formLoading = true;
         formError = null;
         try {
+            const weightError = validateCategoryWeights();
+            if (weightError) {
+                formError = weightError;
+                formLoading = false;
+                return;
+            }
             const payload = {
                 title: formTitle,
                 description: formDescription,
@@ -257,6 +419,7 @@
                     questions: p.questions.map((q) => ({
                         questionId: q.questionId,
                         categoryId: q.categoryId,
+                        categoryWeightPercentage: q.categoryWeightPercentage,
                         sortOrder: q.sortOrder,
                         mandatory: q.mandatory,
                     })) as SurveyQuestionRequest[],
@@ -637,103 +800,303 @@
                                             No questions on this page yet.
                                         </div>
                                     {:else}
-                                        {#each page.questions as q, qIdx}
-                                            <div
-                                                class="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-2"
-                                            >
-                                                <div
-                                                    class="flex items-center gap-2"
-                                                >
-                                                    <span
-                                                        class="shrink-0 text-xs font-medium text-muted-foreground w-6"
+                                        {@const categoryIds =
+                                            getPageCategoryIds(page)}
+                                        {#if categoryIds.length > 0}
+                                            <div class="space-y-3">
+                                                {#each categoryIds as categoryId}
+                                                    <div
+                                                        class="rounded-lg border border-border bg-muted/20 p-3"
                                                     >
-                                                        #{q.sortOrder}
-                                                    </span>
-                                                    {#if q.categoryId}
-                                                        <Badge
-                                                            variant="outline"
-                                                            class="mr-2 text-[10px] py-0 h-5 shrink-0 uppercase"
-                                                            >{getCategoryName(
-                                                                q.categoryId,
-                                                            )}</Badge
+                                                        <div
+                                                            class="mb-3 flex flex-wrap items-center justify-between gap-3"
                                                         >
-                                                    {/if}
-                                                    <Select.Root
-                                                        type="single"
-                                                        bind:value={
-                                                            formPages[pIdx]
-                                                                .questions[qIdx]
-                                                                .questionId
-                                                        }
-                                                    >
-                                                        <Select.Trigger
-                                                            class="flex-1 h-8 text-xs"
-                                                        >
-                                                            {formPages[pIdx]
-                                                                .questions[qIdx]
-                                                                .questionId
-                                                                ? allQuestions.find(
-                                                                      (aq) =>
-                                                                          aq.id ===
-                                                                          formPages[
-                                                                              pIdx
-                                                                          ]
-                                                                              .questions[
-                                                                              qIdx
-                                                                          ]
-                                                                              .questionId,
-                                                                  )?.text
-                                                                : "Select question"}
-                                                        </Select.Trigger>
-                                                        <Select.Content>
-                                                            {#each allQuestions as aq}
-                                                                <Select.Item
-                                                                    value={aq.id}
-                                                                    >{aq.text}</Select.Item
+                                                            <div
+                                                                class="flex items-center gap-2"
+                                                            >
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    class="uppercase"
+                                                                    >{getCategoryName(
+                                                                        categoryId,
+                                                                    )}</Badge
                                                                 >
+                                                                <span
+                                                                    class="text-xs text-muted-foreground"
+                                                                >
+                                                                    {getPageQuestionsByCategory(
+                                                                        page,
+                                                                        categoryId,
+                                                                    ).length}
+                                                                    questions
+                                                                </span>
+                                                            </div>
+                                                            <div
+                                                                class="flex items-center gap-2"
+                                                            >
+                                                                <span
+                                                                    class="text-xs text-muted-foreground"
+                                                                    >Weight</span
+                                                                >
+                                                                <Input
+                                                                    type="number"
+                                                                    min="0.01"
+                                                                    max="100"
+                                                                    step="0.01"
+                                                                    class="h-8 w-24 text-xs"
+                                                                    value={getCategoryWeightForPage(
+                                                                        page,
+                                                                        categoryId,
+                                                                    )}
+                                                                    oninput={(e) => {
+                                                                        const v = Number(
+                                                                            (
+                                                                                e.currentTarget as HTMLInputElement
+                                                                            ).value,
+                                                                        );
+                                                                        if (
+                                                                            Number.isFinite(
+                                                                                v,
+                                                                            )
+                                                                        ) {
+                                                                            setCategoryWeightForAllQuestions(
+                                                                                categoryId,
+                                                                                Number(
+                                                                                    v.toFixed(
+                                                                                        2,
+                                                                                    ),
+                                                                                ),
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <span
+                                                                    class="text-xs text-muted-foreground"
+                                                                    >%</span
+                                                                >
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    type="button"
+                                                                    onclick={() =>
+                                                                        removeCategoryFromPage(
+                                                                            pIdx,
+                                                                            categoryId,
+                                                                        )}
+                                                                >
+                                                                    <Trash2
+                                                                        class="h-3 w-3 text-destructive"
+                                                                    />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="space-y-2">
+                                                            {#each getPageQuestionsByCategory(page, categoryId) as item (item.index)}
+                                                                <div
+                                                                    class="flex items-center gap-2 rounded-md border border-border bg-background p-2"
+                                                                >
+                                                                    <span
+                                                                        class="shrink-0 text-xs font-medium text-muted-foreground w-6"
+                                                                    >
+                                                                        #{item.question
+                                                                            .sortOrder}
+                                                                    </span>
+                                                                    <Select.Root
+                                                                        type="single"
+                                                                        bind:value={
+                                                                            formPages[
+                                                                                pIdx
+                                                                            ]
+                                                                                .questions[
+                                                                                item
+                                                                                    .index
+                                                                            ]
+                                                                                .questionId
+                                                                        }
+                                                                    >
+                                                                        <Select.Trigger
+                                                                            class="flex-1 h-8 text-xs"
+                                                                        >
+                                                                            {formPages[
+                                                                                pIdx
+                                                                            ]
+                                                                                .questions[
+                                                                                item
+                                                                                    .index
+                                                                            ]
+                                                                                .questionId
+                                                                                ? allQuestions.find(
+                                                                                      (
+                                                                                          aq,
+                                                                                      ) =>
+                                                                                          aq.id ===
+                                                                                          formPages[
+                                                                                              pIdx
+                                                                                          ]
+                                                                                              .questions[
+                                                                                              item
+                                                                                                  .index
+                                                                                          ]
+                                                                                              .questionId,
+                                                                                  )?.text
+                                                                                : "Select question"}
+                                                                        </Select.Trigger>
+                                                                        <Select.Content>
+                                                                            {#each allQuestions as aq}
+                                                                                <Select.Item
+                                                                                    value={aq.id}
+                                                                                    >{aq.text}</Select.Item
+                                                                                >
+                                                                            {/each}
+                                                                        </Select.Content>
+                                                                    </Select.Root>
+                                                                    <label
+                                                                        class="flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            bind:checked={
+                                                                                formPages[
+                                                                                    pIdx
+                                                                                ]
+                                                                                    .questions[
+                                                                                    item
+                                                                                        .index
+                                                                                ]
+                                                                                    .mandatory
+                                                                            }
+                                                                            class="h-3.5 w-3.5 rounded border-border"
+                                                                        />
+                                                                        Required
+                                                                    </label>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        type="button"
+                                                                        onclick={() =>
+                                                                            removeQuestionFromPage(
+                                                                                pIdx,
+                                                                                item.index,
+                                                                            )}
+                                                                    >
+                                                                        <Trash2
+                                                                            class="h-3 w-3 text-destructive"
+                                                                        />
+                                                                    </Button>
+                                                                </div>
                                                             {/each}
-                                                        </Select.Content>
-                                                    </Select.Root>
-                                                    <label
-                                                        class="flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
+                                                        </div>
+                                                    </div>
+                                                {/each}
+                                            </div>
+                                        {/if}
+
+                                        {@const uncategorizedQuestions =
+                                            getPageUncategorizedQuestions(page)}
+                                        {#if uncategorizedQuestions.length > 0}
+                                            <div class="space-y-2">
+                                                <p
+                                                    class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                                                >
+                                                    Independent Questions
+                                                </p>
+                                                {#each uncategorizedQuestions as item (item.index)}
+                                                    <div
+                                                        class="flex items-center gap-2 rounded-md border border-border bg-muted/20 p-2"
                                                     >
-                                                        <input
-                                                            type="checkbox"
-                                                            bind:checked={
+                                                        <span
+                                                            class="shrink-0 text-xs font-medium text-muted-foreground w-6"
+                                                        >
+                                                            #{item.question
+                                                                .sortOrder}
+                                                        </span>
+                                                        <Select.Root
+                                                            type="single"
+                                                            bind:value={
                                                                 formPages[pIdx]
                                                                     .questions[
-                                                                    qIdx
-                                                                ].mandatory
+                                                                    item.index
+                                                                ].questionId
                                                             }
-                                                            class="h-3.5 w-3.5 rounded border-border"
-                                                        />
-                                                        Required
-                                                    </label>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        type="button"
-                                                        onclick={() =>
-                                                            removeQuestionFromPage(
-                                                                pIdx,
-                                                                qIdx,
-                                                            )}
-                                                    >
-                                                        <Trash2
-                                                            class="h-3 w-3 text-destructive"
-                                                        />
-                                                    </Button>
-                                                </div>
+                                                        >
+                                                            <Select.Trigger
+                                                                class="flex-1 h-8 text-xs"
+                                                            >
+                                                                {formPages[pIdx]
+                                                                    .questions[
+                                                                    item.index
+                                                                ].questionId
+                                                                    ? allQuestions.find(
+                                                                          (
+                                                                              aq,
+                                                                          ) =>
+                                                                              aq.id ===
+                                                                              formPages[
+                                                                                  pIdx
+                                                                              ]
+                                                                                  .questions[
+                                                                                  item
+                                                                                      .index
+                                                                              ]
+                                                                                  .questionId,
+                                                                      )?.text
+                                                                    : "Select question"}
+                                                            </Select.Trigger>
+                                                            <Select.Content>
+                                                                {#each allQuestions as aq}
+                                                                    <Select.Item
+                                                                        value={aq.id}
+                                                                        >{aq.text}</Select.Item
+                                                                    >
+                                                                {/each}
+                                                            </Select.Content>
+                                                        </Select.Root>
+                                                        <label
+                                                            class="flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                bind:checked={
+                                                                    formPages[
+                                                                        pIdx
+                                                                    ].questions[
+                                                                        item
+                                                                            .index
+                                                                    ].mandatory
+                                                                }
+                                                                class="h-3.5 w-3.5 rounded border-border"
+                                                            />
+                                                            Required
+                                                        </label>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            type="button"
+                                                            onclick={() =>
+                                                                removeQuestionFromPage(
+                                                                    pIdx,
+                                                                    item.index,
+                                                                )}
+                                                        >
+                                                            <Trash2
+                                                                class="h-3 w-3 text-destructive"
+                                                            />
+                                                        </Button>
+                                                    </div>
+                                                {/each}
                                             </div>
-                                        {/each}
+                                        {/if}
                                     {/if}
                                     <div class="flex items-center gap-2 mt-4">
                                         <Select.Root
                                             type="single"
-                                            onValueChange={(v) => {
-                                                if (v)
-                                                    addCategoryToPage(pIdx, v);
-                                            }}
+                                            value={addFromCategoryState[pIdx]
+                                                ?.categoryId ?? ""}
+                                            onValueChange={(v) =>
+                                                setAddFromCategorySelection(
+                                                    pIdx,
+                                                    v,
+                                                )}
                                         >
                                             <Select.Trigger
                                                 class="w-[200px] h-8 text-xs"
@@ -749,6 +1112,36 @@
                                                 {/each}
                                             </Select.Content>
                                         </Select.Root>
+                                        <Input
+                                            type="number"
+                                            min="0.01"
+                                            max="100"
+                                            step="0.01"
+                                            class="w-28 h-8 text-xs"
+                                            placeholder="Weight %"
+                                            value={addFromCategoryState[pIdx]
+                                                ?.weightPercentage ?? 0}
+                                            oninput={(e) =>
+                                                setAddFromCategoryWeight(
+                                                    pIdx,
+                                                    Number(
+                                                        (
+                                                            e.currentTarget as HTMLInputElement
+                                                        ).value,
+                                                    ),
+                                                )}
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            type="button"
+                                            class="text-xs h-8"
+                                            onclick={() =>
+                                                addSelectedCategoryToPage(pIdx)}
+                                        >
+                                            <Plus class="mr-1 h-3 w-3" />
+                                            Add Category
+                                        </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"

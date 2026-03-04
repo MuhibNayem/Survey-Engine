@@ -17,6 +17,7 @@ public class CampaignResponse {
     private String description;
     private UUID surveyId;
     private UUID surveySnapshotId;
+    private UUID defaultWeightProfileId;
     private AuthMode authMode;
     private CampaignStatus status;
     private boolean active;

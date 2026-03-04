@@ -12,8 +12,8 @@ info:
     3) how the endpoint works inside the platform lifecycle.
 
     Security model summary:
-    - Admin APIs use engine-issued Bearer JWT access tokens.
-    - Admin sessions are maintained with refresh token rotation.
+    - Admin APIs accept engine-issued JWT via HttpOnly access_token cookie (primary) or Bearer header (fallback).
+    - Admin sessions are maintained with refresh-token cookie rotation.
     - Responder submission endpoint is public at transport level, but private campaigns enforce tenant-scoped responder authentication in business logic.
 
 servers:
@@ -61,12 +61,12 @@ paths:
 
         What this endpoint does:
         It creates the first admin user for a tenant, ensures tenant provisioning exists, ensures a trial subscription exists,
-        and returns a complete authentication session payload (access token + refresh token + user context).
+        sets access/refresh tokens as HttpOnly cookies, and returns safe user context in response body.
 
         How this endpoint does it:
         The service validates uniqueness of email, provisions tenant records when necessary, enforces admin-user quota policy,
-        stores password hash securely, issues an engine-signed JWT access token, creates a refresh token row, and returns
-        an AuthResponse object used by UI/SDK clients.
+        stores password hash securely, issues an engine-signed JWT access token, creates a refresh token row, and controller
+        writes both tokens into secure cookies before returning AuthUserResponse.
       requestBody:
         required: true
         content:
@@ -79,7 +79,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/AuthUserResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -90,18 +90,18 @@ paths:
       tags: [Admin Authentication]
       operationId: loginAdmin
       security: []
-      summary: Log in an existing admin and issue fresh tokens
+      summary: Log in an existing admin and issue fresh auth cookies
       description: |
         Why this endpoint is needed:
         Admin operators need a secure login path to start authenticated management sessions for tenant resources.
 
         What this endpoint does:
         It authenticates the admin using email/password, revokes prior refresh tokens for session hygiene, and issues
-        a fresh access token plus a new refresh token.
+        a fresh access token plus a new refresh token as HttpOnly cookies.
 
         How this endpoint does it:
         The service verifies account status and password hash, rotates refresh-token state to avoid stale session reuse,
-        and returns an AuthResponse payload that includes tenant context and role claims for downstream authorization.
+        and controller writes cookies while returning safe user context payload.
       requestBody:
         required: true
         content:
@@ -110,11 +110,11 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Login successful and new token pair issued
+          description: Login successful and new auth cookies issued
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/AuthUserResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -125,35 +125,72 @@ paths:
       tags: [Admin Authentication]
       operationId: refreshAdminToken
       security: []
-      summary: Rotate refresh token and issue a new admin access token
+      summary: Rotate refresh cookie and issue a new admin session
       description: |
         Why this endpoint is needed:
         Access tokens are intentionally short-lived. A secure refresh mechanism is required to keep admins signed in
         without repeatedly collecting credentials.
 
         What this endpoint does:
-        It validates the provided refresh token, revokes the used token, and returns a newly rotated access+refresh token pair.
+        It reads refresh token from HttpOnly cookie, validates it, rotates token state, and sets fresh access/refresh cookies.
 
         How this endpoint does it:
-        The service reads refresh token state from persistence, rejects expired or revoked tokens, applies one-time-use
-        rotation semantics, and issues replacement credentials bound to the same admin identity and tenant.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RefreshTokenRequest'
+        Controller extracts refresh_token cookie, service validates persistence state (including expiry/revocation),
+        applies one-time-use rotation semantics, and controller rewrites secure cookies.
       responses:
         '200':
-          description: Token rotation successful
+          description: Cookie rotation successful
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          $ref: '#/components/responses/ValidationError'
+                $ref: '#/components/schemas/AuthUserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/admin/auth/logout:
+    post:
+      tags: [Admin Authentication]
+      operationId: logoutAdmin
+      security: []
+      summary: Clear admin auth cookies
+      description: |
+        Why this endpoint is needed:
+        Sessions must support explicit and secure sign-out to prevent lingering browser-side authentication state.
+
+        What this endpoint does:
+        It clears access_token and refresh_token cookies.
+
+        How this endpoint does it:
+        Controller writes both token cookies with maxAge=0, path=/, HttpOnly/Secure attributes.
+      responses:
+        '204':
+          description: Logout completed and cookies cleared
+
+  /api/v1/admin/auth/me:
+    get:
+      tags: [Admin Authentication]
+      operationId: getCurrentAdmin
+      summary: Retrieve current authenticated admin profile
+      description: |
+        Why this endpoint is needed:
+        Frontend needs a lightweight session-hydration endpoint after reload to confirm authentication and tenant context.
+
+        What this endpoint does:
+        It returns current authenticated user's profile details (no tokens).
+
+        How this endpoint does it:
+        JWT filter populates security/tenant context from cookie or bearer token, and controller maps context to response DTO.
+      responses:
+        '200':
+          description: Current admin profile returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
   /api/v1/admin/subscriptions/me:
     get:
@@ -206,7 +243,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SubscribeRequest'
       responses:
-        '201':
+        '200':
           description: Subscription activated or updated
           content:
             application/json:
@@ -885,7 +922,62 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
 
+  /api/v1/campaigns/{id}/preview:
+    get:
+      tags: [Campaigns]
+      operationId: getCampaignPreview
+      summary: Get admin preview payload for a campaign
+      description: |
+        Why this endpoint is needed:
+        Campaign owners need a pre-launch visual/data validation endpoint to verify header/footer/questions and responder UX flags.
+
+        What this endpoint does:
+        It assembles campaign, survey, and settings into a responder-facing preview model for admin users.
+
+        How this endpoint does it:
+        Campaign service resolves campaign/settings/survey in tenant scope, maps each page/question with pinned version context,
+        and returns CampaignPreviewResponse.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Campaign preview returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignPreviewResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   /api/v1/campaigns/{id}/settings:
+    get:
+      tags: [Campaigns]
+      operationId: getCampaignSettings
+      summary: Get campaign runtime settings
+      description: |
+        Why this endpoint is needed:
+        Operations and UI flows require a read endpoint for persisted runtime controls before edit/save cycles.
+
+        What this endpoint does:
+        It returns the current campaign settings object.
+
+        How this endpoint does it:
+        Campaign service validates tenant-scoped campaign visibility and returns mapped CampaignSettingsResponse.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Campaign settings returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignSettingsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
     put:
       tags: [Campaigns]
       operationId: updateCampaignSettings
@@ -897,6 +989,7 @@ paths:
 
         What this endpoint does:
         It stores runtime policy controls that are enforced when responders submit answers.
+        If closeDate is set to now/past, open responses are auto-locked immediately.
 
         How this endpoint does it:
         The service loads target campaign by tenant, merges settings payload, persists state,
@@ -931,11 +1024,12 @@ paths:
         Activation is a controlled launch gate. It prevents collecting responses from improperly prepared campaigns.
 
         What this endpoint does:
-        It transitions a campaign into active state when preconditions pass.
+        It transitions a campaign into active state when preconditions pass, links latest survey snapshot,
+        and upserts campaign default weight profile from pinned category weights.
 
         How this endpoint does it:
-        The service verifies linked survey lifecycle requirements (must be publish-compatible), validates campaign state,
-        updates status/active flags, and returns campaign response.
+        The service verifies linked survey lifecycle requirements (must be PUBLISHED), loads latest snapshot,
+        upserts default weight profile, updates campaign status to ACTIVE, and returns campaign response.
       parameters:
         - $ref: '#/components/parameters/IdPath'
       responses:
@@ -1009,6 +1103,34 @@ paths:
                   $ref: '#/components/schemas/DistributionChannelResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/public/campaigns/{id}/preview:
+    get:
+      tags: [Campaigns]
+      operationId: getPublicCampaignPreview
+      security: []
+      summary: Get responder-facing preview payload (public endpoint)
+      description: |
+        Why this endpoint is needed:
+        Responder runtime needs a non-admin endpoint to load campaign form structure for public/private submission flows.
+
+        What this endpoint does:
+        It returns preview payload for campaigns currently active.
+
+        How this endpoint does it:
+        Service resolves campaign/settings/survey and returns CampaignPreviewResponse when campaign is active; access
+        mode enforcement for private campaigns happens on submit/auth endpoints.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Public preview returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignPreviewResponse'
         '404':
           $ref: '#/components/responses/NotFoundError'
 
@@ -1370,12 +1492,13 @@ paths:
 
         What this endpoint does:
         It accepts answer payload for a campaign, enforces campaign status and runtime controls,
-        enforces private-auth requirements where applicable, stores response and answers, then auto-locks the response.
+        enforces private-auth requirements where applicable, validates against pinned snapshot versions,
+        auto-calculates weighted score when default profile exists, stores response and answers, then auto-locks response.
 
         How this endpoint does it:
         The service performs campaign lookup, access-mode enforcement (public or private), credential validation
-        (responderToken or responderAccessCode for private), settings checks (quota/restrictions/timeouts), persistence,
-        and status transition to LOCKED before returning SurveyResponseResponse.
+        (responderToken or responderAccessCode for private), settings checks (quota/restrictions/timeouts), snapshot-based
+        answer validation/scoring, persistence, and status transition to LOCKED before returning SurveyResponseResponse.
       requestBody:
         required: true
         content:
@@ -1505,7 +1628,7 @@ paths:
 
         How this endpoint does it:
         Locking service validates state transitions and reason constraints, updates response status,
-        and returns reopened response record.
+        and returns reopened response record. If campaign close date has passed, close-time lock enforcement may lock it again.
       parameters:
         - $ref: '#/components/parameters/IdPath'
       requestBody:
@@ -1865,13 +1988,7 @@ components:
         email: { type: string, format: email }
         password: { type: string }
 
-    RefreshTokenRequest:
-      type: object
-      required: [refreshToken]
-      properties:
-        refreshToken: { type: string }
-
-    AuthResponse:
+    AuthUserResponse:
       type: object
       properties:
         userId: { type: string, format: uuid }
@@ -1879,10 +1996,6 @@ components:
         fullName: { type: string }
         tenantId: { type: string }
         role: { type: string, enum: [SUPER_ADMIN, ADMIN, EDITOR, VIEWER] }
-        accessToken: { type: string }
-        refreshToken: { type: string }
-        tokenType: { type: string, example: Bearer }
-        expiresIn: { type: integer, format: int64 }
 
     SubscribeRequest:
       type: object
@@ -1939,6 +2052,9 @@ components:
           type: string
           enum: [RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE]
         maxScore: { type: number, minimum: 0.01 }
+        optionConfig:
+          type: string
+          description: JSON string containing question-level options/configuration.
 
     QuestionResponse:
       type: object
@@ -1949,6 +2065,7 @@ components:
           type: string
           enum: [RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE]
         maxScore: { type: number }
+        optionConfig: { type: string }
         currentVersion: { type: integer }
         active: { type: boolean }
         createdBy: { type: string }
@@ -2004,6 +2121,7 @@ components:
       properties:
         questionId: { type: string, format: uuid }
         categoryId: { type: string, format: uuid }
+        categoryWeightPercentage: { type: number }
         sortOrder: { type: integer }
         mandatory: { type: boolean }
         answerConfig: { type: string }
@@ -2058,6 +2176,8 @@ components:
                     questionId: { type: string, format: uuid }
                     questionVersionId: { type: string, format: uuid }
                     categoryId: { type: string, format: uuid }
+                    categoryVersionId: { type: string, format: uuid }
+                    categoryWeightPercentage: { type: number }
                     sortOrder: { type: integer }
                     mandatory: { type: boolean }
                     answerConfig: { type: string }
@@ -2092,6 +2212,7 @@ components:
         description: { type: string }
         surveyId: { type: string, format: uuid }
         surveySnapshotId: { type: string, format: uuid }
+        defaultWeightProfileId: { type: string, format: uuid }
         authMode: { type: string, enum: [PUBLIC, PRIVATE, SIGNED_TOKEN, SSO] }
         status: { type: string, enum: [DRAFT, ACTIVE, PAUSED, COMPLETED, ARCHIVED] }
         active: { type: boolean }
@@ -2122,6 +2243,77 @@ components:
         collectEmail: { type: boolean }
         collectPhone: { type: boolean }
         collectAddress: { type: boolean }
+
+    CampaignSettingsResponse:
+      type: object
+      properties:
+        campaignId: { type: string, format: uuid }
+        password: { type: string }
+        captchaEnabled: { type: boolean }
+        oneResponsePerDevice: { type: boolean }
+        ipRestrictionEnabled: { type: boolean }
+        emailRestrictionEnabled: { type: boolean }
+        responseQuota: { type: integer }
+        closeDate: { type: string, format: date-time }
+        sessionTimeoutMinutes: { type: integer }
+        showQuestionNumbers: { type: boolean }
+        showProgressIndicator: { type: boolean }
+        allowBackButton: { type: boolean }
+        startMessage: { type: string }
+        finishMessage: { type: string }
+        headerHtml: { type: string }
+        footerHtml: { type: string }
+        collectName: { type: boolean }
+        collectEmail: { type: boolean }
+        collectPhone: { type: boolean }
+        collectAddress: { type: boolean }
+
+    CampaignPreviewResponse:
+      type: object
+      properties:
+        campaignId: { type: string, format: uuid }
+        tenantId: { type: string }
+        campaignName: { type: string }
+        campaignStatus: { type: string, enum: [DRAFT, ACTIVE, PAUSED, COMPLETED, ARCHIVED] }
+        authMode: { type: string, enum: [PUBLIC, PRIVATE, SIGNED_TOKEN, SSO] }
+        surveyId: { type: string, format: uuid }
+        surveyTitle: { type: string }
+        surveyDescription: { type: string }
+        showQuestionNumbers: { type: boolean }
+        showProgressIndicator: { type: boolean }
+        allowBackButton: { type: boolean }
+        startMessage: { type: string }
+        finishMessage: { type: string }
+        headerHtml: { type: string }
+        footerHtml: { type: string }
+        collectName: { type: boolean }
+        collectEmail: { type: boolean }
+        collectPhone: { type: boolean }
+        collectAddress: { type: boolean }
+        pages:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              sortOrder: { type: integer }
+              questions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    questionId: { type: string, format: uuid }
+                    questionVersionId: { type: string, format: uuid }
+                    categoryVersionId: { type: string, format: uuid }
+                    text: { type: string }
+                    type: { type: string, enum: [RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE] }
+                    maxScore: { type: number }
+                    mandatory: { type: boolean }
+                    sortOrder: { type: integer }
+                    optionConfig: { type: string }
+                    answerConfig: { type: string }
 
     DistributionChannelResponse:
       type: object
@@ -2298,6 +2490,9 @@ components:
         startedAt: { type: string, format: date-time }
         submittedAt: { type: string, format: date-time }
         lockedAt: { type: string, format: date-time }
+        weightProfileId: { type: string, format: uuid }
+        weightedTotalScore: { type: number }
+        scoredAt: { type: string, format: date-time }
         answers:
           type: array
           items:

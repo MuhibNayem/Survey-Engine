@@ -25,6 +25,8 @@ import com.bracits.surveyengine.response.entity.Answer;
 import com.bracits.surveyengine.response.entity.ResponseStatus;
 import com.bracits.surveyengine.response.entity.SurveyResponse;
 import com.bracits.surveyengine.response.repository.SurveyResponseRepository;
+import com.bracits.surveyengine.scoring.dto.ScoreResult;
+import com.bracits.surveyengine.scoring.service.ScoringEngineService;
 import com.bracits.surveyengine.subscription.service.PlanQuotaService;
 import com.bracits.surveyengine.survey.entity.SurveySnapshot;
 import com.bracits.surveyengine.survey.repository.SurveySnapshotRepository;
@@ -66,6 +68,7 @@ public class ResponseServiceImpl implements ResponseService {
     private final OidcResponderAuthService oidcResponderAuthService;
     private final SurveySnapshotRepository surveySnapshotRepository;
     private final QuestionVersionRepository questionVersionRepository;
+    private final ScoringEngineService scoringEngineService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -90,7 +93,13 @@ public class ResponseServiceImpl implements ResponseService {
             enforceSettings(settings, request, campaign.getId(), campaign.getTenantId());
         }
         enforcePlanResponseQuota(campaign.getId(), campaign.getTenantId());
-        List<ValidatedAnswer> validatedAnswers = validateAndNormalizeAnswers(campaign, request.getAnswers());
+        SurveySnapshotContext snapshotContext = loadSnapshotContext(campaign.getSurveySnapshotId());
+        List<ValidatedAnswer> validatedAnswers = validateAndNormalizeAnswers(snapshotContext, request.getAnswers());
+        ScoreResult weightedScoreResult = null;
+        if (campaign.getDefaultWeightProfileId() != null) {
+            Map<UUID, BigDecimal> categoryRawScores = computeCategoryRawScores(snapshotContext, validatedAnswers);
+            weightedScoreResult = scoringEngineService.calculateScore(campaign.getDefaultWeightProfileId(), categoryRawScores);
+        }
 
         // 3. Build and save response
         SurveyResponse surveyResponse = SurveyResponse.builder()
@@ -102,6 +111,9 @@ public class ResponseServiceImpl implements ResponseService {
                 .respondentDeviceFingerprint(request.getRespondentDeviceFingerprint())
                 .status(ResponseStatus.SUBMITTED)
                 .submittedAt(Instant.now())
+                .weightProfileId(weightedScoreResult != null ? weightedScoreResult.getWeightProfileId() : null)
+                .weightedTotalScore(weightedScoreResult != null ? weightedScoreResult.getTotalScore() : null)
+                .scoredAt(weightedScoreResult != null ? Instant.now() : null)
                 .build();
 
         for (ValidatedAnswer ar : validatedAnswers) {
@@ -256,9 +268,8 @@ public class ResponseServiceImpl implements ResponseService {
     }
 
     private List<ValidatedAnswer> validateAndNormalizeAnswers(
-            Campaign campaign,
+            SurveySnapshotContext snapshotContext,
             List<ResponseSubmissionRequest.AnswerRequest> submittedAnswers) {
-        SurveySnapshotContext snapshotContext = loadSnapshotContext(campaign.getSurveySnapshotId());
         List<ResponseSubmissionRequest.AnswerRequest> answers = submittedAnswers == null ? List.of() : submittedAnswers;
         Map<UUID, QuestionVersion> questionVersionCache = new HashMap<>();
         Set<UUID> seenQuestionIds = new LinkedHashSet<>();
@@ -325,13 +336,16 @@ public class ResponseServiceImpl implements ResponseService {
                     UUID questionId = parseUuid(questionNode.path("questionId").asText(null), "questionId");
                     UUID questionVersionId = parseUuid(
                             questionNode.path("questionVersionId").asText(null), "questionVersionId");
+                    UUID categoryId = questionNode.hasNonNull("categoryId")
+                            ? parseUuid(questionNode.path("categoryId").asText(null), "categoryId")
+                            : null;
                     boolean mandatory = questionNode.path("mandatory").asBoolean(false);
                     String optionConfig = extractOptionConfig(questionNode.get("optionConfig"));
                     String answerConfig = extractAnswerConfig(questionNode.get("answerConfig"));
 
                     SnapshotQuestion previous = questionsById.putIfAbsent(
                             questionId,
-                            new SnapshotQuestion(questionId, questionVersionId, mandatory, optionConfig, answerConfig));
+                            new SnapshotQuestion(questionId, questionVersionId, categoryId, mandatory, optionConfig, answerConfig));
                     if (previous != null) {
                         throw validationError("Survey snapshot contains duplicate questionId: " + questionId);
                     }
@@ -838,8 +852,26 @@ public class ResponseServiceImpl implements ResponseService {
                 .startedAt(r.getStartedAt())
                 .submittedAt(r.getSubmittedAt())
                 .lockedAt(r.getLockedAt())
+                .weightProfileId(r.getWeightProfileId())
+                .weightedTotalScore(r.getWeightedTotalScore())
+                .scoredAt(r.getScoredAt())
                 .answers(answers)
                 .build();
+    }
+
+    private Map<UUID, BigDecimal> computeCategoryRawScores(
+            SurveySnapshotContext snapshotContext,
+            List<ValidatedAnswer> answers) {
+        Map<UUID, BigDecimal> categoryRawScores = new LinkedHashMap<>();
+        for (ValidatedAnswer answer : answers) {
+            SnapshotQuestion snapshotQuestion = snapshotContext.questionsById().get(answer.questionId());
+            if (snapshotQuestion == null || snapshotQuestion.categoryId() == null) {
+                continue;
+            }
+            BigDecimal answerScore = answer.score() != null ? answer.score() : BigDecimal.ZERO;
+            categoryRawScores.merge(snapshotQuestion.categoryId(), answerScore, BigDecimal::add);
+        }
+        return categoryRawScores;
     }
 
     private record SurveySnapshotContext(Map<UUID, SnapshotQuestion> questionsById) {
@@ -848,6 +880,7 @@ public class ResponseServiceImpl implements ResponseService {
     private record SnapshotQuestion(
             UUID questionId,
             UUID questionVersionId,
+            UUID categoryId,
             boolean mandatory,
             String optionConfig,
             String answerConfig) {

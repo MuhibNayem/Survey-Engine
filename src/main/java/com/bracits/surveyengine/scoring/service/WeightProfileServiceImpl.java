@@ -11,13 +11,20 @@ import com.bracits.surveyengine.scoring.dto.WeightProfileResponse;
 import com.bracits.surveyengine.scoring.entity.CategoryWeight;
 import com.bracits.surveyengine.scoring.entity.WeightProfile;
 import com.bracits.surveyengine.scoring.repository.WeightProfileRepository;
+import com.bracits.surveyengine.survey.entity.SurveySnapshot;
+import com.bracits.surveyengine.survey.repository.SurveySnapshotRepository;
 import com.bracits.surveyengine.tenant.service.TenantService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -29,11 +36,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class WeightProfileServiceImpl implements WeightProfileService {
 
+    private static final String DEFAULT_PROFILE_NAME = "Default";
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100.00");
 
     private final WeightProfileRepository weightProfileRepository;
     private final CampaignRepository campaignRepository;
     private final TenantService tenantService;
+    private final SurveySnapshotRepository surveySnapshotRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -60,6 +70,7 @@ public class WeightProfileServiceImpl implements WeightProfileService {
         }
 
         profile = weightProfileRepository.save(profile);
+        validateWeightSum(profile.getId());
         return toResponse(profile);
     }
 
@@ -99,6 +110,7 @@ public class WeightProfileServiceImpl implements WeightProfileService {
         }
 
         profile = weightProfileRepository.save(profile);
+        validateWeightSum(profile.getId());
         return toResponse(profile);
     }
 
@@ -128,6 +140,42 @@ public class WeightProfileServiceImpl implements WeightProfileService {
         }
     }
 
+    @Override
+    @Transactional
+    public UUID upsertDefaultProfileFromSurveySnapshot(UUID campaignId, UUID surveySnapshotId) {
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        campaignRepository.findByIdAndTenantId(campaignId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+
+        Map<UUID, BigDecimal> categoryWeights = extractCategoryWeights(surveySnapshotId);
+        if (categoryWeights.isEmpty()) {
+            return null;
+        }
+
+        WeightProfile profile = weightProfileRepository
+                .findByCampaignIdAndNameAndTenantId(campaignId, DEFAULT_PROFILE_NAME, tenantId)
+                .orElseGet(() -> WeightProfile.builder()
+                        .name(DEFAULT_PROFILE_NAME)
+                        .campaignId(campaignId)
+                        .tenantId(tenantId)
+                        .active(true)
+                        .build());
+
+        profile.setActive(true);
+        profile.getCategoryWeights().clear();
+        for (Map.Entry<UUID, BigDecimal> entry : categoryWeights.entrySet()) {
+            profile.getCategoryWeights().add(CategoryWeight.builder()
+                    .weightProfile(profile)
+                    .categoryId(entry.getKey())
+                    .weightPercentage(entry.getValue())
+                    .build());
+        }
+
+        profile = weightProfileRepository.save(profile);
+        validateWeightSum(profile.getId());
+        return profile.getId();
+    }
+
     private WeightProfile findOrThrow(UUID id) {
         return weightProfileRepository.findByIdAndTenantId(id, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("WeightProfile", id));
@@ -151,5 +199,146 @@ public class WeightProfileServiceImpl implements WeightProfileService {
                 .createdBy(profile.getCreatedBy())
                 .createdAt(profile.getCreatedAt())
                 .build();
+    }
+
+    private Map<UUID, BigDecimal> extractCategoryWeights(UUID surveySnapshotId) {
+        SurveySnapshot snapshot = surveySnapshotRepository.findById(surveySnapshotId)
+                .orElseThrow(() -> new ResourceNotFoundException("SurveySnapshot", surveySnapshotId));
+        Map<UUID, BigDecimal> categoryWeights = new LinkedHashMap<>();
+        boolean hasExplicitWeights = false;
+
+        try {
+            JsonNode root = objectMapper.readTree(snapshot.getSnapshotData());
+            JsonNode pagesNode = root.path("pages");
+            if (!pagesNode.isArray()) {
+                return Map.of();
+            }
+
+            for (JsonNode pageNode : pagesNode) {
+                JsonNode questionsNode = pageNode.path("questions");
+                if (!questionsNode.isArray()) {
+                    continue;
+                }
+                for (JsonNode questionNode : questionsNode) {
+                    if (!questionNode.hasNonNull("categoryId")) {
+                        continue;
+                    }
+                    UUID categoryId = UUID.fromString(questionNode.path("categoryId").asText());
+                    BigDecimal weight = readOptionalDecimal(questionNode.get("categoryWeightPercentage"));
+                    if (weight != null) {
+                        hasExplicitWeights = true;
+                        if (weight.compareTo(BigDecimal.ZERO) <= 0) {
+                            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                                    "categoryWeightPercentage must be > 0 in snapshot");
+                        }
+                    }
+
+                    BigDecimal previous = categoryWeights.putIfAbsent(categoryId, weight);
+                    if (previous != null) {
+                        if (previous == null && weight != null) {
+                            categoryWeights.put(categoryId, weight);
+                            continue;
+                        }
+                        if (previous != null && weight != null && previous.compareTo(weight) != 0) {
+                            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                                    "Inconsistent categoryWeightPercentage for category " + categoryId);
+                        }
+                    }
+                }
+            }
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "Unable to parse survey snapshot category weights");
+        }
+
+        if (categoryWeights.isEmpty()) {
+            return Map.of();
+        }
+
+        if (!hasExplicitWeights || categoryWeights.values().stream().anyMatch(v -> v == null)) {
+            return distributeEvenly(categoryWeights.keySet().stream().toList());
+        }
+
+        Map<UUID, BigDecimal> normalized = new LinkedHashMap<>();
+        BigDecimal sum = BigDecimal.ZERO;
+        for (Map.Entry<UUID, BigDecimal> entry : categoryWeights.entrySet()) {
+            BigDecimal weight = entry.getValue().setScale(2, RoundingMode.HALF_UP);
+            normalized.put(entry.getKey(), weight);
+            sum = sum.add(weight);
+        }
+        if (sum.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "Total category weight must be > 0");
+        }
+        if (sum.compareTo(ONE_HUNDRED) == 0) {
+            return normalized;
+        }
+
+        return normalizeToHundred(normalized, sum);
+    }
+
+    private Map<UUID, BigDecimal> distributeEvenly(List<UUID> categoryIds) {
+        Map<UUID, BigDecimal> weights = new LinkedHashMap<>();
+        if (categoryIds.isEmpty()) {
+            return weights;
+        }
+        BigDecimal divisor = BigDecimal.valueOf(categoryIds.size());
+        BigDecimal base = ONE_HUNDRED.divide(divisor, 2, RoundingMode.DOWN);
+        BigDecimal consumed = base.multiply(divisor).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal remainder = ONE_HUNDRED.subtract(consumed).setScale(2, RoundingMode.HALF_UP);
+        for (int i = 0; i < categoryIds.size(); i++) {
+            BigDecimal value = i == 0 ? base.add(remainder) : base;
+            weights.put(categoryIds.get(i), value);
+        }
+        return weights;
+    }
+
+    private Map<UUID, BigDecimal> normalizeToHundred(Map<UUID, BigDecimal> source, BigDecimal total) {
+        Map<UUID, BigDecimal> normalized = new LinkedHashMap<>();
+        BigDecimal factor = ONE_HUNDRED.divide(total, 8, RoundingMode.HALF_UP);
+        BigDecimal running = BigDecimal.ZERO;
+        UUID firstKey = null;
+
+        for (Map.Entry<UUID, BigDecimal> entry : source.entrySet()) {
+            if (firstKey == null) {
+                firstKey = entry.getKey();
+            }
+            BigDecimal value = entry.getValue()
+                    .multiply(factor)
+                    .setScale(2, RoundingMode.HALF_UP);
+            normalized.put(entry.getKey(), value);
+            running = running.add(value);
+        }
+
+        BigDecimal diff = ONE_HUNDRED.subtract(running).setScale(2, RoundingMode.HALF_UP);
+        if (firstKey != null && diff.compareTo(BigDecimal.ZERO) != 0) {
+            normalized.put(firstKey, normalized.get(firstKey).add(diff).setScale(2, RoundingMode.HALF_UP));
+        }
+        return normalized;
+    }
+
+    private BigDecimal readOptionalDecimal(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isNumber()) {
+            return node.decimalValue();
+        }
+        if (node.isTextual()) {
+            String raw = node.asText().trim();
+            if (raw.isEmpty()) {
+                return null;
+            }
+            try {
+                return new BigDecimal(raw);
+            } catch (NumberFormatException ex) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "categoryWeightPercentage must be numeric");
+            }
+        }
+        throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                "categoryWeightPercentage has invalid type");
     }
 }

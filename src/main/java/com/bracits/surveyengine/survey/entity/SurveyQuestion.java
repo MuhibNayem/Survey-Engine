@@ -3,6 +3,7 @@ package com.bracits.surveyengine.survey.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -39,6 +40,9 @@ public class SurveyQuestion {
 
     @Column(name = "category_version_id")
     private UUID categoryVersionId;
+
+    @Column(name = "category_weight_percentage", precision = 5, scale = 2)
+    private BigDecimal categoryWeightPercentage;
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;

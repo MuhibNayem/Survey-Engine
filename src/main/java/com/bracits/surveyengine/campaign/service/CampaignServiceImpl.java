@@ -12,6 +12,8 @@ import com.bracits.surveyengine.questionbank.entity.Question;
 import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import com.bracits.surveyengine.questionbank.repository.QuestionRepository;
 import com.bracits.surveyengine.questionbank.repository.QuestionVersionRepository;
+import com.bracits.surveyengine.response.service.ResponseLockingService;
+import com.bracits.surveyengine.scoring.service.WeightProfileService;
 import com.bracits.surveyengine.subscription.service.PlanQuotaService;
 import com.bracits.surveyengine.tenant.service.TenantService;
 import com.bracits.surveyengine.survey.entity.Survey;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,8 +45,10 @@ public class CampaignServiceImpl implements CampaignService {
     private final QuestionRepository questionRepository;
     private final QuestionVersionRepository questionVersionRepository;
     private final SurveyService surveyService;
+    private final WeightProfileService weightProfileService;
     private final PlanQuotaService planQuotaService;
     private final TenantService tenantService;
+    private final ResponseLockingService responseLockingService;
 
     @Override
     @Transactional
@@ -177,6 +182,10 @@ public class CampaignServiceImpl implements CampaignService {
         settings.setCollectAddress(request.isCollectAddress());
 
         settingsRepository.save(settings);
+        Instant now = Instant.now();
+        if (settings.getCloseDate() != null && !settings.getCloseDate().isAfter(now)) {
+            responseLockingService.lockOpenResponsesForCampaignClosure(campaignId, now);
+        }
         return toResponse(campaign);
     }
 
@@ -199,6 +208,8 @@ public class CampaignServiceImpl implements CampaignService {
 
         SurveySnapshot snapshot = surveyService.getLatestSnapshot(surveyId);
         campaign.setSurveySnapshotId(snapshot.getId());
+        campaign.setDefaultWeightProfileId(
+                weightProfileService.upsertDefaultProfileFromSurveySnapshot(campaign.getId(), snapshot.getId()));
         campaign.setStatus(CampaignStatus.ACTIVE);
         campaign = campaignRepository.save(campaign);
         return toResponse(campaign);
@@ -216,6 +227,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .description(c.getDescription())
                 .surveyId(c.getSurveyId())
                 .surveySnapshotId(c.getSurveySnapshotId())
+                .defaultWeightProfileId(c.getDefaultWeightProfileId())
                 .authMode(c.getAuthMode())
                 .status(c.getStatus())
                 .active(c.isActive())

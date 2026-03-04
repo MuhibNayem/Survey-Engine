@@ -3,6 +3,7 @@ package com.bracits.surveyengine.response.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,15 @@ public class SurveyResponse {
 
     @Column(name = "locked_at")
     private Instant lockedAt;
+
+    @Column(name = "weight_profile_id")
+    private UUID weightProfileId;
+
+    @Column(name = "weighted_total_score", precision = 10, scale = 4)
+    private BigDecimal weightedTotalScore;
+
+    @Column(name = "scored_at")
+    private Instant scoredAt;
 
     @OneToMany(mappedBy = "surveyResponse", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

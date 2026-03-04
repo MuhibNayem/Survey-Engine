@@ -3,6 +3,7 @@ package com.bracits.surveyengine.survey.dto;
 import com.bracits.surveyengine.survey.entity.SurveyLifecycleState;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -45,6 +46,7 @@ public class SurveyResponse {
         private UUID questionVersionId;
         private UUID categoryId;
         private UUID categoryVersionId;
+        private BigDecimal categoryWeightPercentage;
         private Integer sortOrder;
         private boolean mandatory;
         private String answerConfig;

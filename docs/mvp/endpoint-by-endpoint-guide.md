@@ -112,8 +112,11 @@ Each endpoint answers 6 questions:
 ### 8) `POST /api/v1/questions`
 - Why necessary: Build reusable question library once.
 - Who uses it: Content/admin teams.
-- Caller provides: Question text, type, scoring/meta config.
-- System does: Creates question and version snapshot.
+- Caller provides: Question text, type, max score, and `optionConfig` (required for choice/rank types).
+- System does:
+  1. Creates mutable question-bank definition.
+  2. Upserts live question version (`version_number = 1`).
+  3. Validates `optionConfig` rules for choice/rank question types.
 - Caller gets back: Created question record.
 - Flow position: Survey content preparation.
 
@@ -137,7 +140,9 @@ Each endpoint answers 6 questions:
 - Why necessary: Improve or correct question text/config over time.
 - Who uses it: Content/admin teams.
 - Caller provides: Question ID + updated data.
-- System does: Updates question and stores new version snapshot.
+- System does:
+  1. Updates mutable question-bank definition.
+  2. Updates live question version (`version_number = 1`) in place.
 - Caller gets back: Updated question.
 - Flow position: Ongoing content governance.
 
@@ -157,7 +162,9 @@ Each endpoint answers 6 questions:
 - Why necessary: Group questions into reusable dimensions/themes.
 - Who uses it: Content/admin teams.
 - Caller provides: Category title/metadata and mappings.
-- System does: Creates category and version snapshot.
+- System does:
+  1. Creates mutable category-bank definition.
+  2. Upserts live category version (`version_number = 1`) with live question-version mappings.
 - Caller gets back: Created category details.
 - Flow position: Survey structure planning.
 
@@ -181,7 +188,9 @@ Each endpoint answers 6 questions:
 - Why necessary: Keep category definitions current.
 - Who uses it: Content/admin teams.
 - Caller provides: Category ID + updated payload.
-- System does: Updates category, creates new version snapshot.
+- System does:
+  1. Updates mutable category-bank definition.
+  2. Rewrites live category version (`version_number = 1`) mappings.
 - Caller gets back: Updated category.
 - Flow position: Controlled updates before/after releases.
 
@@ -201,7 +210,9 @@ Each endpoint answers 6 questions:
 - Why necessary: Create a survey draft from prepared content.
 - Who uses it: Survey managers.
 - Caller provides: Survey title, pages, question references/settings.
-- System does: Creates tenant-scoped survey in draft state.
+- System does:
+  1. Creates tenant-scoped survey in draft state.
+  2. Pins immutable question/category versions for the draft structure.
 - Caller gets back: Created survey data.
 - Flow position: Start of survey lifecycle.
 
@@ -225,7 +236,9 @@ Each endpoint answers 6 questions:
 - Why necessary: Update draft survey before publishing.
 - Who uses it: Survey managers.
 - Caller provides: Survey ID + updated structure.
-- System does: Applies changes if lifecycle permits.
+- System does:
+  1. Allows update only while lifecycle state is `DRAFT`.
+  2. Rebuilds pinned question/category versions for updated draft content.
 - Caller gets back: Updated survey.
 - Flow position: Draft refinement.
 
@@ -243,7 +256,8 @@ Each endpoint answers 6 questions:
 - Caller provides: Target lifecycle transition request.
 - System does:
   1. Validates allowed transition.
-  2. Creates immutable publish snapshot where required.
+  2. Creates immutable snapshot on `DRAFT -> PUBLISHED`.
+  3. Requires reopen reason on `CLOSED -> PUBLISHED`.
 - Caller gets back: Survey in new lifecycle state.
 - Flow position: Governance gate before campaigns can go live.
 
@@ -255,7 +269,7 @@ Each endpoint answers 6 questions:
 - Why necessary: Turn a survey into a live distribution unit.
 - Who uses it: Campaign managers.
 - Caller provides: Survey reference + campaign name + access mode + basic config.
-- System does: Creates tenant campaign in non-active state.
+- System does: Creates tenant campaign in `DRAFT` status (not responder-active yet).
 - Caller gets back: Campaign record.
 - Flow position: Campaign planning.
 
@@ -295,9 +309,27 @@ Each endpoint answers 6 questions:
 - Why necessary: Configure live controls (quota, restrictions, close date, etc.).
 - Who uses it: Campaign managers.
 - Caller provides: Runtime settings object.
-- System does: Saves campaign runtime behavior rules.
+- System does:
+  1. Saves campaign runtime behavior rules.
+  2. If `closeDate` is already reached/past at update time, immediately auto-locks open responses (`IN_PROGRESS`/`REOPENED`) for that campaign.
 - Caller gets back: Campaign with updated settings.
 - Flow position: Pre-launch and in-flight control tuning.
+
+### 29a) `GET /api/v1/campaigns/{id}/settings`
+- Why necessary: Retrieve current campaign runtime settings before editing or auditing.
+- Who uses it: Campaign managers.
+- Caller provides: Campaign ID.
+- System does: Returns persisted runtime settings and presentation flags.
+- Caller gets back: Campaign settings payload.
+- Flow position: Settings read/edit lifecycle.
+
+### 29b) `GET /api/v1/campaigns/{id}/preview`
+- Why necessary: Simulate responder experience for admins before rollout.
+- Who uses it: Campaign managers and QA users.
+- Caller provides: Campaign ID.
+- System does: Builds preview payload from campaign + survey pages/questions + runtime settings.
+- Caller gets back: Admin preview data model.
+- Flow position: Pre-launch validation.
 
 ### 30) `POST /api/v1/campaigns/{id}/activate`
 - Why necessary: Officially open campaign for responder participation.
@@ -305,7 +337,9 @@ Each endpoint answers 6 questions:
 - Caller provides: Campaign ID.
 - System does:
   1. Confirms linked survey is publish-ready.
-  2. Marks campaign active.
+  2. Links latest published survey snapshot to campaign.
+  3. Auto-upserts campaign default weight profile from pinned survey category weights.
+  4. Marks campaign active.
 - Caller gets back: Activated campaign state.
 - Flow position: Launch gate.
 
@@ -324,6 +358,14 @@ Each endpoint answers 6 questions:
 - System does: Fetches campaign channel records.
 - Caller gets back: Distribution channel list.
 - Flow position: Ongoing outreach and re-sharing.
+
+### 32a) `GET /api/v1/public/campaigns/{id}/preview`
+- Why necessary: Provide responder-facing form preview payload without admin auth.
+- Who uses it: Public/private responder runtime UI.
+- Caller provides: Campaign ID.
+- System does: Returns preview for campaigns in active state; private/public responder access is enforced at submission/auth endpoints.
+- Caller gets back: Public preview payload.
+- Flow position: Responder form load.
 
 ---
 
@@ -391,8 +433,11 @@ Each endpoint answers 6 questions:
 ### 40) `POST /api/v1/auth/validate/{tenantId}`
 - Why necessary: Validate responder token using tenant rules.
 - Who uses it: Responder flow backend/integration checks.
-- Caller provides: Tenant ID + token payload.
-- System does: Verifies token based on auth mode and mapping rules.
+- Caller provides: Tenant ID + raw token string in request body.
+- System does:
+  1. Loads tenant auth mode/profile.
+  2. Validates token and required claim mappings.
+  3. Applies configured fallback policy when validation fails.
 - Caller gets back: Validation result and mapped identity fields.
 - Flow position: Trust decision in private responder access.
 
@@ -420,7 +465,7 @@ Each endpoint answers 6 questions:
   2. Exchanges code for token.
   3. Validates token using tenant claim rules.
   4. Issues short-lived one-time responder access code.
-- Caller gets back: Access code (or redirect containing it).
+- Caller gets back: JSON callback payload or HTTP redirect containing `auth_code` (when return path is configured).
 - Flow position: Final step before response submission.
 
 ---
@@ -437,7 +482,10 @@ Each endpoint answers 6 questions:
 - System does:
   1. Validates campaign active and runtime rules.
   2. Enforces public/private access requirement.
-  3. Stores response and locks it.
+  3. Validates answers against pinned survey snapshot question/category versions.
+  4. Auto-calculates weighted score when campaign default profile exists.
+  5. Stores response and locks it.
+  6. Close-time lifecycle enforcement (background) separately locks any remaining `IN_PROGRESS`/`REOPENED` responses once campaign close date is reached.
 - Caller gets back: Saved response summary.
 - Flow position: Main data capture endpoint.
 
@@ -469,7 +517,7 @@ Each endpoint answers 6 questions:
 - Why necessary: Allow correction in controlled exceptional cases.
 - Who uses it: Admin teams.
 - Caller provides: Response ID + reopen reason/window.
-- System does: Reopens locked response with audit-safe handling.
+- System does: Reopens locked response with audit-safe handling (note: if campaign close date has already passed, background close-time enforcement locks it again).
 - Caller gets back: Reopened response status.
 - Flow position: Exception management.
 
@@ -484,6 +532,8 @@ Each endpoint answers 6 questions:
 ---
 
 ## J) Scoring Endpoints
+
+Note: In the simplified MVP runtime flow, scoring is executed automatically during `POST /api/v1/responses`. Endpoints below remain available for advanced/manual operations.
 
 ### 49) `POST /api/v1/scoring/profiles`
 - Why necessary: Define weighted scoring rules for a campaign.
@@ -550,10 +600,11 @@ Public responder-facing endpoints:
 2. `POST /api/v1/auth/validate/{tenantId}`
 3. `POST /api/v1/auth/respondent/oidc/start`
 4. `GET /api/v1/auth/respondent/oidc/callback`
+5. `GET /api/v1/public/campaigns/{id}/preview`
 
 Admin-auth required endpoints:
 1. All question/category/survey/campaign/scoring management endpoints.
-2. Auth profile management endpoints.
+2. Auth profile management and provider-template endpoints (`/api/v1/auth/profiles/**`, `/api/v1/auth/providers/templates/**`).
 3. Subscription and plan endpoints (with super-admin restriction for plan update).
 
 ## L) Data Flow Path (Simple View)
@@ -562,5 +613,5 @@ Admin-auth required endpoints:
 2. Campaign goes active -> responder accesses campaign path.
 3. If public -> responder submits directly.
 4. If private -> responder identity is validated (OIDC flow or signed token).
-5. Response stored and locked -> analytics/scoring/reporting consume this data.
+5. Response is validated, scored (default flow), and locked -> analytics/scoring/reporting consume this data.
 6. Subscription and plan checks run in parallel to enforce SaaS limits.

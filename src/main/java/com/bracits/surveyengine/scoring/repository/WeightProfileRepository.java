@@ -13,4 +13,6 @@ public interface WeightProfileRepository extends JpaRepository<WeightProfile, UU
     List<WeightProfile> findByCampaignIdAndActiveTrueAndTenantId(UUID campaignId, String tenantId);
 
     Optional<WeightProfile> findByIdAndTenantId(UUID id, String tenantId);
+
+    Optional<WeightProfile> findByCampaignIdAndNameAndTenantId(UUID campaignId, String name, String tenantId);
 }

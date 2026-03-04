@@ -3,6 +3,7 @@ package com.bracits.surveyengine.survey.dto;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Getter
@@ -16,6 +17,8 @@ public class SurveyQuestionRequest {
     private UUID questionId;
 
     private UUID categoryId;
+
+    private BigDecimal categoryWeightPercentage;
 
     @NotNull(message = "Sort order is required")
     private Integer sortOrder;

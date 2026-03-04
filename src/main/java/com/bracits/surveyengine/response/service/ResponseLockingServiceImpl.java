@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -68,6 +69,25 @@ public class ResponseLockingServiceImpl implements ResponseLockingService {
         response.setLockedAt(null);
         response = responseRepository.save(response);
         return toResponse(response);
+    }
+
+    @Override
+    @Transactional
+    public int lockOpenResponsesForCampaignClosure(UUID campaignId, Instant lockedAt) {
+        Instant effectiveLockedAt = lockedAt != null ? lockedAt : Instant.now();
+        List<SurveyResponse> responses = responseRepository.findByCampaignIdAndStatusIn(
+                campaignId,
+                Set.of(ResponseStatus.IN_PROGRESS, ResponseStatus.REOPENED));
+        if (responses.isEmpty()) {
+            return 0;
+        }
+
+        for (SurveyResponse response : responses) {
+            response.setStatus(ResponseStatus.LOCKED);
+            response.setLockedAt(effectiveLockedAt);
+        }
+        responseRepository.saveAll(responses);
+        return responses.size();
     }
 
     private SurveyResponse findOrThrow(UUID id) {

@@ -361,12 +361,15 @@
                 {/if}
             </Card.Header>
 
-            <Card.Content class="space-y-6">
+            <Card.Content class="p-0">
                 {#if campaign.headerHtml}
-                    <div class="rounded-lg border border-border p-4">{@html campaign.headerHtml}</div>
+                    <section class="campaign-branding-shell campaign-branding-shell-header">
+                        <div class="campaign-branding-content">{@html campaign.headerHtml}</div>
+                    </section>
                 {/if}
 
-                {#if stage === "intro"}
+                <section class="space-y-6 p-5 sm:p-7">
+                    {#if stage === "intro"}
                     <div class="space-y-4">
                         {#if campaign.startMessage}
                             <p class="text-sm leading-6 text-foreground whitespace-pre-wrap">{campaign.startMessage}</p>
@@ -378,7 +381,7 @@
                             Start Preview
                         </Button>
                     </div>
-                {:else if stage === "complete"}
+                    {:else if stage === "complete"}
                     <div class="space-y-4">
                         <h3 class="text-lg font-semibold">Submission Complete (Preview)</h3>
                         {#if campaign.finishMessage}
@@ -391,7 +394,7 @@
                             <Button onclick={() => goto(`/campaigns/${campaignId}`)}>Back to Campaign</Button>
                         </div>
                     </div>
-                {:else if currentPage}
+                    {:else if currentPage}
                     <div class="space-y-6">
                         {#if campaign.collectName || campaign.collectEmail || campaign.collectPhone || campaign.collectAddress}
                             <Card.Root class="border border-border/70">
@@ -595,12 +598,48 @@
                             </Button>
                         </div>
                     </div>
-                {/if}
+                    {/if}
+                </section>
 
                 {#if campaign.footerHtml}
-                    <div class="rounded-lg border border-border p-4">{@html campaign.footerHtml}</div>
+                    <section class="campaign-branding-shell campaign-branding-shell-footer">
+                        <div class="campaign-branding-content">{@html campaign.footerHtml}</div>
+                    </section>
                 {/if}
             </Card.Content>
         </Card.Root>
     </div>
 {/if}
+
+<style>
+    .campaign-branding-shell {
+        border-top: 1px solid hsl(var(--border));
+        background: linear-gradient(180deg, hsl(var(--muted) / 0.3), hsl(var(--background)));
+    }
+
+    .campaign-branding-shell-footer {
+        border-top: 1px solid hsl(var(--border));
+        background: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted) / 0.35));
+    }
+
+    .campaign-branding-content {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .campaign-branding-content :global(h1),
+    .campaign-branding-content :global(h2),
+    .campaign-branding-content :global(h3),
+    .campaign-branding-content :global(h4),
+    .campaign-branding-content :global(h5),
+    .campaign-branding-content :global(h6) {
+        margin: 0;
+        color: hsl(var(--foreground));
+        letter-spacing: -0.01em;
+    }
+
+    .campaign-branding-content :global(p) {
+        margin: 0.45rem 0 0;
+        color: hsl(var(--muted-foreground));
+        line-height: 1.55;
+    }
+</style>

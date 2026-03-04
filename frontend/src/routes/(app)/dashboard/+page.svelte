@@ -15,7 +15,6 @@
         MessageSquareText,
         ArrowRight,
         CreditCard,
-        Sparkles,
         BarChart3,
     } from "lucide-svelte";
     import type {
@@ -111,7 +110,7 @@
             // Fetch analytics for recent active/completed campaigns
             const campaignsWithAnalytics = await Promise.all(
                 recent.map(async (c): Promise<CampaignWithAnalytics> => {
-                    if (c.status === "ACTIVE" || c.status === "COMPLETED") {
+                    if (c.status !== "DRAFT") {
                         try {
                             const { data } = await api.get<AnalyticsResponse>(
                                 `/responses/analytics/${c.id}`,
@@ -302,23 +301,6 @@
                         </p>
                     </div>
                 </Button>
-                <Button
-                    variant="outline"
-                    class="h-auto justify-start gap-3 p-4"
-                    href="/scoring"
-                >
-                    <div
-                        class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10"
-                    >
-                        <Sparkles class="h-5 w-5 text-amber-500" />
-                    </div>
-                    <div class="text-left">
-                        <p class="font-medium">Score Results</p>
-                        <p class="text-xs text-muted-foreground">
-                            Analyze scores
-                        </p>
-                    </div>
-                </Button>
             </div>
         </div>
 
@@ -399,7 +381,7 @@
                                             >
                                                 <span
                                                     >{campaign.analytics
-                                                        .submittedCount} resp</span
+                                                        .totalResponses} resp</span
                                                 >
                                                 <span
                                                     >{Math.round(

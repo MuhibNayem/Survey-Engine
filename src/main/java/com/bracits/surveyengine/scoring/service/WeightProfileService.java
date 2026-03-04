@@ -27,4 +27,10 @@ public interface WeightProfileService {
      * SRS §5.3: Activation blocker.
      */
     void validateWeightSum(UUID profileId);
+
+    /**
+     * Creates or updates the campaign default profile from pinned survey snapshot
+     * category weights and returns profile id.
+     */
+    UUID upsertDefaultProfileFromSurveySnapshot(UUID campaignId, UUID surveySnapshotId);
 }

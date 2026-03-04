@@ -35,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -54,6 +55,7 @@ public class SurveyServiceImpl implements SurveyService {
 
     private static final int LIVE_VERSION_NUMBER = 1;
     private static final BigDecimal DEFAULT_CATEGORY_WEIGHT = BigDecimal.ONE;
+    private static final BigDecimal CATEGORY_WEIGHT_TOTAL = new BigDecimal("100.00");
 
     private static final Map<SurveyLifecycleState, Set<SurveyLifecycleState>> VALID_TRANSITIONS;
 
@@ -195,6 +197,7 @@ public class SurveyServiceImpl implements SurveyService {
         if (pageRequests == null || pageRequests.isEmpty()) {
             return;
         }
+        validateCategoryWeights(pageRequests);
 
         List<PendingSurveyQuestion> pendingQuestions = new ArrayList<>();
         String tenantId = TenantSupport.currentTenantOrDefault();
@@ -236,6 +239,7 @@ public class SurveyServiceImpl implements SurveyService {
                     .questionVersionId(pending.pinnedQuestionVersion().getId())
                     .categoryId(categoryId)
                     .categoryVersionId(categoryVersionId)
+                    .categoryWeightPercentage(normalizeCategoryWeight(pending.request().getCategoryWeightPercentage()))
                     .sortOrder(pending.request().getSortOrder())
                     .mandatory(pending.request().isMandatory())
                     .answerConfig(normalizeAnswerConfig(pending.request().getAnswerConfig()))
@@ -348,6 +352,9 @@ public class SurveyServiceImpl implements SurveyService {
                     if (sq.getCategoryVersionId() != null) {
                         questionJson.put("categoryVersionId", sq.getCategoryVersionId().toString());
                     }
+                    if (sq.getCategoryWeightPercentage() != null) {
+                        questionJson.put("categoryWeightPercentage", sq.getCategoryWeightPercentage());
+                    }
                     questionJson.put("sortOrder", sq.getSortOrder());
                     questionJson.put("mandatory", sq.isMandatory());
                     if (sq.getAnswerConfig() != null && !sq.getAnswerConfig().isBlank()) {
@@ -395,6 +402,56 @@ public class SurveyServiceImpl implements SurveyService {
         }
     }
 
+    private void validateCategoryWeights(List<SurveyPageRequest> pageRequests) {
+        Map<UUID, BigDecimal> categoryWeights = new LinkedHashMap<>();
+        for (SurveyPageRequest pageReq : pageRequests) {
+            if (pageReq.getQuestions() == null) {
+                continue;
+            }
+            for (SurveyQuestionRequest questionReq : pageReq.getQuestions()) {
+                UUID categoryId = questionReq.getCategoryId();
+                BigDecimal categoryWeight = questionReq.getCategoryWeightPercentage();
+                if (categoryId == null) {
+                    if (categoryWeight != null) {
+                        throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                                "categoryWeightPercentage must be null when categoryId is not set");
+                    }
+                    continue;
+                }
+                if (categoryWeight == null) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                            "categoryWeightPercentage is required when categoryId is set");
+                }
+                BigDecimal normalized = normalizeCategoryWeight(categoryWeight);
+                if (normalized.compareTo(BigDecimal.ZERO) <= 0 || normalized.compareTo(CATEGORY_WEIGHT_TOTAL) > 0) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                            "categoryWeightPercentage must be > 0 and <= 100");
+                }
+
+                BigDecimal previous = categoryWeights.putIfAbsent(categoryId, normalized);
+                if (previous != null && previous.compareTo(normalized) != 0) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                            "All questions under the same category must share the same categoryWeightPercentage");
+                }
+            }
+        }
+
+        if (!categoryWeights.isEmpty()) {
+            BigDecimal total = categoryWeights.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (total.compareTo(CATEGORY_WEIGHT_TOTAL) != 0) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "Category weights must sum to exactly 100.00");
+            }
+        }
+    }
+
+    private BigDecimal normalizeCategoryWeight(BigDecimal categoryWeight) {
+        if (categoryWeight == null) {
+            return null;
+        }
+        return categoryWeight.setScale(2, RoundingMode.HALF_UP);
+    }
+
     private Survey findOrThrow(UUID id) {
         return surveyRepository.findByIdAndTenantId(id, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("Survey", id));
@@ -413,6 +470,7 @@ public class SurveyServiceImpl implements SurveyService {
                                         .questionVersionId(sq.getQuestionVersionId())
                                         .categoryId(sq.getCategoryId())
                                         .categoryVersionId(sq.getCategoryVersionId())
+                                        .categoryWeightPercentage(sq.getCategoryWeightPercentage())
                                         .sortOrder(sq.getSortOrder())
                                         .mandatory(sq.isMandatory())
                                         .answerConfig(sq.getAnswerConfig())

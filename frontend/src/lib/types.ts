@@ -97,6 +97,7 @@ export type SurveyLifecycleState = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'RESULTS_P
 export interface SurveyQuestionRequest {
     questionId: string;
     categoryId?: string;
+    categoryWeightPercentage?: number;
     sortOrder: number;
     mandatory: boolean;
     answerConfig?: string;
@@ -131,6 +132,7 @@ export interface SurveyResponse {
             questionVersionId: string;
             categoryId?: string;
             categoryVersionId?: string;
+            categoryWeightPercentage?: number;
             sortOrder: number;
             mandatory: boolean;
             answerConfig?: string;
@@ -164,6 +166,7 @@ export interface CampaignResponse {
     description: string;
     surveyId: string;
     surveySnapshotId: string;
+    defaultWeightProfileId?: string;
     authMode: AuthMode;
     status: CampaignStatus;
     active: boolean;
@@ -286,6 +289,9 @@ export interface SurveyResponseResponse {
     startedAt: string;
     submittedAt: string;
     lockedAt: string;
+    weightProfileId?: string;
+    weightedTotalScore?: number;
+    scoredAt?: string;
     answers: {
         id: string;
         questionId: string;

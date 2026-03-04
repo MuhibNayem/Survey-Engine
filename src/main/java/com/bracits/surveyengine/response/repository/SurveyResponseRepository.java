@@ -5,6 +5,7 @@ import com.bracits.surveyengine.response.entity.SurveyResponse;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +17,7 @@ public interface SurveyResponseRepository extends JpaRepository<SurveyResponse, 
 
     List<SurveyResponse> findByCampaignIdAndStatus(UUID campaignId, ResponseStatus status);
     List<SurveyResponse> findByCampaignIdAndStatusAndTenantId(UUID campaignId, ResponseStatus status, String tenantId);
+    List<SurveyResponse> findByCampaignIdAndStatusIn(UUID campaignId, Collection<ResponseStatus> statuses);
 
     long countByCampaignId(UUID campaignId);
     long countByCampaignIdAndTenantId(UUID campaignId, String tenantId);

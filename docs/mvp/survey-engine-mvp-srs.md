@@ -5,8 +5,8 @@
 | Field | Value |
 | ----- | ----- |
 | Document Title | Survey Engine MVP SRS |
-| Version | 2.0 |
-| Date | March 3, 2026 |
+| Version | 2.1 |
+| Date | March 4, 2026 |
 | Prepared For | Product and Engineering |
 | Classification | Internal |
 | Status | Reflects implemented code and schema |
@@ -22,12 +22,13 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * Multi-tenant data model with tenant isolation in service/repository layer and DB constraints.  
 * Engine-owned admin authentication (register/login/refresh tokens).  
 * Admin RBAC using JWT roles (`SUPER_ADMIN`, `ADMIN`, `EDITOR`, `VIEWER`).  
-* Question bank and category CRUD with version snapshots.  
-* Survey CRUD with lifecycle transitions and immutable published snapshots.  
+* Question bank and category CRUD with live mutable bank definitions.  
+* Survey CRUD with draft-time pinning, lifecycle transitions, and immutable published snapshots.  
 * Campaign CRUD, runtime settings, activation, and distribution channel generation.  
 * Responder submission, response locking, reopen workflow, and basic analytics.  
 * Campaign access mode (`PUBLIC`/`PRIVATE`) with tenant-level external auth profile for private responder access.  
-* Weighted scoring with profile validation and deterministic calculation.  
+* Automated campaign scoring using category weights pinned from survey structure.  
+* Optional manual scoring profile APIs retained for advanced/administrative use (not part of default frontend flow).  
 * SaaS subscription domain (tenant subscription, plan catalog, mock payment success flow).  
 * Super-admin plan catalog management and tenant plan quota enforcement.
 
@@ -46,8 +47,9 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * **Survey**: Authoring container of pages/questions and lifecycle state.  
 * **Campaign**: Delivery container for one survey snapshot with runtime settings.  
 * **Question Bank**: Reusable questions used by categories/surveys.  
-* **Category**: Grouping of questions with versioned mappings.  
-* **Weight Profile**: Category weight model used for score computation.  
+* **Category**: Grouping of questions with live mappings in the question bank.  
+* **Pinned Version**: Immutable question/category copy created at survey draft composition time.  
+* **Weight Profile**: Category weight model used for score computation (default profile is auto-managed per campaign).  
 * **Auth Profile**: Tenant-level respondent auth trust configuration.  
 * **Subscription**: Tenant billing state and active plan assignment.  
 * **Plan Definition**: Super-admin managed pricing/quota configuration for plan codes.
@@ -72,25 +74,40 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 
 * Create, read, update, deactivate questions.  
 * Create, read, update, deactivate categories.  
-* Question and category version snapshots are generated on create/update.  
-* Category mappings reference versioned question snapshots.
+* Question option definitions are owned by question bank `optionConfig` and versioned with question versions.  
+* Category bank mappings reference live question versions (`version_number = 1`) and remain editable.
 
-#### **4.3.1 Survey Question Option Configuration (`answerConfig`)**
+#### **4.3.1 Question Option Model (`optionConfig`)**
 
-* Question bank payload (`/api/v1/questions`) defines only base metadata (`text`, `type`, `maxScore`).  
-* Per-question options and answer rules are configured at survey-question placement time via `answerConfig` on survey pages.  
-* `answerConfig` must be a JSON object.
-* Type-specific contract:
-  * `SINGLE_CHOICE`: `options` array defines allowed values (and optional per-option score).
-  * `MULTIPLE_CHOICE`: `options` array with optional `minSelections` / `maxSelections`.
-  * `RATING_SCALE`: numeric bounds via `min` / `max` and optional `step`.
-  * `RANK`: `options` array with optional ranking rule fields (e.g., `allowPartialRanking`, `correctOrder`).
-* Persistence:
-  * Draft/editable value stored in `survey_question.answer_config`.
-  * Published immutable copy stored in `survey_snapshot.snapshot_data`.
-* Runtime behavior:
-  * Response validation uses published snapshot `answerConfig`.
-  * In current MVP implementation, `options` are optional for `SINGLE_CHOICE` / `MULTIPLE_CHOICE`; if omitted, submitted values are not whitelisted against predefined options.
+* Question create/update payload supports `optionConfig` as JSON object.
+* `optionConfig.options` is required for:
+  * `SINGLE_CHOICE`
+  * `MULTIPLE_CHOICE`
+  * `RANK`
+* Each option value must be non-empty and unique.
+* `RATING_SCALE` does not require option lists.
+* Question bank update behavior:
+  * Updates mutate the live bank definition.
+  * Live question/category versions remain anchored at version `1` for bank operations.
+
+#### **4.3.2 Survey Pinning Model (Question + Category)**
+
+* Pinning happens during survey draft composition (`POST/PUT /api/v1/surveys`), not at publish time.
+* For every draft save:
+  * Included questions get pinned immutable `question_version` rows (`version_number > 1`).
+  * Tagged categories get pinned immutable `category_version` rows (`version_number > 1`) that reference pinned question versions.
+* Bank updates after pinning do not mutate survey-pinned copies.
+* Survey updates while still `DRAFT` rebuild the pinned copy set.
+* Publish only snapshots the already-pinned survey structure into `survey_snapshot`.
+
+#### **4.3.3 Survey Question Configuration Responsibilities**
+
+* Choice options must be defined in question bank `optionConfig`, not in `answerConfig`.
+* `answerConfig` remains survey-question scoped and optional for answer-behavior rules (for example: `minSelections`, `maxSelections`, `step`, ranking rules).
+* For category-linked survey questions:
+  * `categoryWeightPercentage` is required.
+  * All questions under the same category must use the same `categoryWeightPercentage`.
+  * Total distinct category weights in a survey draft must equal exactly `100.00`.
 
 ### **4.4 Survey Builder and Lifecycle**
 
@@ -101,13 +118,15 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
   * `CLOSED -> RESULTS_PUBLISHED`
   * `RESULTS_PUBLISHED -> ARCHIVED`
   * `CLOSED -> PUBLISHED` (reopen with reason)
-* Publishing creates immutable survey snapshot data.  
-* Structural modifications are blocked after publish.
+* Draft create/update generates pinned question/category versions used by that survey draft.  
+* Publishing creates immutable survey snapshot data from pinned versions.  
+* Structural modifications are blocked for all non-`DRAFT` states (including `PUBLISHED`).
 
 ### **4.5 Campaign Management and Access Modes**
 
 * Create, read, update, deactivate campaigns.  
 * Activate campaign only when linked survey is `PUBLISHED`.  
+* Activation binds campaign to latest survey snapshot and auto-upserts campaign default scoring profile from pinned survey category weights.  
 * Campaign access mode is:
   * `PUBLIC`: responder auth credential not required.
   * `PRIVATE`: trusted responder credential required and validated through tenant auth profile (`responderToken` or one-time `responderAccessCode`).
@@ -128,6 +147,9 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
   * Start/finish/header/footer messages
   * Optional metadata capture flags
 * Runtime checks are enforced during response submission.
+* Close-time locking behavior:
+  * At/after `closeDate`, system automatically locks open responses in `IN_PROGRESS` or `REOPENED`.
+  * If settings are updated with `closeDate <= now`, locking is triggered immediately.
 
 ### **4.7 Distribution**
 
@@ -237,13 +259,15 @@ Production targets:
 * Responder can submit to active campaign endpoint.  
 * On successful submit, response is auto-locked.  
 * Admin can lock/reopen responses; reopen is audited with reason/window.  
+* Close transition enforcement auto-locks any still-open (`IN_PROGRESS`/`REOPENED`) responses for expired campaigns.  
 * Analytics endpoint returns totals and completion-related counts per campaign.
 
 ### **4.10 Scoring and Weighting**
 
-* Create/update/deactivate weight profiles per campaign.  
-* Validate profile category weights must total exactly 100%.  
-* Score calculation uses normalized category scoring and weighted aggregation.
+* Default scoring profile is automatically created/updated at campaign activation from pinned survey category weights (`campaign.default_weight_profile_id`).  
+* Response submission automatically computes and persists weighted score when campaign has default profile (`survey_response.weighted_total_score`, `weight_profile_id`, `scored_at`).  
+* Score calculation uses deterministic category aggregation from validated answers and normalized weighted scoring.  
+* Manual scoring profile endpoints remain available (`/api/v1/scoring/**`) for non-default use cases, but MVP frontend uses the simplified automatic flow.
 
 ### **4.11 SaaS Subscription and Plans**
 
@@ -286,6 +310,19 @@ Production targets:
 * Respondent auth config: `auth_profile`, `claim_mapping`, `auth_config_audit`.  
 * SaaS billing: `tenant_subscription`, `payment_transaction`, `plan_definition`.
 
+### **5.4 Pinning and Scoring Columns**
+
+* Survey pinning:
+  * `survey_question.question_version_id` (pinned question reference)
+  * `survey_question.category_version_id` (pinned category reference)
+  * `survey_question.category_weight_percentage` (survey-level scoring weight by category)
+* Campaign scoring linkage:
+  * `campaign.default_weight_profile_id`
+* Response scoring persistence:
+  * `survey_response.weight_profile_id`
+  * `survey_response.weighted_total_score`
+  * `survey_response.scored_at`
+
 ## **6\. API Surface (Implemented)**
 
 * Admin auth: `/api/v1/admin/auth/**`  
@@ -295,6 +332,7 @@ Production targets:
 * Surveys: `/api/v1/surveys/**`  
 * Campaigns: `/api/v1/campaigns/**`  
 * Scoring: `/api/v1/scoring/**`  
+  * Note: scoring APIs are implemented, but the default MVP frontend flow no longer exposes a dedicated `/scoring` route.
 * Auth profiles/validation: `/api/v1/auth/**`
   * Includes provider template endpoints for onboarding UI.
 * Responses: `/api/v1/responses/**` and public submit `/api/v1/responses`
@@ -324,11 +362,14 @@ Minimum business errors in code include:
 
 ## **9\. Acceptance Criteria (Implemented)**
 
-* Tenant-scoped admin can create and manage questions, categories, surveys, campaigns, and scoring profiles.  
-* Published survey snapshot remains immutable for historical consistency.  
+* Tenant-scoped admin can create and manage questions, categories, surveys, and campaigns through the default frontend flow without manual scoring setup.  
+* Survey draft create/update pins question/category versions; bank updates do not mutate pinned survey structure.  
+* Published survey snapshot remains immutable for historical consistency and survey editing is disabled outside `DRAFT`.  
 * Campaign activation fails for non-published survey.  
+* Campaign activation auto-links default scoring profile from pinned survey category weights.  
 * Public campaigns accept anonymous responders; private campaigns require valid tenant-authenticated responder credential (signed token or one-time access code).  
-* Response submissions enforce runtime settings and lock on submit.  
+* Response submissions enforce runtime settings, compute weighted score when configured, and lock on submit.  
+* Campaign close transition auto-locks open `IN_PROGRESS`/`REOPENED` responses (scheduled enforcement + immediate lock when `closeDate` is set in the past).  
 * Tenant subscriptions can be checked out successfully through mock payment.  
 * Super admin can update plan definitions and quota changes are enforced in runtime paths.  
 * DB constraints reject cross-tenant relational mismatches.
@@ -341,6 +382,8 @@ The authentication model and survey response access model are considered **MVP-r
 
 * Tenant-level responder auth configuration (no per-campaign auth duplication).  
 * Campaign access control supports both `PUBLIC` and `PRIVATE` modes.  
+* Survey draft pinning model protects runtime consistency against future question/category bank edits.  
+* Campaign activation auto-provisions default weighted scoring from pinned survey category weights.  
 * Private responder flows support:
   * Signed launch token validation with replay protection (`jti`)
   * OIDC authorization code flow with callback and one-time responder access code exchange

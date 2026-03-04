@@ -1,6 +1,6 @@
 # Survey Engine MVP Lifecycle Flows (Step-by-Step Guide)
 ## Product: Headless Multi-Tenant Survey Engine (MVP)
-## Version: 1.0
+## Version: 1.1
 ## Date: March 4, 2026
 
 ## Purpose
@@ -25,7 +25,7 @@ This is intentionally operational and sequence-driven for product, onboarding, a
 7. Private Responder OIDC Flow
 8. Private Responder Signed Token Flow
 9. Response Lifecycle Flow
-10. Scoring Lifecycle Flow
+10. Automated Scoring Lifecycle Flow (Default)
 11. End-to-End Recommended Build Order
 12. Explicit Tagging Chain (Question -> Category -> Survey -> Campaign)
 13. Out-of-MVP Lifecycle Items
@@ -111,8 +111,8 @@ Create reusable building blocks before survey design.
 
 1. Create question (`POST /api/v1/questions`).
 - Why: Categories and surveys depend on question definitions.
-- How: Send only `text`, `type`, and `maxScore`.
-- Result: Question created and versioned.
+- How: Send `text`, `type`, `maxScore`, and `optionConfig` when type requires options.
+- Result: Question created with live bank version (`version_number = 1`).
 
 2. List and review active questions (`GET /api/v1/questions`, `GET /api/v1/questions/{id}`).
 - Why: Validate content quality before categorization.
@@ -122,12 +122,12 @@ Create reusable building blocks before survey design.
 3. Update question if needed (`PUT /api/v1/questions/{id}`).
 - Why: Fix wording/scoring issues early.
 - How: Submit revised payload.
-- Result: Updated question and version snapshot.
+- Result: Updated live bank definition (still version `1` in bank lifecycle).
 
 4. Create category (`POST /api/v1/categories`).
 - Why: Group related questions for structure and scoring alignment.
 - How: Create category metadata and mappings.
-- Result: Category created and versioned.
+- Result: Category created with live bank version (`version_number = 1`).
 
 5. Verify categories (`GET /api/v1/categories`, `GET /api/v1/categories/{id}`).
 - Why: Confirm mappings before survey assembly.
@@ -149,7 +149,17 @@ Question -> Category tag (how it is created):
 - `sortOrder` (required)
 - `weight` (optional)
 4. System behavior:
-- Backend resolves and stores current `questionVersionId` automatically for each mapped `questionId`.
+- Backend resolves and stores live `questionVersionId` automatically for each mapped `questionId`.
+- Updating question/category bank later does not retroactively modify already-pinned survey copies.
+
+### Option ownership rule (explicit)
+
+1. Choice options belong to question bank `optionConfig`.
+2. `optionConfig.options` is required for:
+- `SINGLE_CHOICE`
+- `MULTIPLE_CHOICE`
+- `RANK`
+3. Survey-level `answerConfig` does not own option lists in default model.
 
 Example category payload:
 ```json
@@ -190,7 +200,7 @@ Move survey from draft to publish-ready state, then through closure states.
 1. Create survey draft (`POST /api/v1/surveys`).
 - Why: Survey is the template container for campaign execution.
 - How: Provide title, structure, page/question configuration.
-- Result: Survey in draft state.
+- Result: Survey in draft state and pinned question/category versions are created for that draft.
 
 2. Inspect draft (`GET /api/v1/surveys/{id}` and list endpoint).
 - Why: Validate structure before publication.
@@ -200,16 +210,16 @@ Move survey from draft to publish-ready state, then through closure states.
 3. Update draft (`PUT /api/v1/surveys/{id}`).
 - Why: Apply final edits before publish.
 - How: Submit updated survey schema.
-- Result: Updated draft.
+- Result: Draft structure and pinned version set are rebuilt from current draft payload.
 
 4. Transition lifecycle (`POST /api/v1/surveys/{id}/lifecycle`).
 - Why: Campaign activation requires published survey.
 - How: Request valid transition (e.g., DRAFT -> PUBLISHED).
-- Result: Survey state changes when transition is valid.
+- Result: Survey state changes when transition is valid; publish snapshots the already-pinned draft.
 
 5. Preserve immutability after publish (enforced behavior).
 - Why: Response and campaign consistency require stable published structure.
-- How: System blocks unsafe structural changes after publish.
+- How: System blocks `POST/PUT` structural edits in non-`DRAFT` states.
 - Result: Published snapshot integrity.
 
 6. Move through end states when appropriate.
@@ -225,58 +235,27 @@ Category -> Survey tag (how it is created):
 - `questionId` (required)
 - `sortOrder` (required)
 - `categoryId` (optional but required if you want category tagging in survey)
+- `categoryWeightPercentage` (required when `categoryId` is set)
 - `mandatory` (optional)
 - `answerConfig` (optional)
 3. System behavior:
-- Backend resolves and stores current `questionVersionId` automatically from `questionId`.
-- Category mapping from category definitions is not auto-injected into survey pages.
-- You must explicitly place each question in survey pages, and explicitly set `categoryId` when needed.
+- Backend resolves and stores pinned `questionVersionId` from the current question bank state.
+- Backend resolves and stores pinned `categoryVersionId` when `categoryId` is set.
+- Category mappings are not auto-injected into pages; explicit placement is required.
+- For each category in a survey draft:
+  - all tagged questions must carry the same `categoryWeightPercentage`
+  - total distinct category weights across survey must be exactly `100.00`
 
-### `answerConfig` definition (question options/rules)
+### `optionConfig` vs `answerConfig` (explicit separation)
 
-`answerConfig` is configured at survey-question level (not in question bank create/update payload).
+1. `optionConfig` (question bank):
+- Defines selectable options and per-option score metadata.
+- Used by response validator to whitelist `SINGLE_CHOICE` / `MULTIPLE_CHOICE` / `RANK` values.
 
-1. Format:
-- Must be a JSON object.
-
-2. By question type:
-- `SINGLE_CHOICE`: use `options` array for allowed values.
-- `MULTIPLE_CHOICE`: use `options` array and optionally `minSelections`, `maxSelections`.
-- `RATING_SCALE`: use `min`, `max`, optionally `step`.
-- `RANK`: use `options`, optionally `allowPartialRanking`, `correctOrder`.
-
-3. Storage and publish behavior:
-- Stored in `survey_question.answer_config`.
-- Copied into immutable `survey_snapshot.snapshot_data` at publish.
-- Runtime response validation reads the published snapshot copy.
-
-4. MVP implementation note:
-- For `SINGLE_CHOICE` and `MULTIPLE_CHOICE`, `options` are currently optional in backend validation.
-- If `options` is omitted, backend does not whitelist submitted values for that question.
-
-Example survey question items with `answerConfig`:
-```json
-[
-  {
-    "questionId": "11111111-1111-1111-1111-111111111111",
-    "sortOrder": 1,
-    "mandatory": true,
-    "answerConfig": "{\"options\":[{\"value\":\"A\"},{\"value\":\"B\"}]}"
-  },
-  {
-    "questionId": "22222222-2222-2222-2222-222222222222",
-    "sortOrder": 2,
-    "mandatory": false,
-    "answerConfig": "{\"options\":[{\"value\":\"X\",\"score\":2},{\"value\":\"Y\",\"score\":1}],\"minSelections\":1,\"maxSelections\":2}"
-  },
-  {
-    "questionId": "33333333-3333-3333-3333-333333333333",
-    "sortOrder": 3,
-    "mandatory": true,
-    "answerConfig": "{\"min\":1,\"max\":5,\"step\":1}"
-  }
-]
-```
+2. `answerConfig` (survey question):
+- Optional per-survey behavior tuning.
+- Examples: `minSelections`, `maxSelections`, `step`, `allowPartialRanking`, `correctOrder`.
+- Must be JSON object when provided.
 
 Example survey payload:
 ```json
@@ -291,12 +270,15 @@ Example survey payload:
         {
           "questionId": "11111111-1111-1111-1111-111111111111",
           "categoryId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "categoryWeightPercentage": 60.0,
           "sortOrder": 1,
-          "mandatory": true
+          "mandatory": true,
+          "answerConfig": "{\"minSelections\":1,\"maxSelections\":1}"
         },
         {
           "questionId": "22222222-2222-2222-2222-222222222222",
           "categoryId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          "categoryWeightPercentage": 40.0,
           "sortOrder": 2,
           "mandatory": false
         }
@@ -335,12 +317,12 @@ Create a live delivery instance from a published survey and control runtime beha
 3. Configure runtime settings (`PUT /api/v1/campaigns/{id}/settings`).
 - Why: Set operational controls before launch.
 - How: Configure quota, restrictions, close time, UX controls, etc.
-- Result: Runtime enforcement rules stored.
+- Result: Runtime enforcement rules stored. If `closeDate <= now`, system immediately auto-locks open campaign responses in `IN_PROGRESS`/`REOPENED`.
 
 4. Activate campaign (`POST /api/v1/campaigns/{id}/activate`).
 - Why: Only active campaigns accept submissions.
 - How: Activation call checks linked survey lifecycle constraints.
-- Result: Campaign moves to active state if preconditions pass.
+- Result: Campaign moves to active state if preconditions pass; latest survey snapshot is linked and default scoring profile is auto-upserted.
 
 5. Generate distribution channels (`POST /api/v1/campaigns/{id}/distribute`).
 - Why: Operations teams need shareable channel assets.
@@ -370,6 +352,7 @@ Survey -> Campaign tag (how it is created):
 4. System behavior during activation:
 - Backend verifies survey is in `PUBLISHED` state.
 - Backend links campaign to latest survey snapshot (`surveySnapshotId`) automatically.
+- Backend creates/updates campaign default weight profile from pinned survey category weights and stores `defaultWeightProfileId`.
 - Campaign then accepts responses only when active.
 
 Example campaign payload:
@@ -561,66 +544,86 @@ Collect responses with proper runtime checks, auth checks, and post-submit integ
 - How: Store response entity + answer entities.
 - Result: Response state created.
 
-5. Auto-lock on successful submit.
+5. Compute weighted score automatically when campaign default profile exists.
+- Why: Simplified flow should not require separate manual scoring action.
+- How:
+  - Aggregate validated answer scores by category.
+  - Run scoring engine using campaign `defaultWeightProfileId`.
+  - Persist `weightProfileId`, `weightedTotalScore`, and `scoredAt` in response.
+- Result: Response is both submitted and scored in one transaction.
+
+6. Auto-lock on successful submit.
 - Why: Avoid unintended post-submit mutation.
 - How: Response status moved to locked.
 - Result: Integrity-preserving final state.
 
-6. Admin review operations:
+7. Auto-lock on close transition (campaign `closeDate` reached/passed).
+- Why: Ensure unresolved open responses do not remain mutable after campaign closes.
+- How:
+  - Scheduled enforcement scans expired campaign close dates.
+  - For each expired campaign, all `IN_PROGRESS` and `REOPENED` responses are moved to `LOCKED`.
+- Result: Post-close response set is consistently locked.
+
+8. Admin review operations:
 - `GET /api/v1/responses/{id}` (single)
 - `GET /api/v1/responses/campaign/{campaignId}` (campaign list)
 - Why: Support operations and review.
 
-7. Manual lock/reopen operations:
+9. Manual lock/reopen operations:
 - `POST /api/v1/responses/{id}/lock`
 - `POST /api/v1/responses/{id}/reopen`
 - Why: Controlled exception handling for corrections.
 
-8. Campaign analytics retrieval (`GET /api/v1/responses/analytics/{campaignId}`).
+10. Campaign analytics retrieval (`GET /api/v1/responses/analytics/{campaignId}`).
 - Why: Campaign-level completion and activity insights.
 - Result: Aggregated response metrics.
 
 ---
 
-## 10. Scoring Lifecycle Flow
+## 10. Automated Scoring Lifecycle Flow (Default)
 
 ### Goal
-Define weighted scoring policy and compute deterministic score outcomes.
+Guarantee deterministic weighted scoring with minimal operational steps.
 
 ### Recommended creation order
-1. Build category model.
-2. Create weight profile.
-3. Validate weights.
-4. Calculate score.
+1. Define category structure and category weights in survey draft.
+2. Publish survey.
+3. Activate campaign.
+4. Collect responses (scoring runs automatically).
 
 ### Step-by-step
 
-1. Create weight profile (`POST /api/v1/scoring/profiles`).
-- Why: Encode business weighting logic per campaign.
-- How: Provide campaign-scoped category weight distribution.
-- Result: Scoring profile stored.
+1. Author category weights in survey draft (`POST/PUT /api/v1/surveys`).
+- Why: Category weights are part of survey design contract.
+- How:
+  - Set `categoryWeightPercentage` on category-tagged survey questions.
+  - Ensure one consistent weight per category and total `100.00`.
+- Result: Draft contains explicit scoring weights.
 
-2. Retrieve and review profile (`GET /api/v1/scoring/profiles/{id}` or campaign list endpoint).
-- Why: Confirm profile composition before use.
-- Result: Verified scoring configuration.
+2. Publish survey (`POST /api/v1/surveys/{id}/lifecycle` to `PUBLISHED`).
+- Why: Campaign activation requires published survey snapshot.
+- How: Publish draft after validation.
+- Result: Immutable snapshot contains question/category pins and category weights.
 
-3. Validate weight sum (`POST /api/v1/scoring/profiles/{id}/validate`).
-- Why: Prevent mathematically invalid score outputs.
-- How: System checks total equals required sum.
-- Result: Pass/fail.
+3. Activate campaign (`POST /api/v1/campaigns/{id}/activate`).
+- Why: This is the scoring bootstrap point in simplified flow.
+- How:
+  - Backend links latest `surveySnapshotId`.
+  - Backend auto-creates/updates campaign `Default` weight profile from snapshot category weights.
+- Result: `campaign.defaultWeightProfileId` is ready for runtime scoring.
 
-4. Update profile if needed (`PUT /api/v1/scoring/profiles/{id}`).
-- Why: Business rubric changes over time.
-- Result: Updated profile for future calculations.
+4. Submit responses (`POST /api/v1/responses`).
+- Why: Runtime scoring is now submission-driven, not separate admin action.
+- How:
+  - Response validator enforces snapshot question/category integrity.
+  - Backend computes category raw totals and weighted score using campaign default profile.
+- Result: `survey_response.weighted_total_score` and scoring metadata are persisted automatically.
 
-5. Calculate weighted score (`POST /api/v1/scoring/calculate/{profileId}`).
-- Why: Transform raw category scores into final weighted result.
-- How: Submit category raw scores.
-- Result: Deterministic weighted score response.
+### Manual scoring APIs (non-default path)
 
-6. Deactivate obsolete profile (`DELETE /api/v1/scoring/profiles/{id}`).
-- Why: Keep active scoring catalog clean.
-- Result: Profile removed from active usage.
+`/api/v1/scoring/**` remains implemented for advanced operational use, but:
+- it is not required in the default MVP workflow
+- frontend no longer exposes a dedicated `/scoring` route in the simplified model
 
 ---
 
@@ -652,8 +655,8 @@ If a new tenant asks “what should we configure first,” use this order:
 8. Collect responses, monitor analytics, and apply locking/reopen controls.
 - Why eighth: Ongoing campaign operation.
 
-9. Configure scoring profiles and compute weighted outcomes.
-- Why ninth: Post-ingestion interpretation and reporting.
+9. Review scored responses and analytics outputs.
+- Why ninth: Weighted outcomes are computed automatically at submit time in default flow.
 
 ---
 
@@ -667,20 +670,23 @@ This section is the canonical no-ambiguity chain for entity tagging.
 2. Create/update category (`POST/PUT /api/v1/categories`) with `questionMappings[*].questionId`.
 3. Backend stores:
 - `category_question_mapping.question_id`
-- `category_question_mapping.question_version_id` (auto-resolved latest version)
+- `category_question_mapping.question_version_id` (auto-resolved live bank version)
 4. Important rule:
 - Category holds mappings, but this does not automatically place questions into survey pages.
 
 ### B. Category -> Survey
 
 1. Create/update survey (`POST/PUT /api/v1/surveys`) with page question entries.
-2. To tag a survey question to a category, set `categoryId` in each survey question item.
+2. To tag a survey question to a category, set `categoryId` and `categoryWeightPercentage` in each category-linked survey question item.
 3. Backend stores:
 - `survey_question.question_id`
-- `survey_question.question_version_id` (auto-resolved latest version)
-- `survey_question.category_id` (your explicit tag)
+- `survey_question.question_version_id` (new pinned version snapshot)
+- `survey_question.category_id` (explicit tag)
+- `survey_question.category_version_id` (new pinned category snapshot)
+- `survey_question.category_weight_percentage` (scoring weight by category)
 4. Important rule:
-- Category tagging in survey is explicit per survey question item.
+- Category tagging is explicit per survey question item.
+- Pinned versions are created at survey draft save; bank updates later do not mutate them.
 
 ### C. Survey -> Campaign
 
@@ -689,8 +695,9 @@ This section is the canonical no-ambiguity chain for entity tagging.
 3. Backend stores:
 - `campaign.survey_id` at create time.
 - `campaign.survey_snapshot_id` at activation from latest published survey snapshot.
+- `campaign.default_weight_profile_id` auto-generated from pinned snapshot category weights.
 4. Important rule:
-- Campaign is the runtime delivery object for one survey context.
+- Campaign is the runtime delivery object for one published survey snapshot context.
 
 ### D. Runtime response linkage (for completeness)
 
@@ -703,6 +710,17 @@ This section is the canonical no-ambiguity chain for entity tagging.
 - Question must exist in campaign snapshot.
 - Question version must match snapshot.
 - Duplicate answers for same question in one response are rejected.
+
+### E. Runtime scoring linkage (default path)
+
+1. Response scoring uses `campaign.default_weight_profile_id`.
+2. Backend aggregates answer scores by snapshot category and calculates weighted total.
+3. Backend stores:
+- `survey_response.weight_profile_id`
+- `survey_response.weighted_total_score`
+- `survey_response.scored_at`
+4. Important rule:
+- No separate manual scoring screen is required for standard campaign execution.
 
 ---
 

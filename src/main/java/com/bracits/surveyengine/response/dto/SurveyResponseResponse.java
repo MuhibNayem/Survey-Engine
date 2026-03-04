@@ -21,6 +21,9 @@ public class SurveyResponseResponse {
     private Instant startedAt;
     private Instant submittedAt;
     private Instant lockedAt;
+    private UUID weightProfileId;
+    private BigDecimal weightedTotalScore;
+    private Instant scoredAt;
     private List<AnswerResponse> answers;
 
     @Getter

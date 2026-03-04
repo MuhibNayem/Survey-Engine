@@ -7,7 +7,6 @@
         FileText,
         Megaphone,
         MessageSquareText,
-        Calculator,
         Settings,
         ChevronsLeft,
         ChevronsRight,
@@ -29,7 +28,6 @@
         { href: "/surveys", label: "Surveys", icon: FileText },
         { href: "/campaigns", label: "Campaigns", icon: Megaphone },
         { href: "/responses", label: "Responses", icon: MessageSquareText },
-        { href: "/scoring", label: "Scoring", icon: Calculator },
         { href: "/settings", label: "Settings", icon: Settings },
     ];
 

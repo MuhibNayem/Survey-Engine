@@ -23,6 +23,7 @@
         Eye,
         CalendarDays,
         X,
+        BarChart3,
     } from "lucide-svelte";
     import type {
         CampaignResponse,
@@ -233,56 +234,62 @@
         const note = escapeHtml(headerFields.note);
 
         if (headerTemplate === "accent") {
-            return `<section style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#f8fafc;padding:18px 20px;border-radius:12px;">
-  <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.82;">Campaign Preview</div>
-  <h2 style="margin:8px 0 4px;font-size:24px;line-height:1.2;">${title}</h2>
-  <p style="margin:0;font-size:14px;opacity:.9;">${subtitle}</p>
-  ${note ? `<p style="margin:8px 0 0;font-size:12px;opacity:.8;">${note}</p>` : ""}
+            return `<section style="border:1px solid #1e293b;background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 100%);color:#f8fafc;padding:18px 20px;border-radius:14px;">
+  <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;opacity:.82;">Enterprise Feedback Form</div>
+  <h2 style="margin:10px 0 0;font-size:26px;line-height:1.2;font-weight:700;">${title}</h2>
+  <p style="margin:6px 0 0;font-size:14px;line-height:1.5;opacity:.95;">${subtitle}</p>
+  ${note ? `<p style="margin:12px 0 0;font-size:12px;line-height:1.5;opacity:.9;border-top:1px solid rgba(248,250,252,0.25);padding-top:10px;">${note}</p>` : ""}
 </section>`;
         }
 
         if (headerTemplate === "notice") {
-            return `<div style="background:#ecfeff;border:1px solid #a5f3fc;padding:14px 16px;border-radius:10px;">
-  <h3 style="margin:0 0 6px;font-size:16px;color:#0c4a6e;">${title}</h3>
-  <p style="margin:0;font-size:13px;color:#164e63;">${subtitle}</p>
-  ${note ? `<p style="margin:6px 0 0;font-size:12px;color:#155e75;">${note}</p>` : ""}
-</div>`;
+            return `<section style="background:linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%);border:1px solid #bae6fd;padding:14px 16px;border-radius:12px;">
+  <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#0c4a6e;font-weight:600;">Important Notice</div>
+  <h3 style="margin:6px 0 0;font-size:18px;line-height:1.35;color:#0f172a;">${title}</h3>
+  <p style="margin:6px 0 0;font-size:13px;line-height:1.5;color:#155e75;">${subtitle}</p>
+  ${note ? `<p style="margin:10px 0 0;font-size:12px;line-height:1.5;color:#0f766e;border-top:1px solid #bae6fd;padding-top:8px;">${note}</p>` : ""}
+</section>`;
         }
 
-        return `<div style="padding:14px 0;border-bottom:1px solid #e2e8f0;">
-  <h2 style="margin:0;font-size:22px;color:#0f172a;">${title}</h2>
-  <p style="margin:6px 0 0;color:#475569;font-size:14px;">${subtitle}</p>
-  ${note ? `<p style="margin:6px 0 0;color:#64748b;font-size:12px;">${note}</p>` : ""}
-</div>`;
+        return `<section style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(15,23,42,0.06);">
+  <div style="display:flex;align-items:flex-start;gap:12px;">
+    <div style="width:4px;min-height:56px;border-radius:999px;background:#1d4ed8;"></div>
+    <div>
+      <h2 style="margin:0;font-size:23px;line-height:1.25;color:#0f172a;font-weight:700;">${title}</h2>
+      <p style="margin:6px 0 0;color:#475569;font-size:14px;line-height:1.5;">${subtitle}</p>
+      ${note ? `<p style="margin:10px 0 0;color:#64748b;font-size:12px;line-height:1.5;">${note}</p>` : ""}
+    </div>
+  </div>
+</section>`;
     }
 
     function buildFooterHtml() {
         const line1 = escapeHtml(
-            footerFields.line1 || "Thank you for your valuable response.",
+            footerFields.line1 || "Thank you for completing this survey.",
         );
         const line2 = escapeHtml(footerFields.line2);
         const legal = escapeHtml(footerFields.legal);
 
         if (footerTemplate === "support") {
-            return `<div style="margin-top:18px;padding:12px 14px;background:#f8fafc;border-radius:10px;color:#334155;font-size:12px;">
-  <p style="margin:0 0 4px;font-weight:600;">${line1}</p>
-  ${line2 ? `<p style="margin:0;">${line2}</p>` : "<p style=\"margin:0;\">Need support? Contact your survey administrator.</p>"}
-  ${legal ? `<p style="margin:6px 0 0;color:#64748b;">${legal}</p>` : ""}
-</div>`;
+            return `<footer style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:14px 16px;color:#334155;font-size:12px;">
+  <p style="margin:0;font-weight:600;color:#0f172a;">${line1}</p>
+  <p style="margin:6px 0 0;line-height:1.5;">${line2 || "Need assistance? Contact your survey administrator for support."}</p>
+  <p style="margin:8px 0 0;color:#64748b;line-height:1.5;">${legal || "Responses are securely processed under your organization's data policy."}</p>
+</footer>`;
         }
 
         if (footerTemplate === "compliance") {
-            return `<div style="margin-top:18px;padding-top:10px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
-  <p style="margin:0;">${line1}</p>
-  ${line2 ? `<p style="margin:4px 0 0;">${line2}</p>` : ""}
-  ${legal ? `<p style="margin:4px 0 0;">${legal}</p>` : "<p style=\"margin:4px 0 0;\">Your responses are processed under organizational policy.</p>"}
-</div>`;
+            return `<footer style="padding-top:12px;border-top:1px solid #dbe1ea;color:#475569;font-size:12px;">
+  <p style="margin:0;font-weight:600;color:#334155;">${line1}</p>
+  ${line2 ? `<p style="margin:5px 0 0;line-height:1.5;">${line2}</p>` : ""}
+  <p style="margin:5px 0 0;line-height:1.5;color:#64748b;">${legal || "Data usage and retention follow approved compliance policy."}</p>
+</footer>`;
         }
 
-        return `<div style="margin-top:14px;text-align:center;color:#64748b;font-size:12px;">
-  <p style="margin:0;">${line1}</p>
-  ${line2 ? `<p style="margin:4px 0 0;">${line2}</p>` : ""}
-</div>`;
+        return `<footer style="padding-top:10px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;text-align:center;">
+  <p style="margin:0;font-weight:600;color:#475569;">${line1}</p>
+  ${line2 ? `<p style="margin:5px 0 0;line-height:1.5;">${line2}</p>` : ""}
+</footer>`;
     }
 
     function initializeBrandingBuilder() {
@@ -294,7 +301,7 @@
             note: "",
         };
         footerFields = {
-            line1: "Thank you for your valuable response.",
+            line1: "Thank you for completing this survey.",
             line2: "",
             legal: "",
         };
@@ -474,6 +481,13 @@
                     {tab.label}
                 </button>
             {/each}
+            <button
+                class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                onclick={() => goto(`/campaigns/${campaignId}/analytics`)}
+            >
+                <BarChart3 class="h-4 w-4" />
+                Analytics
+            </button>
         </div>
 
         <!-- Tab Content -->
@@ -946,7 +960,7 @@
                                         </Button>
                                     </div>
 
-                                    <div class="rounded-md border border-dashed border-border bg-background p-4">
+                                    <div class="campaign-branding-preview">
                                         {#if settings.headerHtml && settings.headerHtml.trim() !== ""}
                                             {@html settings.headerHtml}
                                         {:else}
@@ -1083,7 +1097,7 @@
                                         </Button>
                                     </div>
 
-                                    <div class="rounded-md border border-dashed border-border bg-background p-4">
+                                    <div class="campaign-branding-preview">
                                         {#if settings.footerHtml && settings.footerHtml.trim() !== ""}
                                             {@html settings.footerHtml}
                                         {:else}
@@ -1213,3 +1227,29 @@
         {/if}
     </div>
 {/if}
+
+<style>
+    .campaign-branding-preview {
+        border: 1px solid hsl(var(--border));
+        border-radius: 0.75rem;
+        padding: 1rem;
+        background: linear-gradient(180deg, hsl(var(--muted) / 0.3), hsl(var(--background)));
+    }
+
+    .campaign-branding-preview :global(h1),
+    .campaign-branding-preview :global(h2),
+    .campaign-branding-preview :global(h3),
+    .campaign-branding-preview :global(h4),
+    .campaign-branding-preview :global(h5),
+    .campaign-branding-preview :global(h6) {
+        margin: 0;
+        color: hsl(var(--foreground));
+        letter-spacing: -0.01em;
+    }
+
+    .campaign-branding-preview :global(p) {
+        margin: 0.45rem 0 0;
+        color: hsl(var(--muted-foreground));
+        line-height: 1.55;
+    }
+</style>

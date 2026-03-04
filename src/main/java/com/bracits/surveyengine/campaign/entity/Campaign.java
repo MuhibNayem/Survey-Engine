@@ -38,6 +38,9 @@ public class Campaign extends AuditableEntity {
     @Column(name = "survey_snapshot_id")
     private UUID surveySnapshotId;
 
+    @Column(name = "default_weight_profile_id")
+    private UUID defaultWeightProfileId;
+
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 

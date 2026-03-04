@@ -70,7 +70,7 @@
                       sortOrder: p.sortOrder,
                       questions: [...p.questions]
                           .sort((a, b) => a.sortOrder - b.sortOrder)
-                              .map((q) => ({
+                          .map((q) => ({
                               id: q.id,
                               questionId: q.questionId,
                               questionVersionId: q.questionVersionId,
@@ -90,12 +90,12 @@
     const totalPages = $derived(resolvedPages.length);
     const isPrivateCampaign = $derived(campaign?.authMode === "PRIVATE");
     const hasPrivateCredential = $derived(
-        Boolean(
-            responderToken?.trim() || responderAccessCode?.trim(),
-        ),
+        Boolean(responderToken?.trim() || responderAccessCode?.trim()),
     );
     const progressPercent = $derived(
-        totalPages <= 0 ? 0 : Math.round(((currentPageIndex + 1) / totalPages) * 100),
+        totalPages <= 0
+            ? 0
+            : Math.round(((currentPageIndex + 1) / totalPages) * 100),
     );
 
     function readAuthParamsFromUrl() {
@@ -149,7 +149,13 @@
         const min = Number(config.min ?? 1);
         const max = Number(config.max ?? question.maxScore ?? 5);
         const step = Number(config.step ?? 1);
-        if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(step) || step <= 0 || max < min) {
+        if (
+            !Number.isFinite(min) ||
+            !Number.isFinite(max) ||
+            !Number.isFinite(step) ||
+            step <= 0 ||
+            max < min
+        ) {
             return [1, 2, 3, 4, 5];
         }
         const values: number[] = [];
@@ -239,7 +245,11 @@
         }`;
     }
 
-    function moveRankOption(question: PreviewQuestion, index: number, direction: -1 | 1) {
+    function moveRankOption(
+        question: PreviewQuestion,
+        index: number,
+        direction: -1 | 1,
+    ) {
         const ordered = [...ensureRankOrder(question)];
         const newIndex = index + direction;
         if (newIndex < 0 || newIndex >= ordered.length) return;
@@ -258,14 +268,19 @@
 
     function validateRespondentFields(): boolean {
         const nextErrors: Record<string, string> = {};
-        if (campaign?.collectName && respondent.name.trim().length === 0) nextErrors["meta.name"] = "Name is required";
+        if (campaign?.collectName && respondent.name.trim().length === 0)
+            nextErrors["meta.name"] = "Name is required";
         if (campaign?.collectEmail) {
             const email = respondent.email.trim();
-            if (email.length === 0) nextErrors["meta.email"] = "Email is required";
-            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors["meta.email"] = "Enter a valid email";
+            if (email.length === 0)
+                nextErrors["meta.email"] = "Email is required";
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+                nextErrors["meta.email"] = "Enter a valid email";
         }
-        if (campaign?.collectPhone && respondent.phone.trim().length === 0) nextErrors["meta.phone"] = "Phone is required";
-        if (campaign?.collectAddress && respondent.address.trim().length === 0) nextErrors["meta.address"] = "Address is required";
+        if (campaign?.collectPhone && respondent.phone.trim().length === 0)
+            nextErrors["meta.phone"] = "Phone is required";
+        if (campaign?.collectAddress && respondent.address.trim().length === 0)
+            nextErrors["meta.address"] = "Address is required";
         errors = { ...errors, ...nextErrors };
         return Object.keys(nextErrors).length === 0;
     }
@@ -327,7 +342,8 @@
                 },
             );
             if (!data.authorizationUrl) {
-                authError = "Authentication service did not return a login URL.";
+                authError =
+                    "Authentication service did not return a login URL.";
                 return false;
             }
             if (typeof window !== "undefined") {
@@ -359,7 +375,8 @@
     async function submitResponse(): Promise<boolean> {
         if (!campaign) return false;
         if (campaign.authMode === "PRIVATE" && !hasPrivateCredential) {
-            submitError = "Private authentication is required before submission.";
+            submitError =
+                "Private authentication is required before submission.";
             return false;
         }
 
@@ -442,15 +459,21 @@
         error = null;
         authError = null;
         try {
-            const previewRes = await api.get<CampaignPreviewResponse>(`/public/campaigns/${campaignId}/preview`);
+            const previewRes = await api.get<CampaignPreviewResponse>(
+                `/public/campaigns/${campaignId}/preview`,
+            );
             campaign = previewRes.data;
             readAuthParamsFromUrl();
         } catch (err: unknown) {
-            const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
+            const axiosErr = err as {
+                response?: { status?: number; data?: { message?: string } };
+            };
             if (axiosErr?.response?.status === 404) {
                 error = "Survey not found or not active";
             } else {
-                error = axiosErr?.response?.data?.message ?? "Failed to load survey";
+                error =
+                    axiosErr?.response?.data?.message ??
+                    "Failed to load survey";
             }
         } finally {
             loading = false;
@@ -468,235 +491,525 @@
     <div class="mx-auto w-full max-w-4xl px-4">
         {#if loading}
             <div class="flex items-center justify-center py-16">
-                <span class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></span>
+                <span
+                    class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
+                ></span>
             </div>
         {:else if error || !campaign}
             <Card.Root class="mx-auto max-w-2xl">
                 <Card.Header>
                     <Card.Title>Survey Unavailable</Card.Title>
-                    <Card.Description>{error ?? "Unable to open this survey link."}</Card.Description>
+                    <Card.Description
+                        >{error ??
+                            "Unable to open this survey link."}</Card.Description
+                    >
                 </Card.Header>
                 <Card.Content>
-                    <Button variant="outline" onclick={() => goto("/")}>Back to Home</Button>
+                    <Button variant="outline" onclick={() => goto("/")}
+                        >Back to Home</Button
+                    >
                 </Card.Content>
             </Card.Root>
         {:else}
-            <Card.Root class="border-2 shadow-sm">
-                <Card.Header class="space-y-3">
-                    <Card.Title class="text-2xl">{campaign.campaignName}</Card.Title>
-                    <Card.Description>{campaign.surveyTitle}</Card.Description>
+            <Card.Root
+                class="border border-white/40 shadow-xl overflow-hidden bg-white/60 backdrop-blur-2xl transition-all duration-300"
+            >
+                {#if campaign.headerHtml}
+                    <section
+                        class="campaign-branding-shell campaign-branding-shell-header relative z-10 w-full"
+                    >
+                        <div class="campaign-branding-content">
+                            {@html campaign.headerHtml}
+                        </div>
+                    </section>
+                {/if}
+
+                <Card.Header
+                    class="relative space-y-4 border-b border-border/30 bg-gradient-to-br from-primary/5 via-transparent to-muted/10 pb-7 pt-8 z-0"
+                >
+                    <Card.Title
+                        class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent"
+                        >{campaign.campaignName}</Card.Title
+                    >
+                    <Card.Description
+                        class="text-base font-medium text-muted-foreground/90"
+                        >{campaign.surveyTitle}</Card.Description
+                    >
 
                     {#if stage === "form" && campaign.showProgressIndicator}
-                        <div class="space-y-1">
-                            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                                <div class="h-full rounded-full bg-primary transition-all" style={`width:${progressPercent}%`}></div>
+                        <div class="space-y-2 pt-3">
+                            <div
+                                class="h-1.5 w-full overflow-hidden rounded-full bg-black/5 shadow-inner backdrop-blur-sm"
+                            >
+                                <div
+                                    class="h-full rounded-full bg-gradient-to-r from-primary/80 to-primary transition-all duration-700 ease-out shadow-sm"
+                                    style={`width:${progressPercent}%`}
+                                ></div>
                             </div>
-                            <p class="text-xs text-muted-foreground">Page {currentPageIndex + 1} / {totalPages}</p>
+                            <p
+                                class="text-[11px] font-bold tracking-wider text-primary/70 uppercase"
+                            >
+                                Progress: {Math.round(progressPercent)}% &bull;
+                                Page {currentPageIndex + 1} of {totalPages}
+                            </p>
                         </div>
                     {/if}
                 </Card.Header>
 
-                <Card.Content class="space-y-6">
-                    {#if campaign.headerHtml}
-                        <div class="rounded-lg border border-border p-4">{@html campaign.headerHtml}</div>
-                    {/if}
-
-                    {#if stage === "intro"}
-                        <div class="space-y-4">
-                            {#if campaign.startMessage}
-                                <p class="text-sm leading-6 text-foreground whitespace-pre-wrap">{campaign.startMessage}</p>
-                            {/if}
-                            {#if campaign.authMode === "PRIVATE"}
-                                <p class="text-sm text-muted-foreground">
-                                    This is a private survey. You must complete sign-in before answering.
-                                </p>
-                            {/if}
-                            {#if authError}
-                                <p class="text-sm text-destructive">{authError}</p>
-                            {/if}
-                            <Button onclick={handleStartSurvey} disabled={authLoading}>
-                                <Play class="mr-2 h-4 w-4" />
-                                {#if authLoading}
-                                    Redirecting to sign-in...
-                                {:else}
-                                    Start Survey
+                <Card.Content class="p-0 relative z-0">
+                    <section class="space-y-8 p-6 sm:p-8">
+                        {#if stage === "intro"}
+                            <div class="space-y-4">
+                                {#if campaign.startMessage}
+                                    <p
+                                        class="text-sm leading-6 text-foreground whitespace-pre-wrap"
+                                    >
+                                        {campaign.startMessage}
+                                    </p>
                                 {/if}
-                            </Button>
-                        </div>
-                    {:else if stage === "complete"}
-                        <div class="space-y-4">
-                            <h3 class="text-lg font-semibold">Thank You</h3>
-                            {#if campaign.finishMessage}
-                                <p class="text-sm leading-6 text-foreground whitespace-pre-wrap">{campaign.finishMessage}</p>
-                            {/if}
-                        </div>
-                    {:else if isPrivateCampaign && !hasPrivateCredential}
-                        <div class="space-y-4">
-                            <p class="text-sm text-muted-foreground">
-                                Private authentication is required before filling this survey.
-                            </p>
-                            {#if authError}
-                                <p class="text-sm text-destructive">{authError}</p>
-                            {/if}
-                            <Button onclick={startPrivateAuth} disabled={authLoading}>
-                                {#if authLoading}
-                                    Redirecting to sign-in...
-                                {:else}
-                                    Continue with Sign-In
+                                {#if campaign.authMode === "PRIVATE"}
+                                    <p class="text-sm text-muted-foreground">
+                                        This is a private survey. You must
+                                        complete sign-in before answering.
+                                    </p>
                                 {/if}
-                            </Button>
-                        </div>
-                    {:else if currentPage}
-                        <div class="space-y-6">
-                            {#if campaign.collectName || campaign.collectEmail || campaign.collectPhone || campaign.collectAddress}
-                                <Card.Root class="border border-border/70">
-                                    <Card.Header class="pb-3">
-                                        <Card.Title class="text-base">Your Information</Card.Title>
-                                    </Card.Header>
-                                    <Card.Content class="grid gap-3 sm:grid-cols-2">
-                                        {#if campaign.collectName}
-                                            <div class="space-y-1">
-                                                <Label for="meta-name">Name</Label>
-                                                <Input id="meta-name" bind:value={respondent.name} />
-                                                {#if errors["meta.name"]}<p class="text-xs text-destructive">{errors["meta.name"]}</p>{/if}
-                                            </div>
-                                        {/if}
-                                        {#if campaign.collectEmail}
-                                            <div class="space-y-1">
-                                                <Label for="meta-email">Email</Label>
-                                                <Input id="meta-email" bind:value={respondent.email} />
-                                                {#if errors["meta.email"]}<p class="text-xs text-destructive">{errors["meta.email"]}</p>{/if}
-                                            </div>
-                                        {/if}
-                                        {#if campaign.collectPhone}
-                                            <div class="space-y-1">
-                                                <Label for="meta-phone">Phone</Label>
-                                                <Input id="meta-phone" bind:value={respondent.phone} />
-                                                {#if errors["meta.phone"]}<p class="text-xs text-destructive">{errors["meta.phone"]}</p>{/if}
-                                            </div>
-                                        {/if}
-                                        {#if campaign.collectAddress}
-                                            <div class="space-y-1 sm:col-span-2">
-                                                <Label for="meta-address">Address</Label>
-                                                <Input id="meta-address" bind:value={respondent.address} />
-                                                {#if errors["meta.address"]}<p class="text-xs text-destructive">{errors["meta.address"]}</p>{/if}
-                                            </div>
-                                        {/if}
-                                    </Card.Content>
-                                </Card.Root>
-                            {/if}
-
-                            <Card.Root class="border border-border/70">
-                                <Card.Header class="pb-3">
-                                    <Card.Title class="text-base">{currentPage.title}</Card.Title>
-                                </Card.Header>
-                                <Card.Content class="space-y-6">
-                                    {#each currentPage.questions as question, qIdx}
-                                        <div class="space-y-3">
-                                            <p class="font-medium leading-6">
-                                                {#if campaign.showQuestionNumbers}
-                                                    <span class="text-muted-foreground mr-1">{questionSerial(currentPageIndex, qIdx)}.</span>
-                                                {/if}
-                                                {question.text}
-                                                {#if question.mandatory}<span class="text-destructive ml-1">*</span>{/if}
-                                            </p>
-
-                                            {#if question.type === "SINGLE_CHOICE"}
-                                                <div class="space-y-2">
-                                                    {#each getOptions(question) as option}
-                                                        <button
-                                                            type="button"
-                                                            class={optionCardClass(isSingleSelected(question.questionId, option))}
-                                                            onclick={() => setSingleChoice(question.questionId, option)}
-                                                        >
-                                                            <span class="pr-3 font-medium">{option}</span>
-                                                            <span class={radioDotClass(isSingleSelected(question.questionId, option))}>
-                                                                {#if isSingleSelected(question.questionId, option)}
-                                                                    <span class="h-2.5 w-2.5 rounded-full bg-primary-foreground"></span>
-                                                                {/if}
-                                                            </span>
-                                                        </button>
-                                                    {/each}
-                                                </div>
-                                            {:else if question.type === "MULTIPLE_CHOICE"}
-                                                <div class="space-y-2">
-                                                    {#each getOptions(question) as option}
-                                                        <button
-                                                            type="button"
-                                                            class={optionCardClass(isMultiSelected(question.questionId, option))}
-                                                            onclick={() => toggleMultiChoice(question.questionId, option)}
-                                                        >
-                                                            <span class="pr-3 font-medium">{option}</span>
-                                                            <span class={checkBoxClass(isMultiSelected(question.questionId, option))}>✓</span>
-                                                        </button>
-                                                    {/each}
-                                                </div>
-                                            {:else if question.type === "RANK"}
-                                                <div class="space-y-2">
-                                                    {#each ensureRankOrder(question) as option, idx}
-                                                        <div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
-                                                            <div class="text-sm">{idx + 1}. {option}</div>
-                                                            <div class="flex gap-1">
-                                                                <Button type="button" variant="outline" size="sm" disabled={idx === 0} onclick={() => moveRankOption(question, idx, -1)}>
-                                                                    <ChevronLeft class="h-4 w-4" />
-                                                                </Button>
-                                                                <Button type="button" variant="outline" size="sm" disabled={idx === ensureRankOrder(question).length - 1} onclick={() => moveRankOption(question, idx, 1)}>
-                                                                    <ChevronRight class="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    {/each}
-                                                </div>
-                                            {:else}
-                                                <div class="flex flex-wrap gap-2">
-                                                    {#each getRatingValues(question) as value}
-                                                        <button
-                                                            type="button"
-                                                            class={ratingButtonClass(answers[question.questionId] === value)}
-                                                            onclick={() => (answers[question.questionId] = value)}
-                                                        >
-                                                            {value}
-                                                        </button>
-                                                    {/each}
-                                                </div>
-                                            {/if}
-
-                                            {#if errors[question.questionId]}
-                                                <p class="text-xs text-destructive">{errors[question.questionId]}</p>
-                                            {/if}
-                                        </div>
-                                    {/each}
-                                </Card.Content>
-                            </Card.Root>
-
-                            <div class="flex items-center justify-between">
-                                {#if campaign.allowBackButton}
-                                    <Button type="button" variant="outline" disabled={currentPageIndex === 0} onclick={goBack}>
-                                        Back
-                                    </Button>
-                                {:else}
-                                    <span></span>
+                                {#if authError}
+                                    <p class="text-sm text-destructive">
+                                        {authError}
+                                    </p>
                                 {/if}
-
-                                <Button type="button" onclick={goNext} disabled={submitLoading}>
-                                    {#if currentPageIndex === totalPages - 1 && submitLoading}
-                                        Submitting...
+                                <Button
+                                    onclick={handleStartSurvey}
+                                    disabled={authLoading}
+                                >
+                                    <Play class="mr-2 h-4 w-4" />
+                                    {#if authLoading}
+                                        Redirecting to sign-in...
                                     {:else}
-                                        {currentPageIndex === totalPages - 1 ? "Finish" : "Next"}
+                                        Start Survey
                                     {/if}
                                 </Button>
                             </div>
-                            {#if submitError}
-                                <p class="text-sm text-destructive">{submitError}</p>
-                            {/if}
-                        </div>
-                    {/if}
+                        {:else if stage === "complete"}
+                            <div class="space-y-4">
+                                <h3 class="text-lg font-semibold">Thank You</h3>
+                                {#if campaign.finishMessage}
+                                    <p
+                                        class="text-sm leading-6 text-foreground whitespace-pre-wrap"
+                                    >
+                                        {campaign.finishMessage}
+                                    </p>
+                                {/if}
+                            </div>
+                        {:else if isPrivateCampaign && !hasPrivateCredential}
+                            <div class="space-y-4">
+                                <p class="text-sm text-muted-foreground">
+                                    Private authentication is required before
+                                    filling this survey.
+                                </p>
+                                {#if authError}
+                                    <p class="text-sm text-destructive">
+                                        {authError}
+                                    </p>
+                                {/if}
+                                <Button
+                                    onclick={startPrivateAuth}
+                                    disabled={authLoading}
+                                >
+                                    {#if authLoading}
+                                        Redirecting to sign-in...
+                                    {:else}
+                                        Continue with Sign-In
+                                    {/if}
+                                </Button>
+                            </div>
+                        {:else if currentPage}
+                            <div class="space-y-6">
+                                {#if campaign.collectName || campaign.collectEmail || campaign.collectPhone || campaign.collectAddress}
+                                    <Card.Root class="border border-border/70">
+                                        <Card.Header class="pb-3">
+                                            <Card.Title class="text-base"
+                                                >Your Information</Card.Title
+                                            >
+                                        </Card.Header>
+                                        <Card.Content
+                                            class="grid gap-3 sm:grid-cols-2"
+                                        >
+                                            {#if campaign.collectName}
+                                                <div class="space-y-1">
+                                                    <Label for="meta-name"
+                                                        >Name</Label
+                                                    >
+                                                    <Input
+                                                        id="meta-name"
+                                                        bind:value={
+                                                            respondent.name
+                                                        }
+                                                    />
+                                                    {#if errors["meta.name"]}<p
+                                                            class="text-xs text-destructive"
+                                                        >
+                                                            {errors[
+                                                                "meta.name"
+                                                            ]}
+                                                        </p>{/if}
+                                                </div>
+                                            {/if}
+                                            {#if campaign.collectEmail}
+                                                <div class="space-y-1">
+                                                    <Label for="meta-email"
+                                                        >Email</Label
+                                                    >
+                                                    <Input
+                                                        id="meta-email"
+                                                        bind:value={
+                                                            respondent.email
+                                                        }
+                                                    />
+                                                    {#if errors["meta.email"]}<p
+                                                            class="text-xs text-destructive"
+                                                        >
+                                                            {errors[
+                                                                "meta.email"
+                                                            ]}
+                                                        </p>{/if}
+                                                </div>
+                                            {/if}
+                                            {#if campaign.collectPhone}
+                                                <div class="space-y-1">
+                                                    <Label for="meta-phone"
+                                                        >Phone</Label
+                                                    >
+                                                    <Input
+                                                        id="meta-phone"
+                                                        bind:value={
+                                                            respondent.phone
+                                                        }
+                                                    />
+                                                    {#if errors["meta.phone"]}<p
+                                                            class="text-xs text-destructive"
+                                                        >
+                                                            {errors[
+                                                                "meta.phone"
+                                                            ]}
+                                                        </p>{/if}
+                                                </div>
+                                            {/if}
+                                            {#if campaign.collectAddress}
+                                                <div
+                                                    class="space-y-1 sm:col-span-2"
+                                                >
+                                                    <Label for="meta-address"
+                                                        >Address</Label
+                                                    >
+                                                    <Input
+                                                        id="meta-address"
+                                                        bind:value={
+                                                            respondent.address
+                                                        }
+                                                    />
+                                                    {#if errors["meta.address"]}<p
+                                                            class="text-xs text-destructive"
+                                                        >
+                                                            {errors[
+                                                                "meta.address"
+                                                            ]}
+                                                        </p>{/if}
+                                                </div>
+                                            {/if}
+                                        </Card.Content>
+                                    </Card.Root>
+                                {/if}
+
+                                <Card.Root class="border border-border/70">
+                                    <Card.Header class="pb-3">
+                                        <Card.Title class="text-base"
+                                            >{currentPage.title}</Card.Title
+                                        >
+                                    </Card.Header>
+                                    <Card.Content class="space-y-6">
+                                        {#each currentPage.questions as question, qIdx}
+                                            <div class="space-y-3">
+                                                <p
+                                                    class="font-medium leading-6"
+                                                >
+                                                    {#if campaign.showQuestionNumbers}
+                                                        <span
+                                                            class="text-muted-foreground mr-1"
+                                                            >{questionSerial(
+                                                                currentPageIndex,
+                                                                qIdx,
+                                                            )}.</span
+                                                        >
+                                                    {/if}
+                                                    {question.text}
+                                                    {#if question.mandatory}<span
+                                                            class="text-destructive ml-1"
+                                                            >*</span
+                                                        >{/if}
+                                                </p>
+
+                                                {#if question.type === "SINGLE_CHOICE"}
+                                                    <div class="space-y-2">
+                                                        {#each getOptions(question) as option}
+                                                            <button
+                                                                type="button"
+                                                                class={optionCardClass(
+                                                                    isSingleSelected(
+                                                                        question.questionId,
+                                                                        option,
+                                                                    ),
+                                                                )}
+                                                                onclick={() =>
+                                                                    setSingleChoice(
+                                                                        question.questionId,
+                                                                        option,
+                                                                    )}
+                                                            >
+                                                                <span
+                                                                    class="pr-3 font-medium"
+                                                                    >{option}</span
+                                                                >
+                                                                <span
+                                                                    class={radioDotClass(
+                                                                        isSingleSelected(
+                                                                            question.questionId,
+                                                                            option,
+                                                                        ),
+                                                                    )}
+                                                                >
+                                                                    {#if isSingleSelected(question.questionId, option)}
+                                                                        <span
+                                                                            class="h-2.5 w-2.5 rounded-full bg-primary-foreground"
+                                                                        ></span>
+                                                                    {/if}
+                                                                </span>
+                                                            </button>
+                                                        {/each}
+                                                    </div>
+                                                {:else if question.type === "MULTIPLE_CHOICE"}
+                                                    <div class="space-y-2">
+                                                        {#each getOptions(question) as option}
+                                                            <button
+                                                                type="button"
+                                                                class={optionCardClass(
+                                                                    isMultiSelected(
+                                                                        question.questionId,
+                                                                        option,
+                                                                    ),
+                                                                )}
+                                                                onclick={() =>
+                                                                    toggleMultiChoice(
+                                                                        question.questionId,
+                                                                        option,
+                                                                    )}
+                                                            >
+                                                                <span
+                                                                    class="pr-3 font-medium"
+                                                                    >{option}</span
+                                                                >
+                                                                <span
+                                                                    class={checkBoxClass(
+                                                                        isMultiSelected(
+                                                                            question.questionId,
+                                                                            option,
+                                                                        ),
+                                                                    )}>✓</span
+                                                                >
+                                                            </button>
+                                                        {/each}
+                                                    </div>
+                                                {:else if question.type === "RANK"}
+                                                    <div class="space-y-2">
+                                                        {#each ensureRankOrder(question) as option, idx}
+                                                            <div
+                                                                class="flex items-center justify-between rounded-md border border-border px-3 py-2"
+                                                            >
+                                                                <div
+                                                                    class="text-sm"
+                                                                >
+                                                                    {idx + 1}. {option}
+                                                                </div>
+                                                                <div
+                                                                    class="flex gap-1"
+                                                                >
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        disabled={idx ===
+                                                                            0}
+                                                                        onclick={() =>
+                                                                            moveRankOption(
+                                                                                question,
+                                                                                idx,
+                                                                                -1,
+                                                                            )}
+                                                                    >
+                                                                        <ChevronLeft
+                                                                            class="h-4 w-4"
+                                                                        />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        disabled={idx ===
+                                                                            ensureRankOrder(
+                                                                                question,
+                                                                            )
+                                                                                .length -
+                                                                                1}
+                                                                        onclick={() =>
+                                                                            moveRankOption(
+                                                                                question,
+                                                                                idx,
+                                                                                1,
+                                                                            )}
+                                                                    >
+                                                                        <ChevronRight
+                                                                            class="h-4 w-4"
+                                                                        />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        {/each}
+                                                    </div>
+                                                {:else}
+                                                    <div
+                                                        class="flex flex-wrap gap-2"
+                                                    >
+                                                        {#each getRatingValues(question) as value}
+                                                            <button
+                                                                type="button"
+                                                                class={ratingButtonClass(
+                                                                    answers[
+                                                                        question
+                                                                            .questionId
+                                                                    ] === value,
+                                                                )}
+                                                                onclick={() =>
+                                                                    (answers[
+                                                                        question.questionId
+                                                                    ] = value)}
+                                                            >
+                                                                {value}
+                                                            </button>
+                                                        {/each}
+                                                    </div>
+                                                {/if}
+
+                                                {#if errors[question.questionId]}
+                                                    <p
+                                                        class="text-xs text-destructive"
+                                                    >
+                                                        {errors[
+                                                            question.questionId
+                                                        ]}
+                                                    </p>
+                                                {/if}
+                                            </div>
+                                        {/each}
+                                    </Card.Content>
+                                </Card.Root>
+
+                                <div class="flex items-center justify-between">
+                                    {#if campaign.allowBackButton}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            disabled={currentPageIndex === 0}
+                                            onclick={goBack}
+                                        >
+                                            Back
+                                        </Button>
+                                    {:else}
+                                        <span></span>
+                                    {/if}
+
+                                    <Button
+                                        type="button"
+                                        onclick={goNext}
+                                        disabled={submitLoading}
+                                    >
+                                        {#if currentPageIndex === totalPages - 1 && submitLoading}
+                                            Submitting...
+                                        {:else}
+                                            {currentPageIndex === totalPages - 1
+                                                ? "Finish"
+                                                : "Next"}
+                                        {/if}
+                                    </Button>
+                                </div>
+                                {#if submitError}
+                                    <p class="text-sm text-destructive">
+                                        {submitError}
+                                    </p>
+                                {/if}
+                            </div>
+                        {/if}
+                    </section>
 
                     {#if campaign.footerHtml}
-                        <div class="rounded-lg border border-border p-4">{@html campaign.footerHtml}</div>
+                        <section
+                            class="campaign-branding-shell campaign-branding-shell-footer"
+                        >
+                            <div class="campaign-branding-content">
+                                {@html campaign.footerHtml}
+                            </div>
+                        </section>
                     {/if}
                 </Card.Content>
             </Card.Root>
         {/if}
     </div>
 </div>
+
+<style>
+    .campaign-branding-shell {
+        /* Base styles if needed by dynamically injected elements */
+    }
+
+    .campaign-branding-shell-header {
+        border-bottom: 1px solid hsla(var(--border) / 0.3);
+        background: linear-gradient(
+            135deg,
+            hsla(var(--primary) / 0.15),
+            hsla(var(--primary) / 0.05)
+        );
+        backdrop-filter: blur(16px);
+        box-shadow: 0 4px 24px -12px hsla(var(--primary) / 0.3);
+    }
+
+    .campaign-branding-shell-footer {
+        border-top: 1px solid hsla(var(--border) / 0.3);
+        background: linear-gradient(
+            180deg,
+            hsla(var(--background) / 0.1),
+            hsla(var(--muted) / 0.5)
+        );
+        backdrop-filter: blur(12px);
+    }
+
+    .campaign-branding-content {
+        padding: 1.5rem 2rem;
+    }
+
+    .campaign-branding-content :global(h1),
+    .campaign-branding-content :global(h2),
+    .campaign-branding-content :global(h3),
+    .campaign-branding-content :global(h4),
+    .campaign-branding-content :global(h5),
+    .campaign-branding-content :global(h6) {
+        margin: 0;
+        color: hsl(var(--foreground));
+        letter-spacing: -0.02em;
+        font-weight: 700;
+    }
+
+    .campaign-branding-content :global(p) {
+        margin: 0.5rem 0 0;
+        color: hsl(var(--muted-foreground));
+        line-height: 1.6;
+    }
+</style>

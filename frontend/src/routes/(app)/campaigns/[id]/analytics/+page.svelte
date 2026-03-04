@@ -17,7 +17,6 @@
         MousePointerClick,
         FileDown,
         ArrowRight,
-        Sparkles,
     } from "lucide-svelte";
     import type { CampaignResponse, AnalyticsResponse } from "$lib/types";
 
@@ -368,39 +367,18 @@
                         <p class="text-sm text-muted-foreground mb-4">
                             Navigate to the Response Management page to view
                             individual answers, search for specific respondents,
-                            and lock final data for scoring.
+                            and review response status history.
                         </p>
-                        <Button class="w-full" disabled>
-                            View Responses Ledger (Phase 4)
+                        <Button
+                            class="w-full"
+                            onclick={() => goto(`/campaigns/${campaignId}/responses`)}
+                        >
+                            View Responses Ledger
                             <ArrowRight class="ml-2 h-4 w-4" />
                         </Button>
                     </Card.Content>
                 </Card.Root>
 
-                <!-- Scoring teaser -->
-                <Card.Root>
-                    <Card.Header>
-                        <Card.Title>Scoring & Weights</Card.Title>
-                        <Card.Description
-                            >Calculate weighted scores for submitted data.</Card.Description
-                        >
-                    </Card.Header>
-                    <Card.Content>
-                        <div
-                            class="flex items-center gap-3 mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400"
-                        >
-                            <Sparkles class="h-5 w-5 shrink-0" />
-                            <p>
-                                Lock responses in the ledger before computing
-                                final weighted scores.
-                            </p>
-                        </div>
-                        <Button variant="outline" class="w-full" disabled>
-                            Go to Scoring Engine (Phase 5)
-                            <ArrowRight class="ml-2 h-4 w-4" />
-                        </Button>
-                    </Card.Content>
-                </Card.Root>
             </div>
         </div>
     {/if}
