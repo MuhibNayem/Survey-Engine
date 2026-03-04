@@ -59,7 +59,7 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * Engine issues admin JWT access tokens and refresh tokens.  
 * Supported admin auth endpoints: register, login, refresh.  
 * JWT contains tenant and role claims and populates request tenant context.  
-* API authorization is role-aware; plan update endpoint requires `SUPER_ADMIN`.
+* API authorization baseline requires authenticated admin JWT for protected admin APIs; plan update endpoint requires `SUPER_ADMIN`.
 
 ### **4.2 Multi-Tenancy and Data Isolation**
 
@@ -92,8 +92,8 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * Create, read, update, deactivate campaigns.  
 * Activate campaign only when linked survey is `PUBLISHED`.  
 * Campaign access mode is:
-  * `PUBLIC`: responder auth token not required.
-  * `PRIVATE`: responder token required and validated through tenant auth profile.
+  * `PUBLIC`: responder auth credential not required.
+  * `PRIVATE`: trusted responder credential required and validated through tenant auth profile (`responderToken` or one-time `responderAccessCode`).
 * Deprecated compatibility values (`SIGNED_TOKEN`, `SSO`) are normalized to private access behavior.
 
 ### **4.6 Campaign Runtime Settings**
@@ -164,7 +164,7 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
   * campaign `AuthMode=PRIVATE`
   * tenant auth profile present
   * auth profile mode not `PUBLIC_ANONYMOUS`
-  * valid responder token
+  * valid responder credential (`responderToken` or one-time `responderAccessCode`)
   * anonymous fallback is rejected for private access.
 
 #### **4.8.5 Signed Launch Token Operational Model**
@@ -174,14 +174,16 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * Survey Engine validates signature and claims before accepting response submission.  
 * This model is intended to support legacy/custom enterprise identity systems without requiring Survey Engine to implement those protocols directly.
 
-#### **4.8.6 Security Hardening Requirements (Production)**
+#### **4.8.6 Security Hardening Requirements (MVP Baseline + Production Targets)**
 
-* Token transport should avoid long-lived bearer tokens in query strings; prefer short-lived exchange code or secure POST/header transport where possible.  
-* Replay protection is mandatory (`jti`/nonce + server-side replay cache/store).  
-* Strict claim validation is mandatory (issuer, audience, expiry, clock skew, subject/email mapping, tenant binding).  
-* Signing key lifecycle must support rotation with key identifiers (`kid`) and dual-key validation windows.  
-* Auth failures must return deterministic error codes and be audit logged.
-* Claim mapping/profile updates are audit logged with before/after snapshots.
+Implemented baseline:
+* Token transport avoids long-lived responder tokens in URLs for OIDC private flows by using one-time responder access code exchange.  
+* Replay protection is enforced for signed launch token flow (`jti` with server-side replay store).  
+* Strict claim validation is enforced (issuer, audience, expiry, clock skew, required `respondentId` mapping, tenant binding).  
+* Auth failures return deterministic error codes and auth configuration updates are audit logged with before/after snapshots.
+
+Production targets:
+* Expand key lifecycle controls to full `kid`-based rotation policies with dual-key validation windows and external key management integration.
 
 #### **4.8.7 OIDC Scope Defaults**
 
@@ -205,6 +207,13 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
   * `defaultClaimMappings`
   * `requiredConfigFields`
 * UI should render template metadata as prefill guidance and allow tenant-level overrides before save.
+
+#### **4.8.9 Existing SSO Session / Pre-Issued Token Behavior**
+
+* Private responder authentication does not always require an interactive re-login prompt.
+* If the subscriber uses OIDC start/callback flow and the user already has an active IdP session, the IdP may complete authentication silently (or with minimal interaction), then return control to Survey Engine callback flow.
+* If the subscriber already has a valid trusted token for the responder (matching tenant auth profile validation rules), the responder may submit through the trusted token path without running interactive OIDC login again.
+* In both cases, Survey Engine still enforces token validation and required claim mapping rules before accepting private response submission.
 
 ### **4.9 Responses, Locking, and Analytics**
 
@@ -301,7 +310,7 @@ Minimum business errors in code include:
 * Tenant-scoped admin can create and manage questions, categories, surveys, campaigns, and scoring profiles.  
 * Published survey snapshot remains immutable for historical consistency.  
 * Campaign activation fails for non-published survey.  
-* Public campaigns accept anonymous responders; private campaigns require valid tenant-authenticated responder token.  
+* Public campaigns accept anonymous responders; private campaigns require valid tenant-authenticated responder credential (signed token or one-time access code).  
 * Response submissions enforce runtime settings and lock on submit.  
 * Tenant subscriptions can be checked out successfully through mock payment.  
 * Super admin can update plan definitions and quota changes are enforced in runtime paths.  

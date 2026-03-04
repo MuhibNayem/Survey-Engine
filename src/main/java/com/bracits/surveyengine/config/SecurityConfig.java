@@ -46,6 +46,9 @@ public class SecurityConfig {
                                                 // Public — admin registration & login
                                                 .requestMatchers("/api/v1/admin/auth/**").permitAll()
                                                 .requestMatchers("/api/v1/admin/subscriptions/**").authenticated()
+                                                .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
+                                                .requestMatchers("/v3/api-docs/**").permitAll()
+                                                .requestMatchers("/openapi.yaml", "/openapi.yml", "/openapi.ymal").permitAll()
                                                 // Public — health checks
                                                 .requestMatchers("/actuator/**").permitAll()
                                                 .requestMatchers(HttpMethod.PUT, "/api/v1/admin/plans/**")

@@ -40,3 +40,12 @@ server:
   error:
     include-message: never
     include-stacktrace: never
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /openapi.yaml
+    display-request-duration: true
+    doc-expansion: none
