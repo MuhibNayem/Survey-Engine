@@ -101,6 +101,11 @@ export interface SurveyQuestionRequest {
     sortOrder: number;
     mandatory: boolean;
     answerConfig?: string;
+    pinnedQuestionText?: string;
+    pinnedQuestionMaxScore?: number;
+    pinnedQuestionOptionConfig?: string;
+    pinnedCategoryName?: string;
+    pinnedCategoryDescription?: string;
 }
 
 export interface SurveyPageRequest {
@@ -136,6 +141,12 @@ export interface SurveyResponse {
             sortOrder: number;
             mandatory: boolean;
             answerConfig?: string;
+            pinnedQuestionText?: string;
+            pinnedQuestionType?: QuestionType;
+            pinnedQuestionMaxScore?: number;
+            pinnedQuestionOptionConfig?: string;
+            pinnedCategoryName?: string;
+            pinnedCategoryDescription?: string;
         }[];
     }[];
     createdBy: string;

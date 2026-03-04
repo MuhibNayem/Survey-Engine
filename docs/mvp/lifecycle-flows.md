@@ -207,22 +207,29 @@ Move survey from draft to publish-ready state, then through closure states.
 - How: Retrieve survey content and status.
 - Result: Confirmed draft readiness.
 
-3. Update draft (`PUT /api/v1/surveys/{id}`).
+3. Refine pinned copies in Survey Details (draft only).
+- Why: Final wording/score/category-label adjustments should be survey-specific, not bank-wide.
+- How: Edit pinned fields in draft payload:
+  - per question: `pinnedQuestionText`, `pinnedQuestionMaxScore`, `pinnedQuestionOptionConfig`
+  - per category: `pinnedCategoryName`, `pinnedCategoryDescription`
+- Result: Only survey-pinned versions are updated; question/category bank definitions remain unchanged.
+
+4. Update draft (`PUT /api/v1/surveys/{id}`).
 - Why: Apply final edits before publish.
-- How: Submit updated survey schema.
+- How: Submit updated survey schema and pinned override fields.
 - Result: Draft structure and pinned version set are rebuilt from current draft payload.
 
-4. Transition lifecycle (`POST /api/v1/surveys/{id}/lifecycle`).
+5. Transition lifecycle (`POST /api/v1/surveys/{id}/lifecycle`).
 - Why: Campaign activation requires published survey.
 - How: Request valid transition (e.g., DRAFT -> PUBLISHED).
 - Result: Survey state changes when transition is valid; publish snapshots the already-pinned draft.
 
-5. Preserve immutability after publish (enforced behavior).
+6. Preserve immutability after publish (enforced behavior).
 - Why: Response and campaign consistency require stable published structure.
 - How: System blocks `POST/PUT` structural edits in non-`DRAFT` states.
-- Result: Published snapshot integrity.
+- Result: Published snapshot integrity and read-only Survey Details for pinned copies.
 
-6. Move through end states when appropriate.
+7. Move through end states when appropriate.
 - Why: Operational clarity (closed/results/archive) and governance.
 - How: Use lifecycle transition endpoint.
 - Result: Predictable survey state management.

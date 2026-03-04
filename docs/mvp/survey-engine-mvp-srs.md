@@ -119,8 +119,13 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
   * `RESULTS_PUBLISHED -> ARCHIVED`
   * `CLOSED -> PUBLISHED` (reopen with reason)
 * Draft create/update generates pinned question/category versions used by that survey draft.  
+* Survey Details (draft mode) allows editing pinned copies directly:
+  * `pinnedQuestionText`, `pinnedQuestionMaxScore`, `pinnedQuestionOptionConfig`
+  * `pinnedCategoryName`, `pinnedCategoryDescription`
+* Those edits apply only to the survey-pinned versions, never to live bank question/category records.
 * Publishing creates immutable survey snapshot data from pinned versions.  
 * Structural modifications are blocked for all non-`DRAFT` states (including `PUBLISHED`).
+* After publish, Survey Details is read-only for pinned copies and structure.
 
 ### **4.5 Campaign Management and Access Modes**
 

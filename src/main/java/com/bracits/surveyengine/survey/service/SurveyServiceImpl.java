@@ -9,6 +9,7 @@ import com.bracits.surveyengine.questionbank.entity.Category;
 import com.bracits.surveyengine.questionbank.entity.CategoryQuestionMapping;
 import com.bracits.surveyengine.questionbank.entity.CategoryVersion;
 import com.bracits.surveyengine.questionbank.entity.Question;
+import com.bracits.surveyengine.questionbank.entity.QuestionType;
 import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import com.bracits.surveyengine.questionbank.repository.CategoryRepository;
 import com.bracits.surveyengine.questionbank.repository.CategoryVersionRepository;
@@ -38,6 +39,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -227,6 +229,7 @@ public class SurveyServiceImpl implements SurveyService {
             }
         }
 
+        applyPinnedQuestionOverrides(pendingQuestions);
         Map<UUID, UUID> pinnedCategoryVersionIds = createPinnedCategoryVersions(pendingQuestions, tenantId);
 
         for (PendingSurveyQuestion pending : pendingQuestions) {
@@ -284,11 +287,15 @@ public class SurveyServiceImpl implements SurveyService {
                     .map(v -> v.getVersionNumber() + 1)
                     .orElse(LIVE_VERSION_NUMBER + 1);
 
+            String pinnedCategoryName = resolvePinnedCategoryNameOverride(category.getName(), categoryQuestions);
+            String pinnedCategoryDescription = resolvePinnedCategoryDescriptionOverride(
+                    category.getDescription(), categoryQuestions);
+
             CategoryVersion pinnedVersion = CategoryVersion.builder()
                     .categoryId(categoryId)
                     .versionNumber(nextVersion)
-                    .name(category.getName())
-                    .description(category.getDescription())
+                    .name(pinnedCategoryName)
+                    .description(pinnedCategoryDescription)
                     .questionMappings(new ArrayList<>())
                     .build();
 
@@ -316,6 +323,144 @@ public class SurveyServiceImpl implements SurveyService {
         }
 
         return pinnedVersionByCategoryId;
+    }
+
+    private void applyPinnedQuestionOverrides(List<PendingSurveyQuestion> pendingQuestions) {
+        for (PendingSurveyQuestion pending : pendingQuestions) {
+            QuestionVersion pinned = pending.pinnedQuestionVersion();
+            SurveyQuestionRequest request = pending.request();
+            boolean changed = false;
+
+            if (request.getPinnedQuestionText() != null) {
+                String text = request.getPinnedQuestionText().trim();
+                if (text.isBlank()) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                            "pinnedQuestionText must be non-blank when provided");
+                }
+                pinned.setText(text);
+                changed = true;
+            }
+
+            if (request.getPinnedQuestionMaxScore() != null) {
+                BigDecimal maxScore = request.getPinnedQuestionMaxScore().setScale(2, RoundingMode.HALF_UP);
+                if (maxScore.compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                            "pinnedQuestionMaxScore must be > 0");
+                }
+                pinned.setMaxScore(maxScore);
+                changed = true;
+            }
+
+            if (request.getPinnedQuestionOptionConfig() != null) {
+                String normalized = normalizePinnedQuestionOptionConfig(
+                        request.getPinnedQuestionOptionConfig(),
+                        pinned.getType());
+                pinned.setOptionConfig(normalized);
+                changed = true;
+            }
+
+            if (changed) {
+                questionVersionRepository.save(pinned);
+            }
+        }
+    }
+
+    private String resolvePinnedCategoryNameOverride(String fallback, List<PendingSurveyQuestion> categoryQuestions) {
+        String override = null;
+        for (PendingSurveyQuestion pending : categoryQuestions) {
+            String raw = pending.request().getPinnedCategoryName();
+            if (raw == null) {
+                continue;
+            }
+            String candidate = raw.trim();
+            if (candidate.isBlank()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "pinnedCategoryName must be non-blank when provided");
+            }
+            if (override == null) {
+                override = candidate;
+            } else if (!override.equals(candidate)) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "All questions under the same category must use the same pinnedCategoryName override");
+            }
+        }
+        return override != null ? override : fallback;
+    }
+
+    private String resolvePinnedCategoryDescriptionOverride(String fallback, List<PendingSurveyQuestion> categoryQuestions) {
+        String override = null;
+        boolean provided = false;
+        for (PendingSurveyQuestion pending : categoryQuestions) {
+            String raw = pending.request().getPinnedCategoryDescription();
+            if (raw == null) {
+                continue;
+            }
+            provided = true;
+            String candidate = raw.trim();
+            if (override == null) {
+                override = candidate.isBlank() ? null : candidate;
+            } else {
+                String normalizedCandidate = candidate.isBlank() ? null : candidate;
+                if (!java.util.Objects.equals(override, normalizedCandidate)) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                            "All questions under the same category must use the same pinnedCategoryDescription override");
+                }
+            }
+        }
+        return provided ? override : fallback;
+    }
+
+    private String normalizePinnedQuestionOptionConfig(String rawOptionConfig, QuestionType questionType) {
+        if (rawOptionConfig.isBlank()) {
+            if (requiresOptions(questionType)) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "pinnedQuestionOptionConfig.options must be non-empty for " + questionType);
+            }
+            return null;
+        }
+
+        try {
+            JsonNode node = objectMapper.readTree(rawOptionConfig);
+            if (!node.isObject()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "pinnedQuestionOptionConfig must be a JSON object");
+            }
+
+            JsonNode optionsNode = node.get("options");
+            if (requiresOptions(questionType)) {
+                if (optionsNode == null || !optionsNode.isArray() || optionsNode.isEmpty()) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                            "pinnedQuestionOptionConfig.options must be a non-empty array for " + questionType);
+                }
+                Set<String> unique = new LinkedHashSet<>();
+                for (JsonNode optionNode : optionsNode) {
+                    String optionValue = optionNode.isObject()
+                            ? optionNode.path("value").asText(null)
+                            : optionNode.asText(null);
+                    if (optionValue == null || optionValue.isBlank()) {
+                        throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                                "Each option value must be non-empty");
+                    }
+                    if (!unique.add(optionValue)) {
+                        throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                                "Duplicate option value: " + optionValue);
+                    }
+                }
+            }
+
+            return objectMapper.writeValueAsString(node);
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "pinnedQuestionOptionConfig must be valid JSON");
+        }
+    }
+
+    private boolean requiresOptions(QuestionType questionType) {
+        return questionType == QuestionType.SINGLE_CHOICE
+                || questionType == QuestionType.MULTIPLE_CHOICE
+                || questionType == QuestionType.RANK;
     }
 
     private void createSnapshot(Survey survey) {
@@ -458,23 +603,52 @@ public class SurveyServiceImpl implements SurveyService {
     }
 
     private SurveyResponse toResponse(Survey survey) {
+        Map<UUID, QuestionVersion> questionVersionCache = new HashMap<>();
+        Map<UUID, CategoryVersion> categoryVersionCache = new HashMap<>();
+
         List<SurveyResponse.PageResponse> pageResponses = survey.getPages().stream()
                 .map(page -> SurveyResponse.PageResponse.builder()
                         .id(page.getId())
                         .title(page.getTitle())
                         .sortOrder(page.getSortOrder())
                         .questions(page.getQuestions().stream()
-                                .map(sq -> SurveyResponse.QuestionResponse.builder()
-                                        .id(sq.getId())
-                                        .questionId(sq.getQuestionId())
-                                        .questionVersionId(sq.getQuestionVersionId())
-                                        .categoryId(sq.getCategoryId())
-                                        .categoryVersionId(sq.getCategoryVersionId())
-                                        .categoryWeightPercentage(sq.getCategoryWeightPercentage())
-                                        .sortOrder(sq.getSortOrder())
-                                        .mandatory(sq.isMandatory())
-                                        .answerConfig(sq.getAnswerConfig())
-                                        .build())
+                                .map(sq -> {
+                                    QuestionVersion questionVersion = null;
+                                    if (sq.getQuestionVersionId() != null) {
+                                        questionVersion = questionVersionCache.computeIfAbsent(
+                                                sq.getQuestionVersionId(),
+                                                id -> questionVersionRepository.findById(id)
+                                                        .orElseThrow(() -> new ResourceNotFoundException("QuestionVersion", id)));
+                                    }
+
+                                    CategoryVersion categoryVersion = null;
+                                    if (sq.getCategoryVersionId() != null) {
+                                        categoryVersion = categoryVersionCache.computeIfAbsent(
+                                                sq.getCategoryVersionId(),
+                                                id -> categoryVersionRepository.findById(id)
+                                                        .orElseThrow(() -> new ResourceNotFoundException("CategoryVersion", id)));
+                                    }
+
+                                    return SurveyResponse.QuestionResponse.builder()
+                                            .id(sq.getId())
+                                            .questionId(sq.getQuestionId())
+                                            .questionVersionId(sq.getQuestionVersionId())
+                                            .categoryId(sq.getCategoryId())
+                                            .categoryVersionId(sq.getCategoryVersionId())
+                                            .categoryWeightPercentage(sq.getCategoryWeightPercentage())
+                                            .sortOrder(sq.getSortOrder())
+                                            .mandatory(sq.isMandatory())
+                                            .answerConfig(sq.getAnswerConfig())
+                                            .pinnedQuestionText(questionVersion != null ? questionVersion.getText() : null)
+                                            .pinnedQuestionType(questionVersion != null ? questionVersion.getType() : null)
+                                            .pinnedQuestionMaxScore(questionVersion != null ? questionVersion.getMaxScore() : null)
+                                            .pinnedQuestionOptionConfig(
+                                                    questionVersion != null ? questionVersion.getOptionConfig() : null)
+                                            .pinnedCategoryName(categoryVersion != null ? categoryVersion.getName() : null)
+                                            .pinnedCategoryDescription(
+                                                    categoryVersion != null ? categoryVersion.getDescription() : null)
+                                            .build();
+                                })
                                 .toList())
                         .build())
                 .toList();

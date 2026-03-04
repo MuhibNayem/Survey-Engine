@@ -26,4 +26,22 @@ public class SurveyQuestionRequest {
     private boolean mandatory;
 
     private String answerConfig;
+
+    /**
+     * Optional overrides for the survey-pinned question copy.
+     * Applied only to draft survey copies and must never mutate question-bank records.
+     */
+    private String pinnedQuestionText;
+
+    private BigDecimal pinnedQuestionMaxScore;
+
+    private String pinnedQuestionOptionConfig;
+
+    /**
+     * Optional overrides for the survey-pinned category copy.
+     * Applied only to draft survey copies and must never mutate category-bank records.
+     */
+    private String pinnedCategoryName;
+
+    private String pinnedCategoryDescription;
 }

@@ -2125,6 +2125,11 @@ components:
         sortOrder: { type: integer }
         mandatory: { type: boolean }
         answerConfig: { type: string }
+        pinnedQuestionText: { type: string }
+        pinnedQuestionMaxScore: { type: number }
+        pinnedQuestionOptionConfig: { type: string }
+        pinnedCategoryName: { type: string }
+        pinnedCategoryDescription: { type: string }
 
     SurveyPageRequest:
       type: object
@@ -2181,6 +2186,14 @@ components:
                     sortOrder: { type: integer }
                     mandatory: { type: boolean }
                     answerConfig: { type: string }
+                    pinnedQuestionText: { type: string }
+                    pinnedQuestionType:
+                      type: string
+                      enum: [RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE]
+                    pinnedQuestionMaxScore: { type: number }
+                    pinnedQuestionOptionConfig: { type: string }
+                    pinnedCategoryName: { type: string }
+                    pinnedCategoryDescription: { type: string }
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
         updatedBy: { type: string }

@@ -13,15 +13,18 @@ ALTER TABLE question_version
 ALTER TABLE survey_question
     ADD COLUMN IF NOT EXISTS category_version_id UUID;
 
-UPDATE survey_question sq
-SET category_version_id = (
-    SELECT cv.id
+WITH latest_category_version AS (
+    SELECT DISTINCT ON (cv.category_id)
+           cv.category_id,
+           cv.id
     FROM category_version cv
-    WHERE cv.category_id = sq.category_id
-    ORDER BY cv.version_number DESC
-    LIMIT 1
+    ORDER BY cv.category_id, cv.version_number DESC
 )
-WHERE sq.category_id IS NOT NULL
+UPDATE survey_question sq
+SET category_version_id = lcv.id
+FROM latest_category_version lcv
+WHERE sq.category_id = lcv.category_id
+  AND sq.category_id IS NOT NULL
   AND sq.category_version_id IS NULL;
 
 DO $$

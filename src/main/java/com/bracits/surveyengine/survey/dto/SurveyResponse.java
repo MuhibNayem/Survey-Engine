@@ -1,6 +1,7 @@
 package com.bracits.surveyengine.survey.dto;
 
 import com.bracits.surveyengine.survey.entity.SurveyLifecycleState;
+import com.bracits.surveyengine.questionbank.entity.QuestionType;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -50,5 +51,16 @@ public class SurveyResponse {
         private Integer sortOrder;
         private boolean mandatory;
         private String answerConfig;
+
+        /**
+         * Survey-pinned (versioned copy) metadata shown in Survey Details.
+         * These values are draft-editable and immutable after publish.
+         */
+        private String pinnedQuestionText;
+        private QuestionType pinnedQuestionType;
+        private BigDecimal pinnedQuestionMaxScore;
+        private String pinnedQuestionOptionConfig;
+        private String pinnedCategoryName;
+        private String pinnedCategoryDescription;
     }
 }

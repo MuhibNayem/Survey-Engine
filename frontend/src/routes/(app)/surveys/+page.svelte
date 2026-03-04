@@ -13,6 +13,7 @@
     import {
         Plus,
         Pencil,
+        Eye,
         Trash2,
         Search,
         X,
@@ -27,6 +28,7 @@
         CategoryResponse,
         SurveyPageRequest,
         SurveyQuestionRequest,
+        QuestionType,
     } from "$lib/types";
 
     // --- State ---
@@ -40,6 +42,7 @@
     // Create/Edit Dialog
     let dialogOpen = $state(false);
     let editingSurvey = $state<SurveyResponse | null>(null);
+    let dialogReadOnly = $state(false);
     let formTitle = $state("");
     let formDescription = $state("");
     let formPages = $state<
@@ -52,6 +55,12 @@
                 categoryWeightPercentage?: number;
                 sortOrder: number;
                 mandatory: boolean;
+                pinnedQuestionText?: string;
+                pinnedQuestionType?: QuestionType;
+                pinnedQuestionMaxScore?: number;
+                pinnedQuestionOptionConfig?: string;
+                pinnedCategoryName?: string;
+                pinnedCategoryDescription?: string;
             }[];
         }[]
     >([]);
@@ -148,6 +157,7 @@
 
     function openCreateDialog() {
         editingSurvey = null;
+        dialogReadOnly = false;
         formTitle = "";
         formDescription = "";
         formPages = [{ title: "Page 1", sortOrder: 1, questions: [] }];
@@ -156,11 +166,8 @@
         dialogOpen = true;
     }
 
-    function openEditDialog(s: SurveyResponse) {
-        editingSurvey = s;
-        formTitle = s.title;
-        formDescription = s.description;
-        formPages = s.pages.map((p) => ({
+    function mapSurveyToFormPages(s: SurveyResponse) {
+        return s.pages.map((p) => ({
             title: p.title,
             sortOrder: p.sortOrder,
             questions: p.questions.map((q) => ({
@@ -169,11 +176,156 @@
                 categoryWeightPercentage: q.categoryWeightPercentage,
                 sortOrder: q.sortOrder,
                 mandatory: q.mandatory,
+                pinnedQuestionText: q.pinnedQuestionText,
+                pinnedQuestionType: q.pinnedQuestionType,
+                pinnedQuestionMaxScore: q.pinnedQuestionMaxScore,
+                pinnedQuestionOptionConfig: q.pinnedQuestionOptionConfig,
+                pinnedCategoryName: q.pinnedCategoryName,
+                pinnedCategoryDescription: q.pinnedCategoryDescription,
             })),
         }));
+    }
+
+    function openEditDialog(s: SurveyResponse) {
+        editingSurvey = s;
+        dialogReadOnly = false;
+        formTitle = s.title;
+        formDescription = s.description;
+        formPages = mapSurveyToFormPages(s);
         addFromCategoryState = {};
         formError = null;
         dialogOpen = true;
+    }
+
+    function openViewDialog(s: SurveyResponse) {
+        editingSurvey = s;
+        dialogReadOnly = true;
+        formTitle = s.title;
+        formDescription = s.description;
+        formPages = mapSurveyToFormPages(s);
+        addFromCategoryState = {};
+        formError = null;
+        dialogOpen = true;
+    }
+
+    function isOptionQuestion(type?: QuestionType): boolean {
+        return (
+            type === "SINGLE_CHOICE" ||
+            type === "MULTIPLE_CHOICE" ||
+            type === "RANK"
+        );
+    }
+
+    type OptionRow = { value: string; score: string };
+
+    function getPinnedQuestionDisplayText(pIdx: number, qIdx: number): string {
+        const question = formPages[pIdx].questions[qIdx];
+        if (question.pinnedQuestionText?.trim()) {
+            return question.pinnedQuestionText;
+        }
+        return question.questionId ? "Pinned text not set" : "Select question";
+    }
+
+    function optionConfigToRows(optionConfig?: string): OptionRow[] {
+        if (!optionConfig) return [];
+        try {
+            const parsed = JSON.parse(optionConfig) as {
+                options?: Array<string | { value?: string; score?: number }>;
+            };
+            if (!Array.isArray(parsed?.options)) return [];
+            return parsed.options
+                .map((option) => {
+                    if (typeof option === "string") {
+                        const value = option.trim();
+                        if (!value) return null;
+                        return { value, score: "" };
+                    }
+                    const value = option?.value?.trim() ?? "";
+                    if (!value) return null;
+                    return {
+                        value,
+                        score:
+                            option.score !== undefined && option.score !== null
+                                ? String(option.score)
+                                : "",
+                    };
+                })
+                .filter((row): row is OptionRow => row !== null);
+        } catch {
+            return [];
+        }
+    }
+
+    function buildOptionConfigFromRows(rows: OptionRow[]): string {
+        const options: Array<string | { value: string; score: number }> = [];
+        for (const row of rows) {
+            const valuePart = row.value.trim();
+            const scorePart = row.score.trim();
+            if (!valuePart && !scorePart) continue;
+            if (!valuePart) continue;
+            if (!scorePart) {
+                options.push(valuePart);
+                continue;
+            }
+            const score = Number(scorePart);
+            if (Number.isFinite(score) && score >= 0) {
+                options.push({ value: valuePart, score });
+            } else {
+                options.push(valuePart);
+            }
+        }
+        return JSON.stringify({ options });
+    }
+
+    function getPinnedOptionRows(pIdx: number, qIdx: number): OptionRow[] {
+        const rows = optionConfigToRows(
+            formPages[pIdx].questions[qIdx].pinnedQuestionOptionConfig,
+        );
+        return rows.length > 0 ? rows : [{ value: "", score: "" }];
+    }
+
+    function updatePinnedOptionRow(
+        pIdx: number,
+        qIdx: number,
+        rowIdx: number,
+        field: "value" | "score",
+        next: string,
+    ) {
+        const rows = getPinnedOptionRows(pIdx, qIdx);
+        if (!rows[rowIdx]) return;
+        rows[rowIdx][field] = next;
+        formPages[pIdx].questions[qIdx].pinnedQuestionOptionConfig =
+            buildOptionConfigFromRows(rows);
+        formPages = [...formPages];
+    }
+
+    function addPinnedOptionRow(pIdx: number, qIdx: number) {
+        const rows = getPinnedOptionRows(pIdx, qIdx);
+        rows.push({ value: "", score: "" });
+        formPages[pIdx].questions[qIdx].pinnedQuestionOptionConfig =
+            buildOptionConfigFromRows(rows);
+        formPages = [...formPages];
+    }
+
+    function removePinnedOptionRow(pIdx: number, qIdx: number, rowIdx: number) {
+        const rows = getPinnedOptionRows(pIdx, qIdx);
+        if (rows.length <= 1) return;
+        rows.splice(rowIdx, 1);
+        formPages[pIdx].questions[qIdx].pinnedQuestionOptionConfig =
+            buildOptionConfigFromRows(rows);
+        formPages = [...formPages];
+    }
+
+    function setQuestionForPage(pIdx: number, qIdx: number, questionId: string) {
+        const page = formPages[pIdx];
+        const question = page.questions[qIdx];
+        const questionBankItem = allQuestions.find((q) => q.id === questionId);
+        question.questionId = questionId;
+        question.pinnedQuestionText = questionBankItem?.text ?? "";
+        question.pinnedQuestionType = questionBankItem?.type;
+        question.pinnedQuestionMaxScore = questionBankItem?.maxScore;
+        question.pinnedQuestionOptionConfig = questionBankItem?.optionConfig;
+        formPages = [...formPages];
     }
 
     function addPage() {
@@ -205,6 +357,8 @@
                 questionId: "",
                 sortOrder: page.questions.length + 1,
                 mandatory: true,
+                pinnedQuestionText: "",
+                pinnedQuestionMaxScore: 1,
             },
         ];
         formPages = [...formPages];
@@ -267,6 +421,34 @@
         formPages = [...formPages];
     }
 
+    function setCategoryNameForAllQuestions(
+        categoryId: string,
+        categoryName: string,
+    ) {
+        for (const page of formPages) {
+            for (const question of page.questions) {
+                if (question.categoryId === categoryId) {
+                    question.pinnedCategoryName = categoryName;
+                }
+            }
+        }
+        formPages = [...formPages];
+    }
+
+    function setCategoryDescriptionForAllQuestions(
+        categoryId: string,
+        categoryDescription: string,
+    ) {
+        for (const page of formPages) {
+            for (const question of page.questions) {
+                if (question.categoryId === categoryId) {
+                    question.pinnedCategoryDescription = categoryDescription;
+                }
+            }
+        }
+        formPages = [...formPages];
+    }
+
     function addCategoryToPage(
         pIdx: number,
         categoryId: string,
@@ -283,13 +465,25 @@
 
         const newQuestions = category.questionMappings
             .sort((a, b) => a.sortOrder - b.sortOrder)
-            .map((mapping, i) => ({
-                questionId: mapping.questionId,
-                categoryId: category.id,
-                categoryWeightPercentage,
-                sortOrder: nextSortOrder + i,
-                mandatory: true,
-            }));
+            .map((mapping, i) => {
+                const questionBankItem = allQuestions.find(
+                    (q) => q.id === mapping.questionId,
+                );
+                return {
+                    questionId: mapping.questionId,
+                    categoryId: category.id,
+                    categoryWeightPercentage,
+                    sortOrder: nextSortOrder + i,
+                    mandatory: true,
+                    pinnedQuestionText: questionBankItem?.text ?? "",
+                    pinnedQuestionType: questionBankItem?.type,
+                    pinnedQuestionMaxScore: questionBankItem?.maxScore ?? 1,
+                    pinnedQuestionOptionConfig:
+                        questionBankItem?.optionConfig ?? "",
+                    pinnedCategoryName: category.name,
+                    pinnedCategoryDescription: category.description,
+                };
+            });
 
         page.questions = [...page.questions, ...newQuestions];
         formPages = [...formPages];
@@ -366,6 +560,22 @@
         return Number(question?.categoryWeightPercentage ?? 0);
     }
 
+    function getCategoryPinnedNameForPage(
+        page: (typeof formPages)[number],
+        categoryId: string,
+    ): string {
+        const question = page.questions.find((q) => q.categoryId === categoryId);
+        return question?.pinnedCategoryName ?? getCategoryName(categoryId);
+    }
+
+    function getCategoryPinnedDescriptionForPage(
+        page: (typeof formPages)[number],
+        categoryId: string,
+    ): string {
+        const question = page.questions.find((q) => q.categoryId === categoryId);
+        return question?.pinnedCategoryDescription ?? "";
+    }
+
     function validateCategoryWeights(): string | null {
         const categoryWeights = new Map<string, number>();
         for (const page of formPages) {
@@ -422,6 +632,12 @@
                         categoryWeightPercentage: q.categoryWeightPercentage,
                         sortOrder: q.sortOrder,
                         mandatory: q.mandatory,
+                        pinnedQuestionText: q.pinnedQuestionText,
+                        pinnedQuestionMaxScore: q.pinnedQuestionMaxScore,
+                        pinnedQuestionOptionConfig:
+                            q.pinnedQuestionOptionConfig,
+                        pinnedCategoryName: q.pinnedCategoryName,
+                        pinnedCategoryDescription: q.pinnedCategoryDescription,
                     })) as SurveyQuestionRequest[],
                 })) as SurveyPageRequest[],
             };
@@ -629,6 +845,13 @@
                                     <div
                                         class="flex items-center justify-end gap-1"
                                     >
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onclick={() => openViewDialog(survey)}
+                                        >
+                                            <Eye class="h-4 w-4" />
+                                        </Button>
                                         {#if validTransitions(survey.lifecycleState).length > 0}
                                             <Button
                                                 variant="ghost"
@@ -692,12 +915,20 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <Card.Title>
-                            {editingSurvey ? "Edit Survey" : "New Survey"}
+                            {#if dialogReadOnly}
+                                Survey Details
+                            {:else}
+                                {editingSurvey ? "Edit Survey" : "New Survey"}
+                            {/if}
                         </Card.Title>
                         <Card.Description>
-                            {editingSurvey
-                                ? "Update survey structure and questions."
-                                : "Create a new survey with pages and questions."}
+                            {#if dialogReadOnly}
+                                Read-only view of pinned question/category copies. Editing is disabled after publish.
+                            {:else}
+                                {editingSurvey
+                                    ? "Update survey structure and pinned copies."
+                                    : "Create a new survey with pages and questions."}
+                            {/if}
                         </Card.Description>
                     </div>
                     <Button
@@ -719,6 +950,10 @@
                         </div>
                     {/if}
 
+                    <div class={dialogReadOnly
+                        ? "space-y-6 pointer-events-none opacity-80"
+                        : "space-y-6"}
+                    >
                     <!-- Basic Info -->
                     <div class="space-y-4">
                         <div class="space-y-2">
@@ -746,15 +981,17 @@
                             <Label class="text-base font-semibold"
                                 >Survey Pages</Label
                             >
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                type="button"
-                                onclick={addPage}
-                            >
-                                <Plus class="mr-1 h-3 w-3" />
-                                Add Page
-                            </Button>
+                            {#if !dialogReadOnly}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    type="button"
+                                    onclick={addPage}
+                                >
+                                    <Plus class="mr-1 h-3 w-3" />
+                                    Add Page
+                                </Button>
+                            {/if}
                         </div>
 
                         {#each formPages as page, pIdx}
@@ -778,7 +1015,7 @@
                                                 required
                                             />
                                         </div>
-                                        {#if formPages.length > 1}
+                                        {#if !dialogReadOnly && formPages.length > 1}
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -814,13 +1051,21 @@
                                                             <div
                                                                 class="flex items-center gap-2"
                                                             >
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    class="uppercase"
-                                                                    >{getCategoryName(
+                                                                <Input
+                                                                    class="h-8 w-52 text-xs"
+                                                                    value={getCategoryPinnedNameForPage(
+                                                                        page,
                                                                         categoryId,
-                                                                    )}</Badge
-                                                                >
+                                                                    )}
+                                                                    oninput={(e) =>
+                                                                        setCategoryNameForAllQuestions(
+                                                                            categoryId,
+                                                                            (
+                                                                                e.currentTarget as HTMLInputElement
+                                                                            ).value,
+                                                                        )}
+                                                                    placeholder="Pinned category name"
+                                                                />
                                                                 <span
                                                                     class="text-xs text-muted-foreground"
                                                                 >
@@ -874,21 +1119,40 @@
                                                                     class="text-xs text-muted-foreground"
                                                                     >%</span
                                                                 >
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    type="button"
-                                                                    onclick={() =>
-                                                                        removeCategoryFromPage(
-                                                                            pIdx,
-                                                                            categoryId,
-                                                                        )}
-                                                                >
-                                                                    <Trash2
-                                                                        class="h-3 w-3 text-destructive"
-                                                                    />
-                                                                </Button>
+                                                                {#if !dialogReadOnly}
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        type="button"
+                                                                        onclick={() =>
+                                                                            removeCategoryFromPage(
+                                                                                pIdx,
+                                                                                categoryId,
+                                                                            )}
+                                                                    >
+                                                                        <Trash2
+                                                                            class="h-3 w-3 text-destructive"
+                                                                        />
+                                                                    </Button>
+                                                                {/if}
                                                             </div>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <Input
+                                                                class="h-8 text-xs"
+                                                                value={getCategoryPinnedDescriptionForPage(
+                                                                    page,
+                                                                    categoryId,
+                                                                )}
+                                                                oninput={(e) =>
+                                                                    setCategoryDescriptionForAllQuestions(
+                                                                        categoryId,
+                                                                        (
+                                                                            e.currentTarget as HTMLInputElement
+                                                                        ).value,
+                                                                    )}
+                                                                placeholder="Pinned category description (optional)"
+                                                            />
                                                         </div>
                                                         <div class="space-y-2">
                                                             {#each getPageQuestionsByCategory(page, categoryId) as item (item.index)}
@@ -903,43 +1167,28 @@
                                                                     </span>
                                                                     <Select.Root
                                                                         type="single"
-                                                                        bind:value={
-                                                                            formPages[
-                                                                                pIdx
-                                                                            ]
-                                                                                .questions[
-                                                                                item
-                                                                                    .index
-                                                                            ]
-                                                                                .questionId
-                                                                        }
+                                                                        value={formPages[
+                                                                            pIdx
+                                                                        ]
+                                                                            .questions[
+                                                                            item
+                                                                                .index
+                                                                        ]
+                                                                            .questionId}
+                                                                        onValueChange={(v) =>
+                                                                            setQuestionForPage(
+                                                                                pIdx,
+                                                                                item.index,
+                                                                                v,
+                                                                            )}
                                                                     >
                                                                         <Select.Trigger
                                                                             class="flex-1 h-8 text-xs"
                                                                         >
-                                                                            {formPages[
-                                                                                pIdx
-                                                                            ]
-                                                                                .questions[
-                                                                                item
-                                                                                    .index
-                                                                            ]
-                                                                                .questionId
-                                                                                ? allQuestions.find(
-                                                                                      (
-                                                                                          aq,
-                                                                                      ) =>
-                                                                                          aq.id ===
-                                                                                          formPages[
-                                                                                              pIdx
-                                                                                          ]
-                                                                                              .questions[
-                                                                                              item
-                                                                                                  .index
-                                                                                          ]
-                                                                                              .questionId,
-                                                                                  )?.text
-                                                                                : "Select question"}
+                                                                            {getPinnedQuestionDisplayText(
+                                                                                pIdx,
+                                                                                item.index,
+                                                                            )}
                                                                         </Select.Trigger>
                                                                         <Select.Content>
                                                                             {#each allQuestions as aq}
@@ -950,6 +1199,33 @@
                                                                             {/each}
                                                                         </Select.Content>
                                                                     </Select.Root>
+                                                                    <Input
+                                                                        class="h-8 text-xs flex-[1.2]"
+                                                                        placeholder="Pinned question text"
+                                                                        bind:value={formPages[
+                                                                            pIdx
+                                                                        ]
+                                                                            .questions[
+                                                                            item
+                                                                                .index
+                                                                        ]
+                                                                            .pinnedQuestionText}
+                                                                    />
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="0.01"
+                                                                        step="0.01"
+                                                                        class="h-8 w-24 text-xs"
+                                                                        placeholder="Max"
+                                                                        bind:value={formPages[
+                                                                            pIdx
+                                                                        ]
+                                                                            .questions[
+                                                                            item
+                                                                                .index
+                                                                        ]
+                                                                            .pinnedQuestionMaxScore}
+                                                                    />
                                                                     <label
                                                                         class="flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
                                                                     >
@@ -969,21 +1245,94 @@
                                                                         />
                                                                         Required
                                                                     </label>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        type="button"
-                                                                        onclick={() =>
-                                                                            removeQuestionFromPage(
-                                                                                pIdx,
-                                                                                item.index,
-                                                                            )}
-                                                                    >
-                                                                        <Trash2
-                                                                            class="h-3 w-3 text-destructive"
-                                                                        />
-                                                                    </Button>
+                                                                    {#if !dialogReadOnly}
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            type="button"
+                                                                            onclick={() =>
+                                                                                removeQuestionFromPage(
+                                                                                    pIdx,
+                                                                                    item.index,
+                                                                                )}
+                                                                        >
+                                                                            <Trash2
+                                                                                class="h-3 w-3 text-destructive"
+                                                                            />
+                                                                        </Button>
+                                                                    {/if}
                                                                 </div>
+                                                                {#if isOptionQuestion(formPages[pIdx].questions[item.index].pinnedQuestionType)}
+                                                                    <div class="mt-2 rounded-md border border-border p-2 space-y-2">
+                                                                        <div class="flex items-center justify-between">
+                                                                            <span class="text-xs font-medium text-muted-foreground">Pinned options</span>
+                                                                            {#if !dialogReadOnly}
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    type="button"
+                                                                                    class="h-7 text-xs"
+                                                                                    onclick={() =>
+                                                                                        addPinnedOptionRow(
+                                                                                            pIdx,
+                                                                                            item.index,
+                                                                                        )}
+                                                                                >
+                                                                                    <Plus class="mr-1 h-3 w-3" />
+                                                                                    Add Option
+                                                                                </Button>
+                                                                            {/if}
+                                                                        </div>
+                                                                        {#each getPinnedOptionRows(pIdx, item.index) as row, rowIdx}
+                                                                            <div class="flex items-center gap-2">
+                                                                                <Input
+                                                                                    class="h-8 text-xs flex-1"
+                                                                                    placeholder="Option value"
+                                                                                    value={row.value}
+                                                                                    oninput={(e) =>
+                                                                                        updatePinnedOptionRow(
+                                                                                            pIdx,
+                                                                                            item.index,
+                                                                                            rowIdx,
+                                                                                            "value",
+                                                                                            (e.currentTarget as HTMLInputElement).value,
+                                                                                        )}
+                                                                                />
+                                                                                <Input
+                                                                                    class="h-8 w-24 text-xs"
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="0.01"
+                                                                                    placeholder="Score"
+                                                                                    value={row.score}
+                                                                                    oninput={(e) =>
+                                                                                        updatePinnedOptionRow(
+                                                                                            pIdx,
+                                                                                            item.index,
+                                                                                            rowIdx,
+                                                                                            "score",
+                                                                                            (e.currentTarget as HTMLInputElement).value,
+                                                                                        )}
+                                                                                />
+                                                                                {#if !dialogReadOnly}
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="sm"
+                                                                                        type="button"
+                                                                                        onclick={() =>
+                                                                                            removePinnedOptionRow(
+                                                                                                pIdx,
+                                                                                                item.index,
+                                                                                                rowIdx,
+                                                                                            )}
+                                                                                    >
+                                                                                        <Trash2 class="h-3 w-3 text-destructive" />
+                                                                                    </Button>
+                                                                                {/if}
+                                                                            </div>
+                                                                        {/each}
+                                                                    </div>
+                                                                {/if}
                                                             {/each}
                                                         </div>
                                                     </div>
@@ -1001,180 +1350,288 @@
                                                     Independent Questions
                                                 </p>
                                                 {#each uncategorizedQuestions as item (item.index)}
-                                                    <div
-                                                        class="flex items-center gap-2 rounded-md border border-border bg-muted/20 p-2"
-                                                    >
-                                                        <span
-                                                            class="shrink-0 text-xs font-medium text-muted-foreground w-6"
+                                                    <div class="space-y-2">
+                                                        <div
+                                                            class="flex items-center gap-2 rounded-md border border-border bg-muted/20 p-2"
                                                         >
-                                                            #{item.question
-                                                                .sortOrder}
-                                                        </span>
-                                                        <Select.Root
-                                                            type="single"
-                                                            bind:value={
-                                                                formPages[pIdx]
-                                                                    .questions[
-                                                                    item.index
-                                                                ].questionId
-                                                            }
-                                                        >
-                                                            <Select.Trigger
-                                                                class="flex-1 h-8 text-xs"
+                                                            <span
+                                                                class="shrink-0 text-xs font-medium text-muted-foreground w-6"
                                                             >
-                                                                {formPages[pIdx]
+                                                                #{item.question
+                                                                    .sortOrder}
+                                                            </span>
+                                                            <Select.Root
+                                                                type="single"
+                                                                value={formPages[
+                                                                    pIdx
+                                                                ]
                                                                     .questions[
                                                                     item.index
-                                                                ].questionId
-                                                                    ? allQuestions.find(
-                                                                          (
-                                                                              aq,
-                                                                          ) =>
-                                                                              aq.id ===
-                                                                              formPages[
-                                                                                  pIdx
-                                                                              ]
-                                                                                  .questions[
-                                                                                  item
-                                                                                      .index
-                                                                              ]
-                                                                                  .questionId,
-                                                                      )?.text
-                                                                    : "Select question"}
-                                                            </Select.Trigger>
-                                                            <Select.Content>
-                                                                {#each allQuestions as aq}
-                                                                    <Select.Item
-                                                                        value={aq.id}
-                                                                        >{aq.text}</Select.Item
-                                                                    >
+                                                                ].questionId}
+                                                                onValueChange={(v) =>
+                                                                    setQuestionForPage(
+                                                                        pIdx,
+                                                                        item.index,
+                                                                        v,
+                                                                    )}
+                                                            >
+                                                                <Select.Trigger
+                                                                    class="flex-1 h-8 text-xs"
+                                                                >
+                                                                    {getPinnedQuestionDisplayText(
+                                                                        pIdx,
+                                                                        item.index,
+                                                                    )}
+                                                                </Select.Trigger>
+                                                                <Select.Content>
+                                                                    {#each allQuestions as aq}
+                                                                        <Select.Item
+                                                                            value={aq.id}
+                                                                            >{aq.text}</Select.Item
+                                                                        >
+                                                                    {/each}
+                                                                </Select.Content>
+                                                            </Select.Root>
+                                                            <Input
+                                                                class="h-8 text-xs flex-[1.2]"
+                                                                placeholder="Pinned question text"
+                                                                bind:value={formPages[
+                                                                    pIdx
+                                                                ]
+                                                                    .questions[
+                                                                    item.index
+                                                                ]
+                                                                    .pinnedQuestionText}
+                                                            />
+                                                            <Input
+                                                                type="number"
+                                                                min="0.01"
+                                                                step="0.01"
+                                                                class="h-8 w-24 text-xs"
+                                                                placeholder="Max"
+                                                                bind:value={formPages[
+                                                                    pIdx
+                                                                ]
+                                                                    .questions[
+                                                                    item.index
+                                                                ]
+                                                                    .pinnedQuestionMaxScore}
+                                                            />
+                                                            <label
+                                                                class="flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    bind:checked={
+                                                                        formPages[
+                                                                            pIdx
+                                                                        ]
+                                                                            .questions[
+                                                                            item
+                                                                                .index
+                                                                        ]
+                                                                            .mandatory
+                                                                    }
+                                                                    class="h-3.5 w-3.5 rounded border-border"
+                                                                />
+                                                                Required
+                                                            </label>
+                                                            {#if !dialogReadOnly}
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    type="button"
+                                                                    onclick={() =>
+                                                                        removeQuestionFromPage(
+                                                                            pIdx,
+                                                                            item.index,
+                                                                        )}
+                                                                >
+                                                                    <Trash2
+                                                                        class="h-3 w-3 text-destructive"
+                                                                    />
+                                                                </Button>
+                                                            {/if}
+                                                        </div>
+                                                        {#if isOptionQuestion(formPages[pIdx].questions[item.index].pinnedQuestionType)}
+                                                            <div class="mt-2 rounded-md border border-border p-2 space-y-2">
+                                                                <div class="flex items-center justify-between">
+                                                                    <span class="text-xs font-medium text-muted-foreground">Pinned options</span>
+                                                                    {#if !dialogReadOnly}
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            type="button"
+                                                                            class="h-7 text-xs"
+                                                                            onclick={() =>
+                                                                                addPinnedOptionRow(
+                                                                                    pIdx,
+                                                                                    item.index,
+                                                                                )}
+                                                                        >
+                                                                            <Plus class="mr-1 h-3 w-3" />
+                                                                            Add Option
+                                                                        </Button>
+                                                                    {/if}
+                                                                </div>
+                                                                {#each getPinnedOptionRows(pIdx, item.index) as row, rowIdx}
+                                                                    <div class="flex items-center gap-2">
+                                                                        <Input
+                                                                            class="h-8 text-xs flex-1"
+                                                                            placeholder="Option value"
+                                                                            value={row.value}
+                                                                            oninput={(e) =>
+                                                                                updatePinnedOptionRow(
+                                                                                    pIdx,
+                                                                                    item.index,
+                                                                                    rowIdx,
+                                                                                    "value",
+                                                                                    (e.currentTarget as HTMLInputElement).value,
+                                                                                )}
+                                                                        />
+                                                                        <Input
+                                                                            class="h-8 w-24 text-xs"
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            placeholder="Score"
+                                                                            value={row.score}
+                                                                            oninput={(e) =>
+                                                                                updatePinnedOptionRow(
+                                                                                    pIdx,
+                                                                                    item.index,
+                                                                                    rowIdx,
+                                                                                    "score",
+                                                                                    (e.currentTarget as HTMLInputElement).value,
+                                                                                )}
+                                                                        />
+                                                                        {#if !dialogReadOnly}
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                type="button"
+                                                                                onclick={() =>
+                                                                                    removePinnedOptionRow(
+                                                                                        pIdx,
+                                                                                        item.index,
+                                                                                        rowIdx,
+                                                                                    )}
+                                                                            >
+                                                                                <Trash2 class="h-3 w-3 text-destructive" />
+                                                                            </Button>
+                                                                        {/if}
+                                                                    </div>
                                                                 {/each}
-                                                            </Select.Content>
-                                                        </Select.Root>
-                                                        <label
-                                                            class="flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                bind:checked={
-                                                                    formPages[
-                                                                        pIdx
-                                                                    ].questions[
-                                                                        item
-                                                                            .index
-                                                                    ].mandatory
-                                                                }
-                                                                class="h-3.5 w-3.5 rounded border-border"
-                                                            />
-                                                            Required
-                                                        </label>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            type="button"
-                                                            onclick={() =>
-                                                                removeQuestionFromPage(
-                                                                    pIdx,
-                                                                    item.index,
-                                                                )}
-                                                        >
-                                                            <Trash2
-                                                                class="h-3 w-3 text-destructive"
-                                                            />
-                                                        </Button>
+                                                            </div>
+                                                        {/if}
                                                     </div>
                                                 {/each}
                                             </div>
                                         {/if}
                                     {/if}
-                                    <div class="flex items-center gap-2 mt-4">
-                                        <Select.Root
-                                            type="single"
-                                            value={addFromCategoryState[pIdx]
-                                                ?.categoryId ?? ""}
-                                            onValueChange={(v) =>
-                                                setAddFromCategorySelection(
-                                                    pIdx,
-                                                    v,
-                                                )}
-                                        >
-                                            <Select.Trigger
-                                                class="w-[200px] h-8 text-xs"
+                                    {#if !dialogReadOnly}
+                                        <div class="flex items-center gap-2 mt-4">
+                                            <Select.Root
+                                                type="single"
+                                                value={addFromCategoryState[pIdx]
+                                                    ?.categoryId ?? ""}
+                                                onValueChange={(v) =>
+                                                    setAddFromCategorySelection(
+                                                        pIdx,
+                                                        v,
+                                                    )}
+                                            >
+                                                <Select.Trigger
+                                                    class="w-[200px] h-8 text-xs"
+                                                >
+                                                    <Plus class="mr-1 h-3 w-3" />
+                                                    Add from Category
+                                                </Select.Trigger>
+                                                <Select.Content>
+                                                    {#each allCategories as c}
+                                                        <Select.Item value={c.id}
+                                                            >{c.name}</Select.Item
+                                                        >
+                                                    {/each}
+                                                </Select.Content>
+                                            </Select.Root>
+                                            <Input
+                                                type="number"
+                                                min="0.01"
+                                                max="100"
+                                                step="0.01"
+                                                class="w-28 h-8 text-xs"
+                                                placeholder="Weight %"
+                                                value={addFromCategoryState[pIdx]
+                                                    ?.weightPercentage ?? 0}
+                                                oninput={(e) =>
+                                                    setAddFromCategoryWeight(
+                                                        pIdx,
+                                                        Number(
+                                                            (
+                                                                e.currentTarget as HTMLInputElement
+                                                            ).value,
+                                                        ),
+                                                    )}
+                                            />
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                type="button"
+                                                class="text-xs h-8"
+                                                onclick={() =>
+                                                    addSelectedCategoryToPage(
+                                                        pIdx,
+                                                    )}
                                             >
                                                 <Plus class="mr-1 h-3 w-3" />
-                                                Add from Category
-                                            </Select.Trigger>
-                                            <Select.Content>
-                                                {#each allCategories as c}
-                                                    <Select.Item value={c.id}
-                                                        >{c.name}</Select.Item
-                                                    >
-                                                {/each}
-                                            </Select.Content>
-                                        </Select.Root>
-                                        <Input
-                                            type="number"
-                                            min="0.01"
-                                            max="100"
-                                            step="0.01"
-                                            class="w-28 h-8 text-xs"
-                                            placeholder="Weight %"
-                                            value={addFromCategoryState[pIdx]
-                                                ?.weightPercentage ?? 0}
-                                            oninput={(e) =>
-                                                setAddFromCategoryWeight(
-                                                    pIdx,
-                                                    Number(
-                                                        (
-                                                            e.currentTarget as HTMLInputElement
-                                                        ).value,
-                                                    ),
-                                                )}
-                                        />
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            type="button"
-                                            class="text-xs h-8"
-                                            onclick={() =>
-                                                addSelectedCategoryToPage(pIdx)}
-                                        >
-                                            <Plus class="mr-1 h-3 w-3" />
-                                            Add Category
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            type="button"
-                                            class="text-xs h-8"
-                                            onclick={() =>
-                                                addQuestionToPage(pIdx)}
-                                        >
-                                            <Plus class="mr-1 h-3 w-3" />
-                                            Add Empty Question
-                                        </Button>
-                                    </div>
+                                                Add Category
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                type="button"
+                                                class="text-xs h-8"
+                                                onclick={() =>
+                                                    addQuestionToPage(pIdx)}
+                                            >
+                                                <Plus class="mr-1 h-3 w-3" />
+                                                Add Empty Question
+                                            </Button>
+                                        </div>
+                                    {/if}
                                 </Card.Content>
                             </Card.Root>
                         {/each}
                     </div>
+                    </div>
 
                     <div class="flex justify-end gap-2 pt-2">
-                        <Button
-                            variant="outline"
-                            type="button"
-                            onclick={() => (dialogOpen = false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={formLoading}>
-                            {#if formLoading}
-                                <span
-                                    class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                                ></span>
-                            {/if}
-                            {editingSurvey ? "Save Changes" : "Create"}
-                        </Button>
+                        {#if dialogReadOnly}
+                            <Button
+                                variant="outline"
+                                type="button"
+                                onclick={() => (dialogOpen = false)}
+                            >
+                                Close
+                            </Button>
+                        {:else}
+                            <Button
+                                variant="outline"
+                                type="button"
+                                onclick={() => (dialogOpen = false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={formLoading}>
+                                {#if formLoading}
+                                    <span
+                                        class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                                    ></span>
+                                {/if}
+                                {editingSurvey ? "Save Changes" : "Create"}
+                            </Button>
+                        {/if}
                     </div>
                 </form>
             </Card.Content>
