@@ -21,6 +21,10 @@ public interface CampaignService {
 
     void deactivate(UUID id);
 
+    CampaignPreviewResponse getPreview(UUID campaignId);
+
+    CampaignSettingsResponse getSettings(UUID campaignId);
+
     CampaignResponse updateSettings(UUID campaignId, CampaignSettingsRequest request);
 
     CampaignResponse activate(UUID id);

@@ -27,7 +27,7 @@
 
         const success = await auth.register({ email, password });
         if (success) {
-            goto("/dashboard");
+            goto("/onboarding/plan");
         }
     }
 

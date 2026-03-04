@@ -9,3 +9,4 @@ services:
   survey-engine:
     environment:
       SPRING_PROFILES_ACTIVE: dev
+      SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL: ${SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL:-http://localhost:5173}

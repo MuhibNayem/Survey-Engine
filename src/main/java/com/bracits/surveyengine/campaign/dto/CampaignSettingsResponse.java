@@ -1,24 +1,22 @@
 package com.bracits.surveyengine.campaign.dto;
 
-import com.bracits.surveyengine.common.jackson.FlexibleInstantDeserializer;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Getter
-@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CampaignSettingsRequest {
+public class CampaignSettingsResponse {
+    private UUID campaignId;
     private String password;
     private boolean captchaEnabled;
     private boolean oneResponsePerDevice;
     private boolean ipRestrictionEnabled;
     private boolean emailRestrictionEnabled;
     private Integer responseQuota;
-    @JsonDeserialize(using = FlexibleInstantDeserializer.class)
     private Instant closeDate;
     private Integer sessionTimeoutMinutes;
     private boolean showQuestionNumbers;

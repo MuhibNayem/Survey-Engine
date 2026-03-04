@@ -8,7 +8,9 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Badge } from "$lib/components/ui/badge";
-    import { Select } from "$lib/components/ui/select";
+    import { Switch } from "$lib/components/ui/switch";
+    import { Textarea } from "$lib/components/ui/textarea";
+    import { toast } from "svelte-sonner";
     import {
         ArrowLeft,
         Settings,
@@ -18,10 +20,14 @@
         Copy,
         Check,
         Send,
+        Eye,
+        CalendarDays,
+        X,
     } from "lucide-svelte";
     import type {
         CampaignResponse,
         CampaignSettingsRequest,
+        CampaignSettingsResponse,
         DistributionChannelResponse,
         CampaignStatus,
     } from "$lib/types";
@@ -52,6 +58,23 @@
     });
     let settingsLoading = $state(false);
     let settingsSaved = $state(false);
+    let headerEnabled = $state(false);
+    let footerEnabled = $state(false);
+    let showAdvancedHeader = $state(false);
+    let showAdvancedFooter = $state(false);
+    let brandingSyncReady = $state(false);
+    let headerTemplate = $state<"clean" | "accent" | "notice">("clean");
+    let footerTemplate = $state<"simple" | "support" | "compliance">("simple");
+    let headerFields = $state({
+        title: "",
+        subtitle: "",
+        note: "",
+    });
+    let footerFields = $state({
+        line1: "",
+        line2: "",
+        legal: "",
+    });
 
     // Distribute
     let distributeLoading = $state(false);
@@ -80,6 +103,7 @@
                 `/campaigns/${campaignId}`,
             );
             campaign = data;
+            await loadSettings();
 
             // Load channels if active
             if (data.status !== "DRAFT") {
@@ -99,11 +123,88 @@
         }
     }
 
+    function normalizeDateForInput(value?: string) {
+        if (!value) {
+            return undefined;
+        }
+        return value.includes("T") ? value.split("T")[0] : value;
+    }
+
+    function toNumberOrNull(value: unknown) {
+        if (typeof value === "number" && Number.isFinite(value)) {
+            return value;
+        }
+        if (typeof value === "string" && value.trim() !== "") {
+            const parsed = Number(value);
+            if (Number.isFinite(parsed)) {
+                return parsed;
+            }
+        }
+        return null;
+    }
+
+    function toIsoCloseDateOrNull(value?: string) {
+        if (!value || value.trim() === "") {
+            return null;
+        }
+        // Send full ISO instant to satisfy backend Instant parsing.
+        return `${value}T23:59:59Z`;
+    }
+
+    function openCloseDatePicker() {
+        const input = document.getElementById("s-close") as HTMLInputElement | null;
+        input?.showPicker?.();
+        input?.focus();
+    }
+
+    function buildSettingsPayload() {
+        return {
+            ...settings,
+            closeDate: toIsoCloseDateOrNull(settings.closeDate),
+            responseQuota: toNumberOrNull(settings.responseQuota),
+            sessionTimeoutMinutes:
+                toNumberOrNull(settings.sessionTimeoutMinutes) ?? 30,
+        };
+    }
+
+    async function loadSettings() {
+        try {
+            const { data } = await api.get<CampaignSettingsResponse>(
+                `/campaigns/${campaignId}/settings`,
+            );
+            settings = {
+                password: data.password ?? "",
+                captchaEnabled: data.captchaEnabled ?? false,
+                oneResponsePerDevice: data.oneResponsePerDevice ?? false,
+                ipRestrictionEnabled: data.ipRestrictionEnabled ?? false,
+                emailRestrictionEnabled: data.emailRestrictionEnabled ?? false,
+                responseQuota: data.responseQuota ?? undefined,
+                closeDate: normalizeDateForInput(data.closeDate),
+                sessionTimeoutMinutes: data.sessionTimeoutMinutes ?? 30,
+                showQuestionNumbers: data.showQuestionNumbers ?? true,
+                showProgressIndicator: data.showProgressIndicator ?? true,
+                allowBackButton: data.allowBackButton ?? true,
+                startMessage: data.startMessage ?? "",
+                finishMessage: data.finishMessage ?? "",
+                headerHtml: data.headerHtml ?? "",
+                footerHtml: data.footerHtml ?? "",
+                collectName: data.collectName ?? false,
+                collectEmail: data.collectEmail ?? false,
+                collectPhone: data.collectPhone ?? false,
+                collectAddress: data.collectAddress ?? false,
+            };
+            initializeBrandingBuilder();
+        } catch {
+            // keep defaults
+        }
+    }
+
     async function saveSettings() {
         settingsLoading = true;
         settingsSaved = false;
         try {
-            await api.put(`/campaigns/${campaignId}/settings`, settings);
+            await api.put(`/campaigns/${campaignId}/settings`, buildSettingsPayload());
+            await loadSettings();
             settingsSaved = true;
             setTimeout(() => (settingsSaved = false), 3000);
         } catch {
@@ -112,6 +213,113 @@
             settingsLoading = false;
         }
     }
+
+    function escapeHtml(value: string) {
+        return value
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function buildHeaderHtml() {
+        const title = escapeHtml(headerFields.title || campaign?.name || "Survey");
+        const subtitle = escapeHtml(
+            headerFields.subtitle ||
+                campaign?.description ||
+                "Share your feedback",
+        );
+        const note = escapeHtml(headerFields.note);
+
+        if (headerTemplate === "accent") {
+            return `<section style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#f8fafc;padding:18px 20px;border-radius:12px;">
+  <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.82;">Campaign Preview</div>
+  <h2 style="margin:8px 0 4px;font-size:24px;line-height:1.2;">${title}</h2>
+  <p style="margin:0;font-size:14px;opacity:.9;">${subtitle}</p>
+  ${note ? `<p style="margin:8px 0 0;font-size:12px;opacity:.8;">${note}</p>` : ""}
+</section>`;
+        }
+
+        if (headerTemplate === "notice") {
+            return `<div style="background:#ecfeff;border:1px solid #a5f3fc;padding:14px 16px;border-radius:10px;">
+  <h3 style="margin:0 0 6px;font-size:16px;color:#0c4a6e;">${title}</h3>
+  <p style="margin:0;font-size:13px;color:#164e63;">${subtitle}</p>
+  ${note ? `<p style="margin:6px 0 0;font-size:12px;color:#155e75;">${note}</p>` : ""}
+</div>`;
+        }
+
+        return `<div style="padding:14px 0;border-bottom:1px solid #e2e8f0;">
+  <h2 style="margin:0;font-size:22px;color:#0f172a;">${title}</h2>
+  <p style="margin:6px 0 0;color:#475569;font-size:14px;">${subtitle}</p>
+  ${note ? `<p style="margin:6px 0 0;color:#64748b;font-size:12px;">${note}</p>` : ""}
+</div>`;
+    }
+
+    function buildFooterHtml() {
+        const line1 = escapeHtml(
+            footerFields.line1 || "Thank you for your valuable response.",
+        );
+        const line2 = escapeHtml(footerFields.line2);
+        const legal = escapeHtml(footerFields.legal);
+
+        if (footerTemplate === "support") {
+            return `<div style="margin-top:18px;padding:12px 14px;background:#f8fafc;border-radius:10px;color:#334155;font-size:12px;">
+  <p style="margin:0 0 4px;font-weight:600;">${line1}</p>
+  ${line2 ? `<p style="margin:0;">${line2}</p>` : "<p style=\"margin:0;\">Need support? Contact your survey administrator.</p>"}
+  ${legal ? `<p style="margin:6px 0 0;color:#64748b;">${legal}</p>` : ""}
+</div>`;
+        }
+
+        if (footerTemplate === "compliance") {
+            return `<div style="margin-top:18px;padding-top:10px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
+  <p style="margin:0;">${line1}</p>
+  ${line2 ? `<p style="margin:4px 0 0;">${line2}</p>` : ""}
+  ${legal ? `<p style="margin:4px 0 0;">${legal}</p>` : "<p style=\"margin:4px 0 0;\">Your responses are processed under organizational policy.</p>"}
+</div>`;
+        }
+
+        return `<div style="margin-top:14px;text-align:center;color:#64748b;font-size:12px;">
+  <p style="margin:0;">${line1}</p>
+  ${line2 ? `<p style="margin:4px 0 0;">${line2}</p>` : ""}
+</div>`;
+    }
+
+    function initializeBrandingBuilder() {
+        headerEnabled = !!(settings.headerHtml && settings.headerHtml.trim() !== "");
+        footerEnabled = !!(settings.footerHtml && settings.footerHtml.trim() !== "");
+        headerFields = {
+            title: campaign?.name ?? "Survey",
+            subtitle: campaign?.description ?? "",
+            note: "",
+        };
+        footerFields = {
+            line1: "Thank you for your valuable response.",
+            line2: "",
+            legal: "",
+        };
+        showAdvancedHeader = false;
+        showAdvancedFooter = false;
+        brandingSyncReady = true;
+    }
+
+    function applyHeaderBuilder() {
+        settings.headerHtml = buildHeaderHtml();
+    }
+
+    function applyFooterBuilder() {
+        settings.footerHtml = buildFooterHtml();
+    }
+
+    $effect(() => {
+        if (!brandingSyncReady) return;
+        if (!headerEnabled) {
+            settings.headerHtml = "";
+        }
+        if (!footerEnabled) {
+            settings.footerHtml = "";
+        }
+    });
 
     async function activate() {
         activateLoading = true;
@@ -133,8 +341,12 @@
             );
             channels = data;
             activeTab = "distribution";
-        } catch {
-            // silent
+            toast.success("Channels generated successfully");
+        } catch (err: any) {
+            toast.error(
+                err.response?.data?.message ||
+                    "Failed to generate distribution channels.",
+            );
         } finally {
             distributeLoading = false;
         }
@@ -216,6 +428,13 @@
                 </div>
             </div>
             <div class="flex gap-2">
+                <Button
+                    variant="outline"
+                    onclick={() => goto(`/campaigns/${campaignId}/preview`)}
+                >
+                    <Eye class="mr-2 h-4 w-4" />
+                    Preview
+                </Button>
                 {#if campaign.status === "DRAFT"}
                     <Button onclick={activate} disabled={activateLoading}>
                         {#if activateLoading}
@@ -322,98 +541,163 @@
                 </Card.Root>
             </div>
         {:else if activeTab === "settings"}
-            <Card.Root>
-                <Card.Header>
-                    <Card.Title>Campaign Settings</Card.Title>
-                    <Card.Description>
-                        Configure security, limits, and UX options.
-                    </Card.Description>
-                </Card.Header>
-                <Card.Content>
-                    <form
-                        onsubmit={(e) => {
-                            e.preventDefault();
-                            saveSettings();
-                        }}
-                        class="space-y-6"
-                    >
-                        <!-- Security -->
-                        <div class="space-y-3">
-                            <h3 class="text-sm font-semibold text-foreground">
-                                Security
-                            </h3>
-                            <div class="grid gap-3 sm:grid-cols-2">
-                                <div class="space-y-2">
-                                    <Label for="s-password">Password</Label>
-                                    <Input
-                                        id="s-password"
-                                        type="password"
-                                        placeholder="Optional"
-                                        bind:value={settings.password}
-                                    />
-                                </div>
-                                <div class="space-y-2">
-                                    <Label for="s-timeout"
-                                        >Session Timeout (min)</Label
-                                    >
-                                    <Input
-                                        id="s-timeout"
-                                        type="number"
-                                        min="1"
-                                        bind:value={
-                                            settings.sessionTimeoutMinutes
-                                        }
-                                    />
-                                </div>
+            <form
+                onsubmit={(e) => {
+                    e.preventDefault();
+                    saveSettings();
+                }}
+                class="space-y-6"
+            >
+                <div class="grid gap-6 md:grid-cols-2">
+                    <!-- Security -->
+                    <Card.Root>
+                        <Card.Header>
+                            <Card.Title class="text-base">Security</Card.Title>
+                            <Card.Description
+                                >Access control and rate limiting</Card.Description
+                            >
+                        </Card.Header>
+                        <Card.Content class="space-y-4">
+                            <div class="space-y-2">
+                                <Label for="s-password">Password</Label>
+                                <Input
+                                    id="s-password"
+                                    type="password"
+                                    placeholder="Optional"
+                                    bind:value={settings.password}
+                                />
                             </div>
-                            <div class="flex flex-wrap gap-4">
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
+                            <div class="space-y-2">
+                                <Label for="s-timeout"
+                                    >Session Timeout (min)</Label
+                                >
+                                <Input
+                                    id="s-timeout"
+                                    type="number"
+                                    min="1"
+                                    bind:value={settings.sessionTimeoutMinutes}
+                                />
+                            </div>
+
+                            <div class="space-y-3 pt-2">
+                                <div class="flex items-start justify-between gap-3">
+                                    <Label class="flex-1 space-y-1 pr-2">
+                                        <span class="block text-sm font-medium leading-5">
+                                            Captcha
+                                        </span>
+                                        <span class="block text-xs font-normal leading-4 text-muted-foreground">
+                                            Require human verification
+                                        </span>
+                                    </Label>
+                                    <Switch
+                                        class="mt-0.5 shrink-0"
                                         bind:checked={settings.captchaEnabled}
-                                        class="h-4 w-4 rounded border-border"
                                     />
-                                    Captcha
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
+                                </div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <Label class="flex-1 space-y-1 pr-2">
+                                        <span class="block text-sm font-medium leading-5">
+                                            One response per device
+                                        </span>
+                                        <span class="block text-xs font-normal leading-4 text-muted-foreground">
+                                            Prevent duplicate submissions via cookies
+                                        </span>
+                                    </Label>
+                                    <Switch
+                                        class="mt-0.5 shrink-0"
                                         bind:checked={
                                             settings.oneResponsePerDevice
                                         }
-                                        class="h-4 w-4 rounded border-border"
                                     />
-                                    One response per device
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
+                                </div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <Label class="flex-1 space-y-1 pr-2">
+                                        <span class="block text-sm font-medium leading-5">
+                                            IP Restriction
+                                        </span>
+                                        <span class="block text-xs font-normal leading-4 text-muted-foreground">
+                                            Block repeated IPs
+                                        </span>
+                                    </Label>
+                                    <Switch
+                                        class="mt-0.5 shrink-0"
                                         bind:checked={
                                             settings.ipRestrictionEnabled
                                         }
-                                        class="h-4 w-4 rounded border-border"
                                     />
-                                    IP restriction
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
+                                </div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <Label class="flex-1 space-y-1 pr-2">
+                                        <span class="block text-sm font-medium leading-5">
+                                            Email Restriction
+                                        </span>
+                                        <span class="block text-xs font-normal leading-4 text-muted-foreground">
+                                            Require unique email addresses
+                                        </span>
+                                    </Label>
+                                    <Switch
+                                        class="mt-0.5 shrink-0"
                                         bind:checked={
                                             settings.emailRestrictionEnabled
                                         }
-                                        class="h-4 w-4 rounded border-border"
                                     />
-                                    Email restriction
-                                </label>
+                                </div>
                             </div>
-                        </div>
+                        </Card.Content>
+                    </Card.Root>
 
-                        <!-- Limits -->
-                        <div class="space-y-3">
-                            <h3 class="text-sm font-semibold text-foreground">
-                                Limits
-                            </h3>
-                            <div class="grid gap-3 sm:grid-cols-2">
+                    <!-- User Experience & Limits -->
+                    <div class="space-y-6">
+                        <Card.Root>
+                            <Card.Header>
+                                <Card.Title class="text-base"
+                                    >User Experience</Card.Title
+                                >
+                                <Card.Description
+                                    >Configure how respondents see the survey</Card.Description
+                                >
+                            </Card.Header>
+                            <Card.Content class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <Label class="leading-none"
+                                        >Show Question Numbers</Label
+                                    >
+                                    <Switch
+                                        bind:checked={
+                                            settings.showQuestionNumbers
+                                        }
+                                    />
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <Label class="leading-none"
+                                        >Show Progress Indicator</Label
+                                    >
+                                    <Switch
+                                        bind:checked={
+                                            settings.showProgressIndicator
+                                        }
+                                    />
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <Label class="leading-none"
+                                        >Allow Back Button</Label
+                                    >
+                                    <Switch
+                                        bind:checked={settings.allowBackButton}
+                                    />
+                                </div>
+                            </Card.Content>
+                        </Card.Root>
+
+                        <Card.Root>
+                            <Card.Header>
+                                <Card.Title class="text-base">Limits</Card.Title
+                                >
+                                <Card.Description
+                                    >Time and capacity boundaries</Card.Description
+                                >
+                            </Card.Header>
+                            <Card.Content class="grid gap-3 sm:grid-cols-2">
                                 <div class="space-y-2">
                                     <Label for="s-quota">Response Quota</Label>
                                     <Input
@@ -426,139 +710,434 @@
                                 </div>
                                 <div class="space-y-2">
                                     <Label for="s-close">Close Date</Label>
-                                    <Input
-                                        id="s-close"
-                                        type="date"
-                                        bind:value={settings.closeDate}
-                                    />
+                                    <div class="relative">
+                                        <input
+                                            id="s-close"
+                                            type="date"
+                                            class="h-10 w-full rounded-lg border border-border bg-background pl-10 pr-20 text-sm outline-none ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                            bind:value={settings.closeDate}
+                                        />
+                                        <CalendarDays
+                                            class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                                        />
+                                        <div
+                                            class="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1"
+                                        >
+                                            {#if settings.closeDate}
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    class="h-7 px-2 text-xs"
+                                                    onclick={() =>
+                                                        (settings.closeDate =
+                                                            undefined)}
+                                                >
+                                                    <X class="h-3.5 w-3.5" />
+                                                </Button>
+                                            {/if}
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                class="h-7 px-2 text-xs"
+                                                onclick={openCloseDatePicker}
+                                            >
+                                                Pick
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-muted-foreground">
+                                        Stored as end-of-day UTC for reliable backend parsing.
+                                    </p>
                                 </div>
-                            </div>
-                        </div>
+                            </Card.Content>
+                        </Card.Root>
+                    </div>
 
-                        <!-- UX -->
-                        <div class="space-y-3">
-                            <h3 class="text-sm font-semibold text-foreground">
-                                User Experience
-                            </h3>
-                            <div class="flex flex-wrap gap-4">
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={
-                                            settings.showQuestionNumbers
-                                        }
-                                        class="h-4 w-4 rounded border-border"
-                                    />
-                                    Question numbers
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={
-                                            settings.showProgressIndicator
-                                        }
-                                        class="h-4 w-4 rounded border-border"
-                                    />
-                                    Progress indicator
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={settings.allowBackButton}
-                                        class="h-4 w-4 rounded border-border"
-                                    />
-                                    Back button
-                                </label>
+                    <!-- Data Collection -->
+                    <Card.Root>
+                        <Card.Header>
+                            <Card.Title class="text-base"
+                                >Data Collection</Card.Title
+                            >
+                            <Card.Description
+                                >Personal identifiable information to collect
+                                along with responses</Card.Description
+                            >
+                        </Card.Header>
+                        <Card.Content class="grid grid-cols-2 gap-4">
+                            <div class="flex items-center space-x-2">
+                                <Switch
+                                    id="req-name"
+                                    bind:checked={settings.collectName}
+                                />
+                                <Label for="req-name">Name</Label>
                             </div>
-                        </div>
-
-                        <!-- Data Collection -->
-                        <div class="space-y-3">
-                            <h3 class="text-sm font-semibold text-foreground">
-                                Data Collection
-                            </h3>
-                            <div class="flex flex-wrap gap-4">
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={settings.collectName}
-                                        class="h-4 w-4 rounded border-border"
-                                    />
-                                    Name
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={settings.collectEmail}
-                                        class="h-4 w-4 rounded border-border"
-                                    />
-                                    Email
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={settings.collectPhone}
-                                        class="h-4 w-4 rounded border-border"
-                                    />
-                                    Phone
-                                </label>
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={settings.collectAddress}
-                                        class="h-4 w-4 rounded border-border"
-                                    />
-                                    Address
-                                </label>
+                            <div class="flex items-center space-x-2">
+                                <Switch
+                                    id="req-email"
+                                    bind:checked={settings.collectEmail}
+                                />
+                                <Label for="req-email">Email</Label>
                             </div>
-                        </div>
+                            <div class="flex items-center space-x-2">
+                                <Switch
+                                    id="req-phone"
+                                    bind:checked={settings.collectPhone}
+                                />
+                                <Label for="req-phone">Phone</Label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <Switch
+                                    id="req-address"
+                                    bind:checked={settings.collectAddress}
+                                />
+                                <Label for="req-address">Address</Label>
+                            </div>
+                        </Card.Content>
+                    </Card.Root>
 
-                        <!-- Messages -->
-                        <div class="space-y-3">
-                            <h3 class="text-sm font-semibold text-foreground">
-                                Messages
-                            </h3>
-                            <div class="grid gap-3 sm:grid-cols-2">
-                                <div class="space-y-2">
-                                    <Label for="s-start">Start Message</Label>
-                                    <Input
-                                        id="s-start"
-                                        placeholder="Welcome message..."
-                                        bind:value={settings.startMessage}
-                                    />
+                    <!-- Messages -->
+                    <Card.Root>
+                        <Card.Header>
+                            <Card.Title class="text-base">Messages</Card.Title>
+                            <Card.Description
+                                >Custom text displayed to respondents</Card.Description
+                            >
+                        </Card.Header>
+                        <Card.Content class="space-y-4">
+                            <div class="space-y-2">
+                                <Label for="s-start">Start Message</Label>
+                                <Input
+                                    id="s-start"
+                                    placeholder="Welcome to our survey..."
+                                    bind:value={settings.startMessage}
+                                />
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="s-finish">Finish Message</Label>
+                                <Input
+                                    id="s-finish"
+                                    placeholder="Thank you for participating..."
+                                    bind:value={settings.finishMessage}
+                                />
+                            </div>
+                        </Card.Content>
+                    </Card.Root>
+
+                    <!-- Header/Footer Branding -->
+                    <Card.Root class="md:col-span-2">
+                        <Card.Header>
+                            <Card.Title class="text-base">
+                                Form Header & Footer
+                            </Card.Title>
+                            <Card.Description>
+                                No HTML required. Choose a template, fill a few
+                                fields, and preview instantly.
+                            </Card.Description>
+                        </Card.Header>
+                        <Card.Content class="space-y-6">
+                            <div class="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                                Tip: Use Campaign Preview after saving to verify
+                                what responders will see.
+                            </div>
+
+                            <div class="space-y-4 rounded-lg border border-border p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <Label class="text-sm font-semibold">
+                                            Header Block
+                                        </Label>
+                                        <p class="text-xs text-muted-foreground">
+                                            Shown above survey questions.
+                                        </p>
+                                    </div>
+                                    <Switch bind:checked={headerEnabled} />
                                 </div>
-                                <div class="space-y-2">
-                                    <Label for="s-finish">Finish Message</Label>
-                                    <Input
-                                        id="s-finish"
-                                        placeholder="Thank you message..."
-                                        bind:value={settings.finishMessage}
-                                    />
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="flex items-center justify-end gap-3 pt-2">
-                            {#if settingsSaved}
-                                <span
-                                    class="flex items-center gap-1 text-sm text-emerald-500"
-                                >
-                                    <Check class="h-4 w-4" />
-                                    Saved
-                                </span>
-                            {/if}
-                            <Button type="submit" disabled={settingsLoading}>
-                                {#if settingsLoading}
-                                    <span
-                                        class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                                    ></span>
+                                {#if headerEnabled}
+                                    <div class="space-y-3">
+                                        <Label class="text-xs uppercase tracking-wide text-muted-foreground">
+                                            Template
+                                        </Label>
+                                        <div class="flex flex-wrap gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={headerTemplate === "clean"
+                                                    ? "default"
+                                                    : "outline"}
+                                                onclick={() => (headerTemplate = "clean")}
+                                            >
+                                                Clean
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={headerTemplate === "accent"
+                                                    ? "default"
+                                                    : "outline"}
+                                                onclick={() => (headerTemplate = "accent")}
+                                            >
+                                                Accent
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={headerTemplate === "notice"
+                                                    ? "default"
+                                                    : "outline"}
+                                                onclick={() => (headerTemplate = "notice")}
+                                            >
+                                                Notice
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-2">
+                                        <div class="space-y-2">
+                                            <Label for="header-title">Title</Label>
+                                            <Input
+                                                id="header-title"
+                                                placeholder="Course Evaluation"
+                                                bind:value={headerFields.title}
+                                            />
+                                        </div>
+                                        <div class="space-y-2">
+                                            <Label for="header-subtitle">Subtitle</Label>
+                                            <Input
+                                                id="header-subtitle"
+                                                placeholder="Share your experience"
+                                                bind:value={headerFields.subtitle}
+                                            />
+                                        </div>
+                                        <div class="space-y-2 md:col-span-2">
+                                            <Label for="header-note">
+                                                Optional Note
+                                            </Label>
+                                            <Input
+                                                id="header-note"
+                                                placeholder="Estimated completion time: 3 minutes"
+                                                bind:value={headerFields.note}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onclick={applyHeaderBuilder}
+                                        >
+                                            Apply Header Template
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            onclick={() =>
+                                                (showAdvancedHeader =
+                                                    !showAdvancedHeader)}
+                                        >
+                                            {showAdvancedHeader
+                                                ? "Hide Advanced HTML"
+                                                : "Edit Advanced HTML"}
+                                        </Button>
+                                    </div>
+
+                                    <div class="rounded-md border border-dashed border-border bg-background p-4">
+                                        {#if settings.headerHtml && settings.headerHtml.trim() !== ""}
+                                            {@html settings.headerHtml}
+                                        {:else}
+                                            <p class="text-sm text-muted-foreground">
+                                                Header preview will appear here after applying a template.
+                                            </p>
+                                        {/if}
+                                    </div>
+
+                                    {#if showAdvancedHeader}
+                                        <div class="space-y-2">
+                                            <Label for="s-header-html">
+                                                Advanced Header HTML
+                                            </Label>
+                                            <Textarea
+                                                id="s-header-html"
+                                                rows={8}
+                                                class="font-mono text-xs"
+                                                placeholder="<header>...</header>"
+                                                bind:value={settings.headerHtml}
+                                            />
+                                        </div>
+                                    {/if}
                                 {/if}
-                                Save Settings
-                            </Button>
-                        </div>
-                    </form>
-                </Card.Content>
-            </Card.Root>
+                            </div>
+
+                            <div class="space-y-4 rounded-lg border border-border p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <Label class="text-sm font-semibold">
+                                            Footer Block
+                                        </Label>
+                                        <p class="text-xs text-muted-foreground">
+                                            Shown after survey content.
+                                        </p>
+                                    </div>
+                                    <Switch bind:checked={footerEnabled} />
+                                </div>
+
+                                {#if footerEnabled}
+                                    <div class="space-y-3">
+                                        <Label class="text-xs uppercase tracking-wide text-muted-foreground">
+                                            Template
+                                        </Label>
+                                        <div class="flex flex-wrap gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={footerTemplate === "simple"
+                                                    ? "default"
+                                                    : "outline"}
+                                                onclick={() => (footerTemplate = "simple")}
+                                            >
+                                                Simple
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={footerTemplate === "support"
+                                                    ? "default"
+                                                    : "outline"}
+                                                onclick={() => (footerTemplate = "support")}
+                                            >
+                                                Support
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={footerTemplate ===
+                                                "compliance"
+                                                    ? "default"
+                                                    : "outline"}
+                                                onclick={() =>
+                                                    (footerTemplate =
+                                                        "compliance")}
+                                            >
+                                                Compliance
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-2">
+                                        <div class="space-y-2">
+                                            <Label for="footer-line-1">
+                                                Primary Line
+                                            </Label>
+                                            <Input
+                                                id="footer-line-1"
+                                                placeholder="Thank you for your feedback"
+                                                bind:value={footerFields.line1}
+                                            />
+                                        </div>
+                                        <div class="space-y-2">
+                                            <Label for="footer-line-2">
+                                                Secondary Line
+                                            </Label>
+                                            <Input
+                                                id="footer-line-2"
+                                                placeholder="Need support? Contact your admin"
+                                                bind:value={footerFields.line2}
+                                            />
+                                        </div>
+                                        <div class="space-y-2 md:col-span-2">
+                                            <Label for="footer-legal">
+                                                Legal / Compliance Note
+                                            </Label>
+                                            <Input
+                                                id="footer-legal"
+                                                placeholder="Responses are processed under policy"
+                                                bind:value={footerFields.legal}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onclick={applyFooterBuilder}
+                                        >
+                                            Apply Footer Template
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            onclick={() =>
+                                                (showAdvancedFooter =
+                                                    !showAdvancedFooter)}
+                                        >
+                                            {showAdvancedFooter
+                                                ? "Hide Advanced HTML"
+                                                : "Edit Advanced HTML"}
+                                        </Button>
+                                    </div>
+
+                                    <div class="rounded-md border border-dashed border-border bg-background p-4">
+                                        {#if settings.footerHtml && settings.footerHtml.trim() !== ""}
+                                            {@html settings.footerHtml}
+                                        {:else}
+                                            <p class="text-sm text-muted-foreground">
+                                                Footer preview will appear here after applying a template.
+                                            </p>
+                                        {/if}
+                                    </div>
+
+                                    {#if showAdvancedFooter}
+                                        <div class="space-y-2">
+                                            <Label for="s-footer-html">
+                                                Advanced Footer HTML
+                                            </Label>
+                                            <Textarea
+                                                id="s-footer-html"
+                                                rows={8}
+                                                class="font-mono text-xs"
+                                                placeholder="<footer>...</footer>"
+                                                bind:value={settings.footerHtml}
+                                            />
+                                        </div>
+                                    {/if}
+                                {/if}
+                            </div>
+                        </Card.Content>
+                    </Card.Root>
+                </div>
+
+                <div
+                    class="flex items-center justify-end gap-3 pt-6 border-t border-border"
+                >
+                    {#if settingsSaved}
+                        <span
+                            class="flex items-center gap-1 text-sm text-emerald-500 font-medium"
+                        >
+                            <Check class="h-4 w-4" />
+                            Saved successfully
+                        </span>
+                    {/if}
+                    <Button
+                        type="submit"
+                        disabled={settingsLoading}
+                        class="w-[140px]"
+                    >
+                        {#if settingsLoading}
+                            <span
+                                class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                            ></span>
+                        {/if}
+                        Save Settings
+                    </Button>
+                </div>
+            </form>
         {:else if activeTab === "distribution"}
             {#if channels.length === 0}
                 <Card.Root

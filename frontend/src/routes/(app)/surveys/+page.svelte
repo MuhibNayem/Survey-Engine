@@ -16,6 +16,7 @@
         Trash2,
         Search,
         X,
+        Settings,
         FileText,
         ChevronRight,
         ArrowRightCircle,
@@ -24,6 +25,7 @@
         SurveyResponse,
         SurveyLifecycleState,
         QuestionResponse,
+        CategoryResponse,
         SurveyPageRequest,
         SurveyQuestionRequest,
     } from "$lib/types";
@@ -31,6 +33,7 @@
     // --- State ---
     let surveys = $state<SurveyResponse[]>([]);
     let allQuestions = $state<QuestionResponse[]>([]);
+    let allCategories = $state<CategoryResponse[]>([]);
     let loading = $state(true);
     let searchQuery = $state("");
     let stateFilter = $state<SurveyLifecycleState | "">("");
@@ -46,8 +49,11 @@
             sortOrder: number;
             questions: {
                 questionId: string;
+                categoryId?: string;
                 sortOrder: number;
                 mandatory: boolean;
+                parsedConfig: any;
+                showConfig?: boolean;
             }[];
         }[]
     >([]);
@@ -124,12 +130,14 @@
     async function loadData() {
         loading = true;
         try {
-            const [sRes, qRes] = await Promise.all([
+            const [sRes, qRes, cRes] = await Promise.all([
                 api.get<SurveyResponse[]>("/surveys"),
                 api.get<QuestionResponse[]>("/questions"),
+                api.get<CategoryResponse[]>("/categories"),
             ]);
             surveys = sRes.data;
             allQuestions = qRes.data;
+            allCategories = cRes.data;
         } catch {
             surveys = [];
         } finally {
@@ -153,11 +161,24 @@
         formPages = s.pages.map((p) => ({
             title: p.title,
             sortOrder: p.sortOrder,
-            questions: p.questions.map((q) => ({
-                questionId: q.questionId,
-                sortOrder: q.sortOrder,
-                mandatory: q.mandatory,
-            })),
+            questions: p.questions.map((q) => {
+                let parsedConfig = {};
+                if (q.answerConfig) {
+                    try {
+                        parsedConfig = JSON.parse(q.answerConfig);
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+                return {
+                    questionId: q.questionId,
+                    categoryId: q.categoryId,
+                    sortOrder: q.sortOrder,
+                    mandatory: q.mandatory,
+                    parsedConfig,
+                    showConfig: false,
+                };
+            }),
         }));
         formError = null;
         dialogOpen = true;
@@ -190,6 +211,8 @@
                 questionId: "",
                 sortOrder: page.questions.length + 1,
                 mandatory: true,
+                parsedConfig: {},
+                showConfig: true,
             },
         ];
         formPages = [...formPages];
@@ -203,6 +226,35 @@
             sortOrder: i + 1,
         }));
         formPages = [...formPages];
+    }
+
+    function addCategoryToPage(pIdx: number, categoryId: string) {
+        const category = allCategories.find((c) => c.id === categoryId);
+        if (!category) return;
+
+        const page = formPages[pIdx];
+        const nextSortOrder =
+            page.questions.length > 0
+                ? Math.max(...page.questions.map((q) => q.sortOrder)) + 1
+                : 1;
+
+        const newQuestions = category.questionMappings
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((mapping, i) => ({
+                questionId: mapping.questionId,
+                categoryId: category.id,
+                sortOrder: nextSortOrder + i,
+                mandatory: true,
+                parsedConfig: {},
+                showConfig: false,
+            }));
+
+        page.questions = [...page.questions, ...newQuestions];
+        formPages = [...formPages];
+    }
+
+    function getCategoryName(id: string): string {
+        return allCategories.find((c) => c.id === id)?.name ?? "Misc";
     }
 
     function getQuestionText(id: string): string {
@@ -221,11 +273,20 @@
                 pages: formPages.map((p) => ({
                     title: p.title,
                     sortOrder: p.sortOrder,
-                    questions: p.questions.map((q) => ({
-                        questionId: q.questionId,
-                        sortOrder: q.sortOrder,
-                        mandatory: q.mandatory,
-                    })) as SurveyQuestionRequest[],
+                    questions: p.questions.map((q) => {
+                        const answerConfigStr =
+                            q.parsedConfig &&
+                            Object.keys(q.parsedConfig).length > 0
+                                ? JSON.stringify(q.parsedConfig)
+                                : undefined;
+                        return {
+                            questionId: q.questionId,
+                            categoryId: q.categoryId,
+                            sortOrder: q.sortOrder,
+                            mandatory: q.mandatory,
+                            answerConfig: answerConfigStr,
+                        } as SurveyQuestionRequest;
+                    }),
                 })) as SurveyPageRequest[],
             };
             if (editingSurvey) {
@@ -605,90 +666,408 @@
                                     {:else}
                                         {#each page.questions as q, qIdx}
                                             <div
-                                                class="flex items-center gap-2 rounded-md border border-border bg-muted/20 p-2"
+                                                class="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-2"
                                             >
-                                                <span
-                                                    class="shrink-0 text-xs font-medium text-muted-foreground w-6"
+                                                <div
+                                                    class="flex items-center gap-2"
                                                 >
-                                                    #{q.sortOrder}
-                                                </span>
-                                                <Select.Root
-                                                    type="single"
-                                                    bind:value={
-                                                        formPages[pIdx]
-                                                            .questions[qIdx]
-                                                            .questionId
-                                                    }
-                                                >
-                                                    <Select.Trigger
-                                                        class="flex-1 h-8 text-xs"
+                                                    <span
+                                                        class="shrink-0 text-xs font-medium text-muted-foreground w-6"
                                                     >
-                                                        {formPages[pIdx]
-                                                            .questions[qIdx]
-                                                            .questionId
-                                                            ? allQuestions.find(
-                                                                  (aq) =>
-                                                                      aq.id ===
-                                                                      formPages[
-                                                                          pIdx
-                                                                      ]
-                                                                          .questions[
-                                                                          qIdx
-                                                                      ]
-                                                                          .questionId,
-                                                              )?.text
-                                                            : "Select question"}
-                                                    </Select.Trigger>
-                                                    <Select.Content>
-                                                        {#each allQuestions as aq}
-                                                            <Select.Item
-                                                                value={aq.id}
-                                                                >{aq.text}</Select.Item
-                                                            >
-                                                        {/each}
-                                                    </Select.Content>
-                                                </Select.Root>
-                                                <label
-                                                    class="flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        bind:checked={
+                                                        #{q.sortOrder}
+                                                    </span>
+                                                    {#if q.categoryId}
+                                                        <Badge
+                                                            variant="outline"
+                                                            class="mr-2 text-[10px] py-0 h-5 shrink-0 uppercase"
+                                                            >{getCategoryName(
+                                                                q.categoryId,
+                                                            )}</Badge
+                                                        >
+                                                    {/if}
+                                                    <Select.Root
+                                                        type="single"
+                                                        bind:value={
                                                             formPages[pIdx]
                                                                 .questions[qIdx]
-                                                                .mandatory
+                                                                .questionId
                                                         }
-                                                        class="h-3.5 w-3.5 rounded border-border"
-                                                    />
-                                                    Required
-                                                </label>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    type="button"
-                                                    onclick={() =>
-                                                        removeQuestionFromPage(
-                                                            pIdx,
-                                                            qIdx,
-                                                        )}
-                                                >
-                                                    <Trash2
-                                                        class="h-3 w-3 text-destructive"
-                                                    />
-                                                </Button>
+                                                    >
+                                                        <Select.Trigger
+                                                            class="flex-1 h-8 text-xs"
+                                                        >
+                                                            {formPages[pIdx]
+                                                                .questions[qIdx]
+                                                                .questionId
+                                                                ? allQuestions.find(
+                                                                      (aq) =>
+                                                                          aq.id ===
+                                                                          formPages[
+                                                                              pIdx
+                                                                          ]
+                                                                              .questions[
+                                                                              qIdx
+                                                                          ]
+                                                                              .questionId,
+                                                                  )?.text
+                                                                : "Select question"}
+                                                        </Select.Trigger>
+                                                        <Select.Content>
+                                                            {#each allQuestions as aq}
+                                                                <Select.Item
+                                                                    value={aq.id}
+                                                                    >{aq.text}</Select.Item
+                                                                >
+                                                            {/each}
+                                                        </Select.Content>
+                                                    </Select.Root>
+                                                    <label
+                                                        class="flex items-center gap-1 shrink-0 text-xs text-muted-foreground"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            bind:checked={
+                                                                formPages[pIdx]
+                                                                    .questions[
+                                                                    qIdx
+                                                                ].mandatory
+                                                            }
+                                                            class="h-3.5 w-3.5 rounded border-border"
+                                                        />
+                                                        Required
+                                                    </label>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        type="button"
+                                                        onclick={() =>
+                                                            (formPages[
+                                                                pIdx
+                                                            ].questions[
+                                                                qIdx
+                                                            ].showConfig =
+                                                                !formPages[pIdx]
+                                                                    .questions[
+                                                                    qIdx
+                                                                ].showConfig)}
+                                                    >
+                                                        <Settings
+                                                            class="h-4 w-4 text-muted-foreground"
+                                                        />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        type="button"
+                                                        onclick={() =>
+                                                            removeQuestionFromPage(
+                                                                pIdx,
+                                                                qIdx,
+                                                            )}
+                                                    >
+                                                        <Trash2
+                                                            class="h-3 w-3 text-destructive"
+                                                        />
+                                                    </Button>
+                                                </div>
+
+                                                <!-- Configuration Panel -->
+                                                {#if q.showConfig}
+                                                    {@const qType =
+                                                        allQuestions.find(
+                                                            (aq) =>
+                                                                aq.id ===
+                                                                q.questionId,
+                                                        )?.type}
+                                                    <div
+                                                        class="mt-2 pl-8 border-t border-border/50 pt-4 space-y-4"
+                                                    >
+                                                        {#if !qType}
+                                                            <p
+                                                                class="text-xs text-muted-foreground"
+                                                            >
+                                                                Please select a
+                                                                question first.
+                                                            </p>
+                                                        {:else if qType === "RATING_SCALE"}
+                                                            <div
+                                                                class="flex items-center gap-4"
+                                                            >
+                                                                <div
+                                                                    class="space-y-1"
+                                                                >
+                                                                    <Label
+                                                                        class="text-xs"
+                                                                        >Min</Label
+                                                                    >
+                                                                    <Input
+                                                                        type="number"
+                                                                        bind:value={
+                                                                            formPages[
+                                                                                pIdx
+                                                                            ]
+                                                                                .questions[
+                                                                                qIdx
+                                                                            ]
+                                                                                .parsedConfig
+                                                                                .min
+                                                                        }
+                                                                        class="h-8 w-24 text-xs"
+                                                                        placeholder="1"
+                                                                    />
+                                                                </div>
+                                                                <div
+                                                                    class="space-y-1"
+                                                                >
+                                                                    <Label
+                                                                        class="text-xs"
+                                                                        >Max</Label
+                                                                    >
+                                                                    <Input
+                                                                        type="number"
+                                                                        bind:value={
+                                                                            formPages[
+                                                                                pIdx
+                                                                            ]
+                                                                                .questions[
+                                                                                qIdx
+                                                                            ]
+                                                                                .parsedConfig
+                                                                                .max
+                                                                        }
+                                                                        class="h-8 w-24 text-xs"
+                                                                    />
+                                                                </div>
+                                                                <div
+                                                                    class="space-y-1"
+                                                                >
+                                                                    <Label
+                                                                        class="text-xs"
+                                                                        >Step</Label
+                                                                    >
+                                                                    <Input
+                                                                        type="number"
+                                                                        step="0.5"
+                                                                        bind:value={
+                                                                            formPages[
+                                                                                pIdx
+                                                                            ]
+                                                                                .questions[
+                                                                                qIdx
+                                                                            ]
+                                                                                .parsedConfig
+                                                                                .step
+                                                                        }
+                                                                        class="h-8 w-24 text-xs"
+                                                                        placeholder="0.5"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        {:else if qType === "SINGLE_CHOICE" || qType === "MULTIPLE_CHOICE" || qType === "RANK"}
+                                                            <div
+                                                                class="space-y-2"
+                                                            >
+                                                                <Label
+                                                                    class="text-xs font-semibold"
+                                                                    >Options</Label
+                                                                >
+                                                                {#if q.parsedConfig.options}
+                                                                    <div
+                                                                        class="space-y-2"
+                                                                    >
+                                                                        {#each q.parsedConfig.options as opt, optIdx}
+                                                                            <div
+                                                                                class="flex items-center gap-2"
+                                                                            >
+                                                                                <Input
+                                                                                    bind:value={
+                                                                                        formPages[
+                                                                                            pIdx
+                                                                                        ]
+                                                                                            .questions[
+                                                                                            qIdx
+                                                                                        ]
+                                                                                            .parsedConfig
+                                                                                            .options[
+                                                                                            optIdx
+                                                                                        ]
+                                                                                    }
+                                                                                    class="h-8 flex-1 text-xs"
+                                                                                    placeholder={`Option ${optIdx + 1}`}
+                                                                                />
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    type="button"
+                                                                                    class="h-8 px-2"
+                                                                                    onclick={() => {
+                                                                                        formPages[
+                                                                                            pIdx
+                                                                                        ].questions[
+                                                                                            qIdx
+                                                                                        ].parsedConfig.options =
+                                                                                            formPages[
+                                                                                                pIdx
+                                                                                            ].questions[
+                                                                                                qIdx
+                                                                                            ].parsedConfig.options.filter(
+                                                                                                (
+                                                                                                    _: any,
+                                                                                                    i: number,
+                                                                                                ) =>
+                                                                                                    i !==
+                                                                                                    optIdx,
+                                                                                            );
+                                                                                    }}
+                                                                                >
+                                                                                    <X
+                                                                                        class="h-3 w-3 text-destructive"
+                                                                                    />
+                                                                                </Button>
+                                                                            </div>
+                                                                        {/each}
+                                                                    </div>
+                                                                {/if}
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    type="button"
+                                                                    class="text-[10px] h-6 px-2 mt-1"
+                                                                    onclick={() => {
+                                                                        if (
+                                                                            !formPages[
+                                                                                pIdx
+                                                                            ]
+                                                                                .questions[
+                                                                                qIdx
+                                                                            ]
+                                                                                .parsedConfig
+                                                                                .options
+                                                                        )
+                                                                            formPages[
+                                                                                pIdx
+                                                                            ].questions[
+                                                                                qIdx
+                                                                            ].parsedConfig.options =
+                                                                                [];
+                                                                        formPages[
+                                                                            pIdx
+                                                                        ].questions[
+                                                                            qIdx
+                                                                        ].parsedConfig.options =
+                                                                            [
+                                                                                ...formPages[
+                                                                                    pIdx
+                                                                                ]
+                                                                                    .questions[
+                                                                                    qIdx
+                                                                                ]
+                                                                                    .parsedConfig
+                                                                                    .options,
+                                                                                "",
+                                                                            ];
+                                                                    }}
+                                                                >
+                                                                    <Plus
+                                                                        class="mr-1 h-3 w-3"
+                                                                    /> Add Option
+                                                                </Button>
+                                                            </div>
+
+                                                            {#if qType === "MULTIPLE_CHOICE"}
+                                                                <div
+                                                                    class="flex items-center gap-4 pt-2 border-t border-border/50"
+                                                                >
+                                                                    <div
+                                                                        class="space-y-1 flex-1 max-w-[120px]"
+                                                                    >
+                                                                        <Label
+                                                                            class="text-xs"
+                                                                            >Min
+                                                                            Selections</Label
+                                                                        >
+                                                                        <Input
+                                                                            type="number"
+                                                                            bind:value={
+                                                                                formPages[
+                                                                                    pIdx
+                                                                                ]
+                                                                                    .questions[
+                                                                                    qIdx
+                                                                                ]
+                                                                                    .parsedConfig
+                                                                                    .minSelections
+                                                                            }
+                                                                            class="h-8 text-xs"
+                                                                            placeholder="1"
+                                                                        />
+                                                                    </div>
+                                                                    <div
+                                                                        class="space-y-1 flex-1 max-w-[120px]"
+                                                                    >
+                                                                        <Label
+                                                                            class="text-xs"
+                                                                            >Max
+                                                                            Selections</Label
+                                                                        >
+                                                                        <Input
+                                                                            type="number"
+                                                                            bind:value={
+                                                                                formPages[
+                                                                                    pIdx
+                                                                                ]
+                                                                                    .questions[
+                                                                                    qIdx
+                                                                                ]
+                                                                                    .parsedConfig
+                                                                                    .maxSelections
+                                                                            }
+                                                                            class="h-8 text-xs"
+                                                                            placeholder="All"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            {/if}
+                                                        {/if}
+                                                    </div>
+                                                {/if}
                                             </div>
                                         {/each}
                                     {/if}
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        type="button"
-                                        class="w-full text-xs h-8"
-                                        onclick={() => addQuestionToPage(pIdx)}
-                                    >
-                                        <Plus class="mr-1 h-3 w-3" />
-                                        Add Question
-                                    </Button>
+                                    <div class="flex items-center gap-2 mt-4">
+                                        <Select.Root
+                                            type="single"
+                                            onValueChange={(v) => {
+                                                if (v)
+                                                    addCategoryToPage(pIdx, v);
+                                            }}
+                                        >
+                                            <Select.Trigger
+                                                class="w-[200px] h-8 text-xs"
+                                            >
+                                                <Plus class="mr-1 h-3 w-3" />
+                                                Add from Category
+                                            </Select.Trigger>
+                                            <Select.Content>
+                                                {#each allCategories as c}
+                                                    <Select.Item value={c.id}
+                                                        >{c.name}</Select.Item
+                                                    >
+                                                {/each}
+                                            </Select.Content>
+                                        </Select.Root>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            type="button"
+                                            class="text-xs h-8"
+                                            onclick={() =>
+                                                addQuestionToPage(pIdx)}
+                                        >
+                                            <Plus class="mr-1 h-3 w-3" />
+                                            Add Empty Question
+                                        </Button>
+                                    </div>
                                 </Card.Content>
                             </Card.Root>
                         {/each}

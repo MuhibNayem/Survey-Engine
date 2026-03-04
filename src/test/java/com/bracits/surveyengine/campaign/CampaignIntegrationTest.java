@@ -20,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -95,6 +96,71 @@ class CampaignIntegrationTest {
 
         CampaignResponse updated = campaignService.updateSettings(campaign.getId(), settings);
         assertThat(updated).isNotNull();
+    }
+
+    @Test
+    void shouldReturnSavedCampaignSettings() {
+        CampaignResponse campaign = campaignService.create(CampaignRequest.builder()
+                .name("Settings Readback Test")
+                .surveyId(publishedSurveyId)
+                .build());
+
+        Instant closeDate = Instant.parse("2026-03-31T00:00:00Z");
+        campaignService.updateSettings(campaign.getId(), CampaignSettingsRequest.builder()
+                .captchaEnabled(true)
+                .oneResponsePerDevice(true)
+                .ipRestrictionEnabled(true)
+                .emailRestrictionEnabled(false)
+                .responseQuota(250)
+                .closeDate(closeDate)
+                .sessionTimeoutMinutes(45)
+                .showQuestionNumbers(false)
+                .showProgressIndicator(false)
+                .allowBackButton(false)
+                .startMessage("Start")
+                .finishMessage("Finish")
+                .collectName(true)
+                .collectEmail(true)
+                .collectPhone(true)
+                .collectAddress(true)
+                .build());
+
+        CampaignSettingsResponse settings = campaignService.getSettings(campaign.getId());
+        assertThat(settings).isNotNull();
+        assertThat(settings.getCampaignId()).isEqualTo(campaign.getId());
+        assertThat(settings.isCaptchaEnabled()).isTrue();
+        assertThat(settings.isOneResponsePerDevice()).isTrue();
+        assertThat(settings.isIpRestrictionEnabled()).isTrue();
+        assertThat(settings.isEmailRestrictionEnabled()).isFalse();
+        assertThat(settings.getResponseQuota()).isEqualTo(250);
+        assertThat(settings.getCloseDate()).isEqualTo(closeDate);
+        assertThat(settings.getSessionTimeoutMinutes()).isEqualTo(45);
+        assertThat(settings.isShowQuestionNumbers()).isFalse();
+        assertThat(settings.isShowProgressIndicator()).isFalse();
+        assertThat(settings.isAllowBackButton()).isFalse();
+        assertThat(settings.getStartMessage()).isEqualTo("Start");
+        assertThat(settings.getFinishMessage()).isEqualTo("Finish");
+        assertThat(settings.isCollectName()).isTrue();
+        assertThat(settings.isCollectEmail()).isTrue();
+        assertThat(settings.isCollectPhone()).isTrue();
+        assertThat(settings.isCollectAddress()).isTrue();
+    }
+
+    @Test
+    void shouldReturnCampaignPreviewWithResolvedQuestions() {
+        CampaignResponse campaign = campaignService.create(CampaignRequest.builder()
+                .name("Preview Test")
+                .surveyId(publishedSurveyId)
+                .build());
+
+        CampaignPreviewResponse preview = campaignService.getPreview(campaign.getId());
+        assertThat(preview).isNotNull();
+        assertThat(preview.getCampaignId()).isEqualTo(campaign.getId());
+        assertThat(preview.getSurveyId()).isEqualTo(publishedSurveyId);
+        assertThat(preview.getPages()).isNotEmpty();
+        assertThat(preview.getPages().get(0).getQuestions()).isNotEmpty();
+        assertThat(preview.getPages().get(0).getQuestions().get(0).getText())
+                .isEqualTo("Campaign test question");
     }
 
     @Test

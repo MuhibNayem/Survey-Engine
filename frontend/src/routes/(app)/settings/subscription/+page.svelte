@@ -6,7 +6,6 @@
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
     import { ProgressBar } from "$lib/components/ui/progress-bar";
-    import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
     import {
         ArrowLeft,
         CreditCard,
@@ -28,11 +27,6 @@
     let loading = $state(true);
     let error = $state<string | null>(null);
 
-    // Checkout state
-    let checkoutLoading = $state(false);
-    let checkoutPlanCode = $state<string | null>(null);
-    let confirmCheckout = $state(false);
-
     const planBadgeVariant = $derived(
         subscription?.status === "ACTIVE"
             ? ("default" as const)
@@ -52,6 +46,36 @@
 
     function isUnlimited(val: number | null | undefined) {
         return val == null || val < 0; // Backend may return null for infinite, or -1.
+    }
+
+    function isUpgradeRestrictedState() {
+        return (
+            subscription?.status === "ACTIVE" || subscription?.status === "TRIAL"
+        );
+    }
+
+    function canCheckoutPlan(plan: PlanDefinitionResponse) {
+        if (!subscription) return true;
+        if (!isUpgradeRestrictedState()) return true;
+
+        if (subscription.plan === plan.planCode) return false;
+        return plan.price > subscription.planPrice;
+    }
+
+    function checkoutLabel(plan: PlanDefinitionResponse) {
+        if (!subscription) return "Select Plan";
+        if (isUpgradeRestrictedState()) {
+            if (subscription.plan === plan.planCode) return "Current Plan";
+            if (plan.price <= subscription.planPrice) return "Upgrade Only";
+        }
+        if (
+            (subscription.status === "EXPIRED" ||
+                subscription.status === "CANCELED") &&
+            subscription.plan === plan.planCode
+        ) {
+            return "Renew Plan";
+        }
+        return "Select Plan";
     }
 
     async function loadData() {
@@ -82,29 +106,8 @@
         }
     }
 
-    async function handleCheckout() {
-        if (!checkoutPlanCode) return;
-        checkoutLoading = true;
-        try {
-            const { data } = await api.post<SubscriptionResponse>(
-                "/admin/subscriptions/checkout",
-                {
-                    planCode: checkoutPlanCode,
-                },
-            );
-            subscription = data;
-            confirmCheckout = false;
-        } catch (err: any) {
-            error = err?.response?.data?.message || "Checkout failed.";
-            confirmCheckout = false;
-        } finally {
-            checkoutLoading = false;
-        }
-    }
-
     function initiateCheckout(planCode: string) {
-        checkoutPlanCode = planCode;
-        confirmCheckout = true;
+        goto(`/payment/checkout?planCode=${planCode}&source=settings`);
     }
 
     onMount(loadData);
@@ -131,7 +134,7 @@
         </div>
     </div>
 
-    {#if error && !confirmCheckout}
+    {#if error}
         <div
             class="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
         >
@@ -357,15 +360,14 @@
 
                             <Button
                                 class="w-full mt-4"
-                                variant={subscription?.plan === plan.planCode
+                                variant={subscription?.plan === plan.planCode &&
+                                isUpgradeRestrictedState()
                                     ? "secondary"
                                     : "default"}
-                                disabled={subscription?.plan === plan.planCode}
+                                disabled={!canCheckoutPlan(plan)}
                                 onclick={() => initiateCheckout(plan.planCode)}
                             >
-                                {subscription?.plan === plan.planCode
-                                    ? "Current Plan"
-                                    : "Select Plan"}
+                                {checkoutLabel(plan)}
                             </Button>
                         </Card.Content>
                     </Card.Root>
@@ -374,13 +376,3 @@
         </div>
     {/if}
 </div>
-
-<ConfirmDialog
-    open={confirmCheckout}
-    title="Confirm Plan Change"
-    description={`Are you sure you want to switch your tenant subscription to the ${checkoutPlanCode} plan? This action will immediately change your quotas.`}
-    confirmLabel="Confirm Checkout"
-    loading={checkoutLoading}
-    onConfirm={handleCheckout}
-    onCancel={() => (confirmCheckout = false)}
-/>

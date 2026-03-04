@@ -318,27 +318,125 @@ Build the public/private survey-taking UI for end respondents.
 
 ### Backend APIs Consumed
 
+#### Currently Available
+
 | Controller | Endpoints |
 |------------|-----------|
-| `ResponseController` | POST /responses |
-| `AuthController` | POST /respondent/oidc/start, GET /respondent/oidc/callback, POST /validate/{tenantId} |
+| `ResponseController` | `POST /api/v1/responses` |
+| `AuthController` | `POST /api/v1/auth/respondent/oidc/start`, `GET /api/v1/auth/respondent/oidc/callback`, `POST /api/v1/auth/validate/{tenantId}` |
+
+#### Required Additions (Implementation Blockers)
+
+| Controller (New) | Endpoint | Purpose |
+|------------------|----------|---------|
+| `ResponderRuntimeController` | `GET /api/v1/runtime/channels/{channelCode}` | Resolve channel code to campaign + public runtime metadata (campaignId, tenantId, authMode, settings flags, start/finish messages). |
+| `ResponderRuntimeController` | `POST /api/v1/runtime/channels/{channelCode}/password/verify` | Validate optional campaign password gate and return access grant for runtime session. |
+| `ResponderRuntimeController` | `GET /api/v1/runtime/channels/{channelCode}/survey` | Return rendered survey snapshot (pages/questions/answerConfig) for responder UI. |
+| `ResponderRuntimeController` | `GET /api/v1/runtime/channels/{channelCode}/completion` (optional) | Return completion view model if completion payload should be server-driven. |
+
+#### Runtime Contract Notes
+- `channelCode` must be the canonical runtime identifier for responder URLs.
+- Distribution generation must produce links using `channelCode` rather than raw `campaignId`.
+- Existing `POST /api/v1/responses` remains authoritative for submission and final validation.
 
 ### Pages to Build
 
 #### 9.1 Survey Landing (`/s/{channelCode}`)
-- Campaign info, start button, optional password gate
+- Load channel metadata using `GET /runtime/channels/{channelCode}`.
+- Show campaign title/description/start message and access policy summary.
+- Enforce optional password gate before entering responder route.
+- For private campaigns, branch to private auth flow before question rendering.
 
 #### 9.2 Survey Taking (`/s/{channelCode}/respond`)
-- Page-by-page question renderer (RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE)
-- Progress indicator, back/next navigation, session timeout handling
-- Answer auto-save (optional)
+- Load snapshot payload using `GET /runtime/channels/{channelCode}/survey`.
+- Render page-by-page questions (`RANK`, `RATING_SCALE`, `SINGLE_CHOICE`, `MULTIPLE_CHOICE`).
+- Support runtime UI flags from campaign settings:
+  - `showQuestionNumbers`
+  - `showProgressIndicator`
+  - `allowBackButton`
+  - `headerHtml` / `footerHtml`
+- Handle responder session constraints:
+  - `closeDate`
+  - `responseQuota`
+  - `oneResponsePerDevice`
+  - `ipRestrictionEnabled`
+  - `emailRestrictionEnabled`
+- Submit answers through `POST /api/v1/responses` with:
+  - `campaignId`
+  - `answers[]`
+  - `respondentIdentifier` / device/IP identifiers as needed
+  - `responderToken` or `responderAccessCode` for private mode
 
 #### 9.3 Private Auth Gate
-- OIDC redirect flow for private campaigns
-- Signed token validation path
+- OIDC path:
+  - Start: `POST /api/v1/auth/respondent/oidc/start` with `{ tenantId, campaignId, returnPath }`
+  - Callback: `GET /api/v1/auth/respondent/oidc/callback`
+  - Runtime receives `auth_code` (access code) and posts it as `responderAccessCode` in submission.
+- Signed token path:
+  - Runtime accepts subscriber-provided token.
+  - Token is sent as `responderToken` in submission and validated server-side.
 
 #### 9.4 Completion Page
-- Custom finish message, submission confirmation
+- Route: `/s/{channelCode}/done`
+- Show submission confirmation, responder reference ID, and `finishMessage`.
+- Keep completion experience consistent for both public and private flows.
+
+### API Contract (Phase 9 Ready)
+
+#### Landing Resolve Response (minimum)
+```json
+{
+  "channelCode": "abc123",
+  "campaignId": "uuid",
+  "tenantId": "tenant-id",
+  "campaignName": "Course Evaluation",
+  "authMode": "PUBLIC",
+  "status": "ACTIVE",
+  "settings": {
+    "passwordRequired": false,
+    "showQuestionNumbers": true,
+    "showProgressIndicator": true,
+    "allowBackButton": true,
+    "startMessage": "...",
+    "finishMessage": "...",
+    "headerHtml": "...",
+    "footerHtml": "..."
+  }
+}
+```
+
+#### Survey Payload Response (minimum)
+```json
+{
+  "campaignId": "uuid",
+  "surveySnapshotId": "uuid",
+  "title": "Course Evaluation",
+  "pages": [
+    {
+      "id": "page-1",
+      "title": "Page 1",
+      "questions": [
+        {
+          "questionId": "uuid",
+          "questionVersionId": "uuid",
+          "type": "SINGLE_CHOICE",
+          "text": "How satisfied are you?",
+          "mandatory": true,
+          "answerConfig": { "options": [ { "value": "A" }, { "value": "B" } ] }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Acceptance Criteria
+- Responder can open `/s/{channelCode}` and start survey without admin auth.
+- Public campaign submission succeeds end-to-end through `POST /api/v1/responses`.
+- Private campaign enforces OIDC/signed-token flow before submission.
+- Downtime/invalid-state UX is explicit for: inactive campaign, close date reached, quota reached, invalid channel.
+- Completion screen always displays configured finish content after successful submit.
+- All phase routes are mobile-usable and keyboard accessible.
 
 ### New Components Needed
 - Question renderer (per question type)

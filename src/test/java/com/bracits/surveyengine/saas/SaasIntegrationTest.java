@@ -117,6 +117,79 @@ class SaasIntegrationTest {
     }
 
     @Test
+    void subscriptionCheckout_acceptsPlanCodeAlias() throws Exception {
+        String tenantId = "saas-sub-alias-" + UUID.randomUUID();
+        String bearer = "Bearer " + registerAndLogin("sub-alias+" + UUID.randomUUID() + "@example.com", tenantId);
+
+        mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
+                .header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "planCode": "PRO"
+                        }
+                        """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tenantId").value(tenantId))
+                .andExpect(jsonPath("$.plan").value("PRO"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    void subscriptionCheckout_rejectsDowngradeForActiveSubscription() throws Exception {
+        String tenantId = "saas-sub-downgrade-" + UUID.randomUUID();
+        String bearer = "Bearer " + registerAndLogin("sub-downgrade+" + UUID.randomUUID() + "@example.com", tenantId);
+
+        mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
+                .header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "planCode": "PRO"
+                        }
+                        """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
+                .header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "planCode": "BASIC"
+                        }
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Only plan upgrades are allowed for active or trial subscriptions"));
+    }
+
+    @Test
+    void subscriptionCheckout_rejectsSamePlanForActiveSubscription() throws Exception {
+        String tenantId = "saas-sub-same-plan-" + UUID.randomUUID();
+        String bearer = "Bearer " + registerAndLogin("sub-same+" + UUID.randomUUID() + "@example.com", tenantId);
+
+        mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
+                .header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "planCode": "PRO"
+                        }
+                        """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
+                .header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "planCode": "PRO"
+                        }
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Requested plan is already active for this tenant"));
+    }
+
+    @Test
     void adminApis_areBlockedWhenSubscriptionExpired() throws Exception {
         String tenantId = "saas-expired-" + UUID.randomUUID();
         String bearer = "Bearer " + registerAndLogin("expired+" + UUID.randomUUID() + "@example.com", tenantId);

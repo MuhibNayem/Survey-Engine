@@ -190,6 +190,66 @@ export interface CampaignSettingsRequest {
     collectAddress: boolean;
 }
 
+export interface CampaignSettingsResponse {
+    campaignId: string;
+    password?: string;
+    captchaEnabled: boolean;
+    oneResponsePerDevice: boolean;
+    ipRestrictionEnabled: boolean;
+    emailRestrictionEnabled: boolean;
+    responseQuota?: number;
+    closeDate?: string;
+    sessionTimeoutMinutes: number;
+    showQuestionNumbers: boolean;
+    showProgressIndicator: boolean;
+    allowBackButton: boolean;
+    startMessage?: string;
+    finishMessage?: string;
+    headerHtml?: string;
+    footerHtml?: string;
+    collectName: boolean;
+    collectEmail: boolean;
+    collectPhone: boolean;
+    collectAddress: boolean;
+}
+
+export interface CampaignPreviewResponse {
+    campaignId: string;
+    campaignName: string;
+    campaignStatus: CampaignStatus;
+    authMode: AuthMode;
+    surveyId: string;
+    surveyTitle: string;
+    surveyDescription: string;
+    showQuestionNumbers: boolean;
+    showProgressIndicator: boolean;
+    allowBackButton: boolean;
+    startMessage?: string;
+    finishMessage?: string;
+    headerHtml?: string;
+    footerHtml?: string;
+    collectName: boolean;
+    collectEmail: boolean;
+    collectPhone: boolean;
+    collectAddress: boolean;
+    pages: {
+        id: string;
+        title: string;
+        sortOrder: number;
+        questions: {
+            id: string;
+            questionId: string;
+            questionVersionId: string;
+            text: string;
+            type: QuestionType;
+            maxScore: number;
+            mandatory: boolean;
+            sortOrder: number;
+            answerConfig?: string;
+        }[];
+    }[];
+}
+
 export type DistributionChannelType =
     | 'PUBLIC_LINK'
     | 'PRIVATE_LINK'

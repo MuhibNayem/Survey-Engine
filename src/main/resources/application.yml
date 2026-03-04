@@ -71,3 +71,5 @@ survey-engine:
       jwks:
         ttl: ${SURVEY_ENGINE_AUTH_CACHE_JWKS_TTL:15m}
         key-prefix: ${SURVEY_ENGINE_AUTH_CACHE_JWKS_KEY_PREFIX:survey-engine:auth-cache:jwks}
+  links:
+    public-base-url: ${SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL:https://survey.example.com}

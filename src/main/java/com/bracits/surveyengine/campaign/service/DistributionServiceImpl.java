@@ -8,6 +8,7 @@ import com.bracits.surveyengine.campaign.repository.DistributionChannelRepositor
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
 import com.bracits.surveyengine.common.tenant.TenantSupport;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,10 +26,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DistributionServiceImpl implements DistributionService {
 
-    private static final String BASE_URL = "https://survey.example.com";
-
     private final DistributionChannelRepository channelRepository;
     private final CampaignRepository campaignRepository;
+    @Value("${survey-engine.links.public-base-url:https://survey.example.com}")
+    private String publicBaseUrl;
 
     @Override
     @Transactional
@@ -36,8 +37,9 @@ public class DistributionServiceImpl implements DistributionService {
         campaignRepository.findByIdAndTenantId(campaignId, TenantSupport.currentTenantOrDefault())
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
 
+        String baseUrl = normalizeBaseUrl(publicBaseUrl);
         List<DistributionChannel> channels = new ArrayList<>();
-        String surveyPath = BASE_URL + "/s/" + campaignId;
+        String surveyPath = baseUrl + "/s/" + campaignId;
 
         // Public link
         channels.add(buildChannel(campaignId, DistributionChannelType.PUBLIC_LINK,
@@ -59,7 +61,7 @@ public class DistributionServiceImpl implements DistributionService {
         // JS embed
         channels.add(buildChannel(campaignId, DistributionChannelType.JS_EMBED,
                 "<script src=\"%s/embed.js\" data-campaign=\"%s\"></script>"
-                        .formatted(BASE_URL, campaignId)));
+                        .formatted(baseUrl, campaignId)));
 
         // Email distribution
         channels.add(buildChannel(campaignId, DistributionChannelType.EMAIL,
@@ -96,5 +98,16 @@ public class DistributionServiceImpl implements DistributionService {
                 .channelValue(dc.getChannelValue())
                 .createdAt(dc.getCreatedAt())
                 .build();
+    }
+
+    private String normalizeBaseUrl(String rawBaseUrl) {
+        String value = rawBaseUrl == null ? "" : rawBaseUrl.trim();
+        if (value.isEmpty()) {
+            value = "https://survey.example.com";
+        }
+        if (value.endsWith("/")) {
+            return value.substring(0, value.length() - 1);
+        }
+        return value;
     }
 }

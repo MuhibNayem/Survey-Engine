@@ -8,9 +8,16 @@ import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
 import com.bracits.surveyengine.common.tenant.TenantSupport;
+import com.bracits.surveyengine.questionbank.entity.Question;
+import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
+import com.bracits.surveyengine.questionbank.repository.QuestionRepository;
+import com.bracits.surveyengine.questionbank.repository.QuestionVersionRepository;
 import com.bracits.surveyengine.subscription.service.PlanQuotaService;
 import com.bracits.surveyengine.tenant.service.TenantService;
+import com.bracits.surveyengine.survey.entity.Survey;
 import com.bracits.surveyengine.survey.entity.SurveyLifecycleState;
+import com.bracits.surveyengine.survey.entity.SurveyPage;
+import com.bracits.surveyengine.survey.entity.SurveyQuestion;
 import com.bracits.surveyengine.survey.entity.SurveySnapshot;
 import com.bracits.surveyengine.survey.repository.SurveyRepository;
 import com.bracits.surveyengine.survey.service.SurveyService;
@@ -18,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,6 +39,8 @@ public class CampaignServiceImpl implements CampaignService {
     private final CampaignRepository campaignRepository;
     private final CampaignSettingsRepository settingsRepository;
     private final SurveyRepository surveyRepository;
+    private final QuestionRepository questionRepository;
+    private final QuestionVersionRepository questionVersionRepository;
     private final SurveyService surveyService;
     private final PlanQuotaService planQuotaService;
     private final TenantService tenantService;
@@ -96,6 +106,54 @@ public class CampaignServiceImpl implements CampaignService {
         Campaign campaign = findOrThrow(id);
         campaign.setActive(false);
         campaignRepository.save(campaign);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CampaignPreviewResponse getPreview(UUID campaignId) {
+        Campaign campaign = findOrThrow(campaignId);
+        String tenantId = resolveTenantId();
+
+        CampaignSettings settings = settingsRepository.findByCampaignId(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("CampaignSettings", campaignId));
+        Survey survey = surveyRepository.findByIdAndTenantId(campaign.getSurveyId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Survey", campaign.getSurveyId()));
+
+        List<CampaignPreviewResponse.PagePreview> pages = survey.getPages().stream()
+                .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
+                .map(this::toPreviewPage)
+                .toList();
+
+        return CampaignPreviewResponse.builder()
+                .campaignId(campaign.getId())
+                .campaignName(campaign.getName())
+                .campaignStatus(campaign.getStatus())
+                .authMode(campaign.getAuthMode())
+                .surveyId(survey.getId())
+                .surveyTitle(survey.getTitle())
+                .surveyDescription(survey.getDescription())
+                .showQuestionNumbers(settings.isShowQuestionNumbers())
+                .showProgressIndicator(settings.isShowProgressIndicator())
+                .allowBackButton(settings.isAllowBackButton())
+                .startMessage(settings.getStartMessage())
+                .finishMessage(settings.getFinishMessage())
+                .headerHtml(settings.getHeaderHtml())
+                .footerHtml(settings.getFooterHtml())
+                .collectName(settings.isCollectName())
+                .collectEmail(settings.isCollectEmail())
+                .collectPhone(settings.isCollectPhone())
+                .collectAddress(settings.isCollectAddress())
+                .pages(pages)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CampaignSettingsResponse getSettings(UUID campaignId) {
+        findOrThrow(campaignId);
+        CampaignSettings settings = settingsRepository.findByCampaignId(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("CampaignSettings", campaignId));
+        return toSettingsResponse(settings);
     }
 
     @Override
@@ -172,6 +230,71 @@ public class CampaignServiceImpl implements CampaignService {
                 .createdAt(c.getCreatedAt())
                 .updatedBy(c.getUpdatedBy())
                 .updatedAt(c.getUpdatedAt())
+                .build();
+    }
+
+    private CampaignSettingsResponse toSettingsResponse(CampaignSettings settings) {
+        return CampaignSettingsResponse.builder()
+                .campaignId(settings.getCampaignId())
+                .password(settings.getPassword())
+                .captchaEnabled(settings.isCaptchaEnabled())
+                .oneResponsePerDevice(settings.isOneResponsePerDevice())
+                .ipRestrictionEnabled(settings.isIpRestrictionEnabled())
+                .emailRestrictionEnabled(settings.isEmailRestrictionEnabled())
+                .responseQuota(settings.getResponseQuota())
+                .closeDate(settings.getCloseDate())
+                .sessionTimeoutMinutes(settings.getSessionTimeoutMinutes())
+                .showQuestionNumbers(settings.isShowQuestionNumbers())
+                .showProgressIndicator(settings.isShowProgressIndicator())
+                .allowBackButton(settings.isAllowBackButton())
+                .startMessage(settings.getStartMessage())
+                .finishMessage(settings.getFinishMessage())
+                .headerHtml(settings.getHeaderHtml())
+                .footerHtml(settings.getFooterHtml())
+                .collectName(settings.isCollectName())
+                .collectEmail(settings.isCollectEmail())
+                .collectPhone(settings.isCollectPhone())
+                .collectAddress(settings.isCollectAddress())
+                .build();
+    }
+
+    private CampaignPreviewResponse.PagePreview toPreviewPage(SurveyPage page) {
+        List<CampaignPreviewResponse.QuestionPreview> questions = page.getQuestions().stream()
+                .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
+                .map(this::toPreviewQuestion)
+                .toList();
+        return CampaignPreviewResponse.PagePreview.builder()
+                .id(page.getId())
+                .title(page.getTitle())
+                .sortOrder(page.getSortOrder())
+                .questions(questions)
+                .build();
+    }
+
+    private CampaignPreviewResponse.QuestionPreview toPreviewQuestion(SurveyQuestion sq) {
+        QuestionVersion questionVersion = null;
+        if (sq.getQuestionVersionId() != null) {
+            questionVersion = questionVersionRepository.findById(sq.getQuestionVersionId()).orElse(null);
+        }
+
+        String tenantId = resolveTenantId();
+        Question fallbackQuestion = questionRepository.findByIdAndTenantId(sq.getQuestionId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Question", sq.getQuestionId()));
+
+        String text = questionVersion != null ? questionVersion.getText() : fallbackQuestion.getText();
+        var type = questionVersion != null ? questionVersion.getType() : fallbackQuestion.getType();
+        BigDecimal maxScore = questionVersion != null ? questionVersion.getMaxScore() : fallbackQuestion.getMaxScore();
+
+        return CampaignPreviewResponse.QuestionPreview.builder()
+                .id(sq.getId())
+                .questionId(sq.getQuestionId())
+                .questionVersionId(sq.getQuestionVersionId())
+                .text(text)
+                .type(type)
+                .maxScore(maxScore)
+                .mandatory(sq.isMandatory())
+                .sortOrder(sq.getSortOrder())
+                .answerConfig(sq.getAnswerConfig())
                 .build();
     }
 

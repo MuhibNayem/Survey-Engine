@@ -47,10 +47,13 @@ public class SubscriptionService {
     @Transactional
     public SubscriptionResponse subscribe(String tenantId, SubscribeRequest request) {
         Subscription subscription = ensureTrial(tenantId);
-        PlanDefinition plan = planCatalogService.getActivePlanEntity(request.getPlan());
+        SubscriptionPlan requestedPlan = request.getPlan();
+        enforceCheckoutRestrictions(subscription, requestedPlan);
+
+        PlanDefinition plan = planCatalogService.getActivePlanEntity(requestedPlan);
 
         PaymentGateway.PaymentResult paymentResult = paymentGateway.charge(
-                tenantId, request.getPlan(), plan.getPrice(), plan.getCurrency());
+                tenantId, requestedPlan, plan.getPrice(), plan.getCurrency());
         PaymentTransaction payment = PaymentTransaction.builder()
                 .tenantId(tenantId)
                 .subscriptionId(subscription.getId())
@@ -67,7 +70,7 @@ public class SubscriptionService {
         }
 
         Instant now = Instant.now();
-        subscription.setPlan(request.getPlan());
+        subscription.setPlan(requestedPlan);
         subscription.setStatus(SubscriptionStatus.ACTIVE);
         subscription.setCurrentPeriodStart(now);
         subscription.setCurrentPeriodEnd(now.plus(plan.getBillingCycleDays(), ChronoUnit.DAYS));
@@ -94,6 +97,36 @@ public class SubscriptionService {
     public boolean hasActiveSubscription(String tenantId) {
         return subscriptionRepository.existsByTenantIdAndStatusInAndCurrentPeriodEndAfter(
                 tenantId, ACTIVE_STATES, Instant.now());
+    }
+
+    private void enforceCheckoutRestrictions(Subscription currentSubscription, SubscriptionPlan requestedPlan) {
+        SubscriptionStatus status = currentSubscription.getStatus();
+        if (!ACTIVE_STATES.contains(status)) {
+            return;
+        }
+
+        SubscriptionPlan currentPlan = currentSubscription.getPlan();
+        if (currentPlan == requestedPlan) {
+            throw new BusinessException(ErrorCode.INVALID_LIFECYCLE_TRANSITION,
+                    "Requested plan is already active for this tenant");
+        }
+
+        if (!isUpgrade(currentPlan, requestedPlan)) {
+            throw new BusinessException(ErrorCode.INVALID_LIFECYCLE_TRANSITION,
+                    "Only plan upgrades are allowed for active or trial subscriptions");
+        }
+    }
+
+    private boolean isUpgrade(SubscriptionPlan current, SubscriptionPlan requested) {
+        return planRank(requested) > planRank(current);
+    }
+
+    private int planRank(SubscriptionPlan plan) {
+        return switch (plan) {
+            case BASIC -> 1;
+            case PRO -> 2;
+            case ENTERPRISE -> 3;
+        };
     }
 
     private SubscriptionResponse toResponse(Subscription subscription, String paymentRef) {

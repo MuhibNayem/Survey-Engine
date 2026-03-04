@@ -47,6 +47,16 @@ public class CampaignController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{id}/preview")
+    public ResponseEntity<CampaignPreviewResponse> getPreview(@PathVariable UUID id) {
+        return ResponseEntity.ok(campaignService.getPreview(id));
+    }
+
+    @GetMapping("/{id}/settings")
+    public ResponseEntity<CampaignSettingsResponse> getSettings(@PathVariable UUID id) {
+        return ResponseEntity.ok(campaignService.getSettings(id));
+    }
+
     @PutMapping("/{id}/settings")
     public ResponseEntity<CampaignResponse> updateSettings(
             @PathVariable UUID id,

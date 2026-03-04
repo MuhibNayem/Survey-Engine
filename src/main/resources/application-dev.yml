@@ -44,3 +44,7 @@ logging:
     com.bracits.surveyengine: DEBUG
     org.springframework.web: DEBUG
     org.hibernate.SQL: DEBUG
+
+survey-engine:
+  links:
+    public-base-url: ${SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL:http://localhost:5173}
