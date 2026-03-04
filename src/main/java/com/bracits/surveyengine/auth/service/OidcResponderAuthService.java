@@ -17,6 +17,8 @@ import com.bracits.surveyengine.campaign.repository.CampaignRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +31,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.Duration;
+import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +54,11 @@ public class OidcResponderAuthService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final SecureRandom secureRandom = new SecureRandom();
+    private final Cache<String, OidcMetadata> oidcMetadataCache = Caffeine.newBuilder()
+            .maximumSize(256)
+            .expireAfterWrite(Duration.ofHours(24))
+            .build();
 
     @Transactional
     public OidcStartResponse start(OidcStartRequest request, String baseUrl) {
@@ -75,6 +86,8 @@ public class OidcResponderAuthService {
 
         String state = UUID.randomUUID().toString();
         String nonce = UUID.randomUUID().toString();
+        String codeVerifier = generateCodeVerifier();
+        String codeChallenge = toCodeChallenge(codeVerifier);
         Instant expiresAt = Instant.now().plusSeconds(300);
 
         oidcAuthStateRepository.deleteByExpiresAtBefore(Instant.now());
@@ -83,6 +96,7 @@ public class OidcResponderAuthService {
                 .tenantId(request.getTenantId())
                 .campaignId(request.getCampaignId())
                 .nonce(nonce)
+                .codeVerifier(codeVerifier)
                 .returnPath(normalizeReturnPath(request.getReturnPath()))
                 .expiresAt(expiresAt)
                 .build());
@@ -96,7 +110,9 @@ public class OidcResponderAuthService {
                 + "&redirect_uri=" + enc(redirectUri)
                 + "&scope=" + enc(scope)
                 + "&state=" + enc(state)
-                + "&nonce=" + enc(nonce);
+                + "&nonce=" + enc(nonce)
+                + "&code_challenge=" + enc(codeChallenge)
+                + "&code_challenge_method=S256";
 
         return OidcStartResponse.builder()
                 .authorizationUrl(authorizationUrl)
@@ -128,13 +144,15 @@ public class OidcResponderAuthService {
         OidcMetadata metadata = loadMetadata(profile);
         String redirectUri = resolveRedirectUri(profile, baseUrl);
 
-        String tokenResponse = exchangeToken(metadata.tokenEndpoint, profile, code, redirectUri);
+        String codeVerifier = required(authState.getCodeVerifier(), "OIDC PKCE code_verifier missing");
+        String tokenResponse = exchangeToken(metadata.tokenEndpoint, profile, code, redirectUri, codeVerifier);
         Map<String, Object> tokenJson = parseJsonMap(tokenResponse);
         String idToken = asString(tokenJson.get("id_token"));
-        String accessToken = asString(tokenJson.get("access_token"));
+        if (idToken == null || idToken.isBlank()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, "OIDC token response missing id_token");
+        }
 
-        String tokenForValidation = (idToken != null && !idToken.isBlank()) ? idToken : accessToken;
-        var result = tokenValidationService.validateToken(authState.getTenantId(), tokenForValidation);
+        var result = tokenValidationService.validateToken(authState.getTenantId(), idToken, authState.getNonce());
         if (!result.isValid()) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED,
                     "OIDC token validation failed: " + result.getErrorMessage());
@@ -207,27 +225,35 @@ public class OidcResponderAuthService {
     private OidcMetadata loadMetadata(AuthProfile profile) {
         try {
             String discoveryUrl = required(profile.getOidcDiscoveryUrl(), "OIDC discovery URL is required");
+            OidcMetadata cached = oidcMetadataCache.getIfPresent(discoveryUrl);
+            if (cached != null) {
+                return cached;
+            }
             HttpRequest req = HttpRequest.newBuilder(URI.create(discoveryUrl)).GET().build();
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
                 throw new RuntimeException("OIDC discovery failed with status " + resp.statusCode());
             }
             Map<String, Object> json = parseJsonMap(resp.body());
-            return new OidcMetadata(
+            OidcMetadata metadata = new OidcMetadata(
                     required(asString(json.get("authorization_endpoint")), "authorization_endpoint missing"),
                     required(asString(json.get("token_endpoint")), "token_endpoint missing"));
+            oidcMetadataCache.put(discoveryUrl, metadata);
+            return metadata;
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "Failed to load OIDC metadata: " + e.getMessage());
         }
     }
 
-    private String exchangeToken(String tokenEndpoint, AuthProfile profile, String code, String redirectUri) {
+    private String exchangeToken(String tokenEndpoint, AuthProfile profile, String code, String redirectUri,
+            String codeVerifier) {
         try {
             String body = "grant_type=authorization_code"
                     + "&code=" + enc(code)
                     + "&redirect_uri=" + enc(redirectUri)
                     + "&client_id=" + enc(required(profile.getOidcClientId(), "OIDC clientId is required"))
-                    + "&client_secret=" + enc(required(profile.getOidcClientSecret(), "OIDC clientSecret is required"));
+                    + "&client_secret=" + enc(required(profile.getOidcClientSecret(), "OIDC clientSecret is required"))
+                    + "&code_verifier=" + enc(required(codeVerifier, "OIDC code_verifier is required"));
 
             HttpRequest req = HttpRequest.newBuilder(URI.create(tokenEndpoint))
                     .header("Content-Type", "application/x-www-form-urlencoded")
@@ -298,6 +324,22 @@ public class OidcResponderAuthService {
             return "openid email profile";
         }
         return String.join(" ", scopes);
+    }
+
+    private String generateCodeVerifier() {
+        byte[] random = new byte[32];
+        secureRandom.nextBytes(random);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+    }
+
+    private String toCodeChallenge(String codeVerifier) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to generate PKCE code challenge", e);
+        }
     }
 
     private record OidcMetadata(String authorizationEndpoint, String tokenEndpoint) {

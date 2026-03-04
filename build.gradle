@@ -41,6 +41,7 @@ dependencies {
     implementation 'io.micrometer:micrometer-registry-otlp'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.2'
     implementation 'org.springframework.security:spring-security-core'
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'

@@ -10,6 +10,8 @@ import com.bracits.surveyengine.auth.repository.AuthProfileRepository;
 import com.bracits.surveyengine.auth.repository.AuthTokenReplayRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,9 +26,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.RSAPublicKeySpec;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -50,10 +54,20 @@ public class TokenValidationServiceImpl implements TokenValidationService {
     private final AuthTokenReplayRepository authTokenReplayRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final Cache<String, JwksKeySet> jwksCache = Caffeine.newBuilder()
+            .maximumSize(256)
+            .expireAfterWrite(Duration.ofMinutes(15))
+            .build();
 
     @Override
     @Transactional
     public TokenValidationResult validateToken(String tenantId, String token) {
+        return validateToken(tenantId, token, null);
+    }
+
+    @Override
+    @Transactional
+    public TokenValidationResult validateToken(String tenantId, String token, String expectedNonce) {
         Optional<AuthProfile> profileOpt = authProfileRepository.findByTenantId(tenantId);
 
         // No auth profile configured → default to public anonymous
@@ -67,7 +81,7 @@ public class TokenValidationServiceImpl implements TokenValidationService {
             return switch (profile.getAuthMode()) {
                 case PUBLIC_ANONYMOUS -> publicAnonymousResult();
                 case SIGNED_LAUNCH_TOKEN -> validateSignedToken(profile, token);
-                case EXTERNAL_SSO_TRUST -> validateExternalSso(profile, token);
+                case EXTERNAL_SSO_TRUST -> validateExternalSso(profile, token, expectedNonce);
             };
         } catch (Exception e) {
             log.warn("Token validation failed for tenant {}: {}", tenantId, e.getMessage());
@@ -179,7 +193,7 @@ public class TokenValidationServiceImpl implements TokenValidationService {
                 .build();
     }
 
-    private TokenValidationResult validateExternalSso(AuthProfile profile, String token) {
+    private TokenValidationResult validateExternalSso(AuthProfile profile, String token, String expectedNonce) {
         if (token == null || token.isBlank()) {
             return errorResult("AUTH_TOKEN_MISSING", "SSO token is required");
         }
@@ -229,6 +243,13 @@ public class TokenValidationServiceImpl implements TokenValidationService {
         }
         if (nbf != null && now + profile.getClockSkewSeconds() < nbf) {
             throw new RuntimeException("External token is not valid yet");
+        }
+
+        if (expectedNonce != null && !expectedNonce.isBlank()) {
+            String tokenNonce = toStringClaim(claims.get("nonce"));
+            if (tokenNonce == null || !expectedNonce.equals(tokenNonce)) {
+                throw new RuntimeException("External token nonce validation failed");
+            }
         }
 
         MappedIdentity identity = resolveMappedIdentity(profile, claims);
@@ -385,38 +406,18 @@ public class TokenValidationServiceImpl implements TokenValidationService {
                 throw new BusinessException(ErrorCode.ACCESS_DENIED, "JWKS endpoint is required for RS256 validation");
             }
 
-            HttpRequest req = HttpRequest.newBuilder(URI.create(jwksEndpoint)).GET().build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
-                throw new RuntimeException("JWKS fetch failed with status " + resp.statusCode());
-            }
-            Map<String, Object> jwks = parseJsonMap(resp.body());
-            Object keysObj = jwks.get("keys");
-            if (!(keysObj instanceof List<?> keys) || keys.isEmpty()) {
-                throw new RuntimeException("No keys found in JWKS");
-            }
-
             String kid = toStringClaim(header.get("kid"));
-            Map<String, Object> jwk = null;
-            for (Object k : keys) {
-                if (k instanceof Map<?, ?> candidate) {
-                    String candidateKid = toStringClaim(candidate.get("kid"));
-                    if (kid == null || Objects.equals(candidateKid, kid)) {
-                        jwk = (Map<String, Object>) candidate;
-                        if (kid != null) {
-                            break;
-                        }
-                    }
-                }
+            JwksKeySet jwks = getOrLoadJwks(jwksEndpoint);
+            PublicKey publicKey = jwks.resolvePublicKey(kid);
+            if (publicKey == null) {
+                // Key rotation fallback: refresh JWKS once and retry.
+                jwksCache.invalidate(jwksEndpoint);
+                JwksKeySet refreshed = getOrLoadJwks(jwksEndpoint);
+                publicKey = refreshed.resolvePublicKey(kid);
             }
-            if (jwk == null) {
+            if (publicKey == null) {
                 throw new RuntimeException("No matching JWK found for kid");
             }
-
-            BigInteger modulus = new BigInteger(1, Base64.getUrlDecoder().decode(toStringClaim(jwk.get("n"))));
-            BigInteger exponent = new BigInteger(1, Base64.getUrlDecoder().decode(toStringClaim(jwk.get("e"))));
-            RSAPublicKeySpec keySpec = new RSAPublicKeySpec(modulus, exponent);
-            var publicKey = KeyFactory.getInstance("RSA").generatePublic(keySpec);
 
             Signature verifier = Signature.getInstance("SHA256withRSA");
             verifier.initVerify(publicKey);
@@ -432,5 +433,75 @@ public class TokenValidationServiceImpl implements TokenValidationService {
     }
 
     private record MappedIdentity(String respondentId, String email, Map<String, String> claims) {
+    }
+
+    private JwksKeySet getOrLoadJwks(String jwksEndpoint) {
+        JwksKeySet cached = jwksCache.getIfPresent(jwksEndpoint);
+        if (cached != null) {
+            return cached;
+        }
+        JwksKeySet loaded = fetchJwks(jwksEndpoint);
+        jwksCache.put(jwksEndpoint, loaded);
+        return loaded;
+    }
+
+    @SuppressWarnings("unchecked")
+    private JwksKeySet fetchJwks(String jwksEndpoint) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder(URI.create(jwksEndpoint)).GET().build();
+            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
+                throw new RuntimeException("JWKS fetch failed with status " + resp.statusCode());
+            }
+            Map<String, Object> jwksJson = parseJsonMap(resp.body());
+            Object keysObj = jwksJson.get("keys");
+            if (!(keysObj instanceof List<?> keys) || keys.isEmpty()) {
+                throw new RuntimeException("No keys found in JWKS");
+            }
+            Map<String, PublicKey> byKid = new HashMap<>();
+            PublicKey firstKey = null;
+            for (Object k : keys) {
+                if (!(k instanceof Map<?, ?> candidate)) {
+                    continue;
+                }
+                String kty = toStringClaim(candidate.get("kty"));
+                if (kty != null && !"RSA".equals(kty)) {
+                    continue;
+                }
+                String n = toStringClaim(candidate.get("n"));
+                String e = toStringClaim(candidate.get("e"));
+                if (n == null || e == null) {
+                    continue;
+                }
+                BigInteger modulus = new BigInteger(1, Base64.getUrlDecoder().decode(n));
+                BigInteger exponent = new BigInteger(1, Base64.getUrlDecoder().decode(e));
+                RSAPublicKeySpec keySpec = new RSAPublicKeySpec(modulus, exponent);
+                PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(keySpec);
+                String keyId = toStringClaim(candidate.get("kid"));
+                if (keyId != null) {
+                    byKid.put(keyId, publicKey);
+                }
+                if (firstKey == null) {
+                    firstKey = publicKey;
+                }
+            }
+            if (byKid.isEmpty() && firstKey == null) {
+                throw new RuntimeException("No usable RSA keys found in JWKS");
+            }
+            return new JwksKeySet(byKid, firstKey);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch JWKS: " + e.getMessage(), e);
+        }
+    }
+
+    private record JwksKeySet(Map<String, PublicKey> keysByKid, PublicKey fallbackKey) {
+        PublicKey resolvePublicKey(String kid) {
+            if (kid != null && !kid.isBlank()) {
+                return keysByKid.get(kid);
+            }
+            return fallbackKey;
+        }
     }
 }

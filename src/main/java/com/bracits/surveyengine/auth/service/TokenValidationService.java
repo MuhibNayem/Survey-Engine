@@ -16,4 +16,17 @@ public interface TokenValidationService {
      * @return validation result with mapped claims or error
      */
     TokenValidationResult validateToken(String tenantId, String token);
+
+    /**
+     * Validates a respondent token with additional expected nonce context.
+     * Used for OIDC authorization-code callback hardening to prevent replay.
+     *
+     * @param tenantId      tenant ID whose auth profile is applied
+     * @param token         token to validate
+     * @param expectedNonce expected nonce from OIDC state (nullable when not applicable)
+     * @return validation result
+     */
+    default TokenValidationResult validateToken(String tenantId, String token, String expectedNonce) {
+        return validateToken(tenantId, token);
+    }
 }

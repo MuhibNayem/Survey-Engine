@@ -41,6 +41,9 @@ public class OidcAuthState {
     @Column(name = "nonce", nullable = false)
     private String nonce;
 
+    @Column(name = "code_verifier")
+    private String codeVerifier;
+
     @Column(name = "return_path")
     private String returnPath;
 

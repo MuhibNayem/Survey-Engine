@@ -155,6 +155,67 @@ class AuthIntegrationTest {
         }
 
         @Test
+        void shouldValidateExternalSsoNonceWhenExpected() throws Exception {
+                String secret = "external-sso-secret-nonce-1";
+                String tenantId = "tenant-external-nonce-ok-" + UUID.randomUUID();
+
+                authProfileService.create(AuthProfileRequest.builder()
+                                .tenantId(tenantId)
+                                .authMode(AuthenticationMode.EXTERNAL_SSO_TRUST)
+                                .issuer("https://issuer.example.com")
+                                .audience("survey-engine")
+                                .signingSecret(secret)
+                                .claimMappings(List.of(
+                                                AuthProfileRequest.ClaimMappingRequest.builder()
+                                                                .externalClaim("sub")
+                                                                .internalField("respondentId")
+                                                                .required(true)
+                                                                .build(),
+                                                AuthProfileRequest.ClaimMappingRequest.builder()
+                                                                .externalClaim("email")
+                                                                .internalField("email")
+                                                                .required(false)
+                                                                .build()))
+                                .build());
+
+                String token = createSignedToken(secret,
+                                "{\"sub\":\"ext-user-1\",\"email\":\"ext@example.com\",\"iss\":\"https://issuer.example.com\",\"aud\":\"survey-engine\",\"nonce\":\"nonce-abc\",\"exp\":%d}"
+                                                .formatted(Instant.now().plusSeconds(3600).getEpochSecond()));
+
+                TokenValidationResult result = tokenValidationService.validateToken(tenantId, token, "nonce-abc");
+                assertThat(result.isValid()).isTrue();
+                assertThat(result.getRespondentId()).isEqualTo("ext-user-1");
+        }
+
+        @Test
+        void shouldRejectExternalSsoTokenWhenNonceDoesNotMatch() throws Exception {
+                String secret = "external-sso-secret-nonce-2";
+                String tenantId = "tenant-external-nonce-fail-" + UUID.randomUUID();
+
+                authProfileService.create(AuthProfileRequest.builder()
+                                .tenantId(tenantId)
+                                .authMode(AuthenticationMode.EXTERNAL_SSO_TRUST)
+                                .issuer("https://issuer.example.com")
+                                .audience("survey-engine")
+                                .signingSecret(secret)
+                                .claimMappings(List.of(
+                                                AuthProfileRequest.ClaimMappingRequest.builder()
+                                                                .externalClaim("sub")
+                                                                .internalField("respondentId")
+                                                                .required(true)
+                                                                .build()))
+                                .build());
+
+                String token = createSignedToken(secret,
+                                "{\"sub\":\"ext-user-2\",\"iss\":\"https://issuer.example.com\",\"aud\":\"survey-engine\",\"nonce\":\"nonce-real\",\"exp\":%d}"
+                                                .formatted(Instant.now().plusSeconds(3600).getEpochSecond()));
+
+                TokenValidationResult result = tokenValidationService.validateToken(tenantId, token, "nonce-other");
+                assertThat(result.isValid()).isFalse();
+                assertThat(result.getErrorCode()).isEqualTo("AUTH_SSO_REQUIRED");
+        }
+
+        @Test
         void shouldRejectExpiredToken() throws Exception {
                 String secret = "test-secret-expired";
 
