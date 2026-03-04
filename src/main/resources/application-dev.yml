@@ -1,9 +1,9 @@
 spring:
   # --- PostgreSQL (dev) ---
   datasource:
-    url: jdbc:postgresql://localhost:5432/survey_engine_dev
-    username: survey_dev
-    password: survey_dev_pass
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/survey_engine_dev}
+    username: ${DATABASE_USERNAME:survey_dev}
+    password: ${DATABASE_PASSWORD:survey_dev_pass}
     driver-class-name: org.postgresql.Driver
 
   # --- JPA (dev) ---
@@ -16,15 +16,16 @@ spring:
   # --- Redis (dev) ---
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
   # --- RabbitMQ (dev) ---
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
   # --- H2 Console (dev) ---
   h2:

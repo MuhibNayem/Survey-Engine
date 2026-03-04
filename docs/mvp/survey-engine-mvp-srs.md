@@ -75,6 +75,23 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * Question and category version snapshots are generated on create/update.  
 * Category mappings reference versioned question snapshots.
 
+#### **4.3.1 Survey Question Option Configuration (`answerConfig`)**
+
+* Question bank payload (`/api/v1/questions`) defines only base metadata (`text`, `type`, `maxScore`).  
+* Per-question options and answer rules are configured at survey-question placement time via `answerConfig` on survey pages.  
+* `answerConfig` must be a JSON object.
+* Type-specific contract:
+  * `SINGLE_CHOICE`: `options` array defines allowed values (and optional per-option score).
+  * `MULTIPLE_CHOICE`: `options` array with optional `minSelections` / `maxSelections`.
+  * `RATING_SCALE`: numeric bounds via `min` / `max` and optional `step`.
+  * `RANK`: `options` array with optional ranking rule fields (e.g., `allowPartialRanking`, `correctOrder`).
+* Persistence:
+  * Draft/editable value stored in `survey_question.answer_config`.
+  * Published immutable copy stored in `survey_snapshot.snapshot_data`.
+* Runtime behavior:
+  * Response validation uses published snapshot `answerConfig`.
+  * In current MVP implementation, `options` are optional for `SINGLE_CHOICE` / `MULTIPLE_CHOICE`; if omitted, submitted values are not whitelisted against predefined options.
+
 ### **4.4 Survey Builder and Lifecycle**
 
 * Create, read, update, deactivate surveys with pages/questions.  

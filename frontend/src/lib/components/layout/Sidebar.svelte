@@ -11,8 +11,10 @@
         Settings,
         ChevronsLeft,
         ChevronsRight,
+        ShieldAlert,
     } from "lucide-svelte";
     import * as Tooltip from "$lib/components/ui/tooltip";
+    import { auth } from "$lib/stores/auth.svelte";
 
     interface Props {
         collapsed?: boolean;
@@ -29,6 +31,10 @@
         { href: "/responses", label: "Responses", icon: MessageSquareText },
         { href: "/scoring", label: "Scoring", icon: Calculator },
         { href: "/settings", label: "Settings", icon: Settings },
+    ];
+
+    const superAdminItems = [
+        { href: "/admin/plans", label: "System Plans", icon: ShieldAlert },
     ];
 
     function isActive(href: string): boolean {
@@ -100,6 +106,50 @@
                 </a>
             {/if}
         {/each}
+
+        {#if auth.user?.role === "SUPER_ADMIN"}
+            <div class="pt-4 pb-2 px-3">
+                <p
+                    class="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-widest {collapsed
+                        ? 'text-center'
+                        : ''}"
+                >
+                    {collapsed ? "SA" : "Super Admin"}
+                </p>
+            </div>
+            {#each superAdminItems as item}
+                {@const active = isActive(item.href)}
+                {#if collapsed}
+                    <Tooltip.Root>
+                        <Tooltip.Trigger>
+                            <a
+                                href={item.href}
+                                class="flex h-10 w-10 items-center justify-center rounded-lg transition-colors
+                                    {active
+                                    ? 'bg-destructive/10 text-destructive'
+                                    : 'text-destructive/70 hover:bg-destructive/10 hover:text-destructive'}"
+                            >
+                                <item.icon class="h-5 w-5" />
+                            </a>
+                        </Tooltip.Trigger>
+                        <Tooltip.Content side="right">
+                            {item.label}
+                        </Tooltip.Content>
+                    </Tooltip.Root>
+                {:else}
+                    <a
+                        href={item.href}
+                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
+                            {active
+                            ? 'bg-destructive/10 text-destructive'
+                            : 'text-destructive/70 hover:bg-destructive/10 hover:text-destructive'}"
+                    >
+                        <item.icon class="h-5 w-5 shrink-0" />
+                        <span>{item.label}</span>
+                    </a>
+                {/if}
+            {/each}
+        {/if}
     </nav>
 
     <!-- Collapse Toggle -->

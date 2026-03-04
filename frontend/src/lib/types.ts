@@ -304,3 +304,62 @@ export interface PlanDefinitionResponse {
     maxResponsesPerCampaign: number;
     maxAdminUsers: number;
 }
+
+// --- Tenant Auth Config ---
+export type AuthenticationMode = 'STRICT' | 'ALLOW_ANONYMOUS' | 'REQUIRE_INVITE';
+export type FallbackPolicy = 'BLOCK' | 'ALLOW_LOCAL' | 'FORCE_SSO';
+
+export interface ClaimMappingResponse {
+    id?: string;
+    externalClaim: string;
+    internalField: string;
+    required: boolean;
+}
+
+export interface AuthProfileResponse {
+    id: string;
+    tenantId: string;
+    authMode: AuthenticationMode;
+    issuer: string;
+    audience: string;
+    jwksEndpoint: string;
+    oidcDiscoveryUrl: string;
+    oidcClientId: string;
+    oidcRedirectUri: string;
+    oidcScopes: string;
+    clockSkewSeconds: number;
+    tokenTtlSeconds: number;
+    activeKeyVersion: number;
+    fallbackPolicy: FallbackPolicy;
+    claimMappings: ClaimMappingResponse[];
+}
+
+export interface ClaimMappingRequest {
+    externalClaim: string;
+    internalField: string;
+    required: boolean;
+}
+
+export interface AuthProfileRequest {
+    authMode: AuthenticationMode;
+    issuer?: string;
+    audience?: string;
+    jwksEndpoint?: string;
+    oidcDiscoveryUrl?: string;
+    oidcClientId?: string;
+    oidcClientSecret?: string;
+    oidcScopes?: string;
+    clockSkewSeconds?: number;
+    tokenTtlSeconds?: number;
+    fallbackPolicy: FallbackPolicy;
+    claimMappings: ClaimMappingRequest[];
+}
+
+export interface ProviderTemplateResponse {
+    providerCode: string;
+    displayName: string;
+    description: string;
+    defaultScopes: string[];
+    defaultClaimMappings: ClaimMappingRequest[];
+    requiredConfigFields: string[];
+}

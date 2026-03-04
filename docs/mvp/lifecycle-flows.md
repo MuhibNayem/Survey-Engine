@@ -232,6 +232,52 @@ Category -> Survey tag (how it is created):
 - Category mapping from category definitions is not auto-injected into survey pages.
 - You must explicitly place each question in survey pages, and explicitly set `categoryId` when needed.
 
+### `answerConfig` definition (question options/rules)
+
+`answerConfig` is configured at survey-question level (not in question bank create/update payload).
+
+1. Format:
+- Must be a JSON object.
+
+2. By question type:
+- `SINGLE_CHOICE`: use `options` array for allowed values.
+- `MULTIPLE_CHOICE`: use `options` array and optionally `minSelections`, `maxSelections`.
+- `RATING_SCALE`: use `min`, `max`, optionally `step`.
+- `RANK`: use `options`, optionally `allowPartialRanking`, `correctOrder`.
+
+3. Storage and publish behavior:
+- Stored in `survey_question.answer_config`.
+- Copied into immutable `survey_snapshot.snapshot_data` at publish.
+- Runtime response validation reads the published snapshot copy.
+
+4. MVP implementation note:
+- For `SINGLE_CHOICE` and `MULTIPLE_CHOICE`, `options` are currently optional in backend validation.
+- If `options` is omitted, backend does not whitelist submitted values for that question.
+
+Example survey question items with `answerConfig`:
+```json
+[
+  {
+    "questionId": "11111111-1111-1111-1111-111111111111",
+    "sortOrder": 1,
+    "mandatory": true,
+    "answerConfig": "{\"options\":[{\"value\":\"A\"},{\"value\":\"B\"}]}"
+  },
+  {
+    "questionId": "22222222-2222-2222-2222-222222222222",
+    "sortOrder": 2,
+    "mandatory": false,
+    "answerConfig": "{\"options\":[{\"value\":\"X\",\"score\":2},{\"value\":\"Y\",\"score\":1}],\"minSelections\":1,\"maxSelections\":2}"
+  },
+  {
+    "questionId": "33333333-3333-3333-3333-333333333333",
+    "sortOrder": 3,
+    "mandatory": true,
+    "answerConfig": "{\"min\":1,\"max\":5,\"step\":1}"
+  }
+]
+```
+
 Example survey payload:
 ```json
 {

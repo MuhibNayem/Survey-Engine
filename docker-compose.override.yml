@@ -1,0 +1,11 @@
+# ============================================================
+# Docker Compose Override — Dev Profile
+# ============================================================
+# This file is auto-merged by `docker compose up`.
+# It overrides the production profile to enable dev features
+# (e.g., DevDataSeeder for test admin user).
+
+services:
+  survey-engine:
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
