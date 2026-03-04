@@ -145,6 +145,25 @@
         return Array.isArray(existing) ? existing.map((v) => String(v)) : [];
     }
 
+    function isSingleSelected(questionId: string, option: string): boolean {
+        return answers[questionId] === option;
+    }
+
+    function setSingleChoice(questionId: string, option: string) {
+        answers[questionId] = option;
+    }
+
+    function isMultiSelected(questionId: string, option: string): boolean {
+        return getArrayAnswer(questionId).includes(option);
+    }
+
+    function toggleMultiChoice(questionId: string, option: string) {
+        const current = getArrayAnswer(questionId);
+        answers[questionId] = current.includes(option)
+            ? current.filter((v) => v !== option)
+            : [...current, option];
+    }
+
     function moveRankOption(question: PreviewQuestion, index: number, direction: -1 | 1) {
         const ordered = [...ensureRankOrder(question)];
         const newIndex = index + direction;
@@ -401,36 +420,65 @@
                                         {#if question.type === "SINGLE_CHOICE"}
                                             <div class="space-y-2">
                                                 {#each getOptions(question) as option}
-                                                    <label class="flex items-center gap-2 text-sm">
-                                                        <input
-                                                            type="radio"
-                                                            class="h-4 w-4"
-                                                            name={`single-${question.questionId}`}
-                                                            checked={answers[question.questionId] === option}
-                                                            oninput={() => (answers[question.questionId] = option)}
-                                                        />
-                                                        {option}
-                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        class={`group flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-all ${
+                                                            isSingleSelected(question.questionId, option)
+                                                                ? "border-sky-400 bg-sky-50 text-sky-900 shadow-sm"
+                                                                : "border-border bg-background text-foreground hover:border-sky-200 hover:bg-sky-50/40"
+                                                        }`}
+                                                        onclick={() =>
+                                                            setSingleChoice(
+                                                                question.questionId,
+                                                                option,
+                                                            )}
+                                                    >
+                                                        <span class="pr-3 font-medium">
+                                                            {option}
+                                                        </span>
+                                                        <span
+                                                            class={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                                                                isSingleSelected(question.questionId, option)
+                                                                    ? "border-sky-500 bg-sky-500"
+                                                                    : "border-slate-300 bg-white"
+                                                            }`}
+                                                        >
+                                                            {#if isSingleSelected(question.questionId, option)}
+                                                                <span class="h-2.5 w-2.5 rounded-full bg-white"></span>
+                                                            {/if}
+                                                        </span>
+                                                    </button>
                                                 {/each}
                                             </div>
                                         {:else if question.type === "MULTIPLE_CHOICE"}
                                             <div class="space-y-2">
                                                 {#each getOptions(question) as option}
-                                                    <label class="flex items-center gap-2 text-sm">
-                                                        <input
-                                                            type="checkbox"
-                                                            class="h-4 w-4"
-                                                            checked={getArrayAnswer(question.questionId).includes(option)}
-                                                            oninput={(e) => {
-                                                                const checked = (e.currentTarget as HTMLInputElement).checked;
-                                                                const current = getArrayAnswer(question.questionId);
-                                                                answers[question.questionId] = checked
-                                                                    ? [...current, option]
-                                                                    : current.filter((v) => v !== option);
-                                                            }}
-                                                        />
-                                                        {option}
-                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        class={`group flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-all ${
+                                                            isMultiSelected(question.questionId, option)
+                                                                ? "border-emerald-400 bg-emerald-50 text-emerald-900 shadow-sm"
+                                                                : "border-border bg-background text-foreground hover:border-emerald-200 hover:bg-emerald-50/40"
+                                                        }`}
+                                                        onclick={() =>
+                                                            toggleMultiChoice(
+                                                                question.questionId,
+                                                                option,
+                                                            )}
+                                                    >
+                                                        <span class="pr-3 font-medium">
+                                                            {option}
+                                                        </span>
+                                                        <span
+                                                            class={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs font-bold ${
+                                                                isMultiSelected(question.questionId, option)
+                                                                    ? "border-emerald-600 bg-emerald-600 text-white"
+                                                                    : "border-slate-300 bg-white text-transparent"
+                                                            }`}
+                                                        >
+                                                            ✓
+                                                        </span>
+                                                    </button>
                                                 {/each}
                                             </div>
                                         {:else if question.type === "RANK"}
@@ -464,16 +512,20 @@
                                         {:else}
                                             <div class="flex flex-wrap gap-2">
                                                 {#each getRatingValues(question) as value}
-                                                    <Button
+                                                    <button
                                                         type="button"
-                                                        size="sm"
-                                                        variant={answers[question.questionId] === value
-                                                            ? "default"
-                                                            : "outline"}
-                                                        onclick={() => (answers[question.questionId] = value)}
+                                                        class={`inline-flex h-9 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${
+                                                            answers[question.questionId] === value
+                                                                ? "border-indigo-500 bg-indigo-500 text-white"
+                                                                : "border-border bg-background text-foreground hover:border-indigo-300 hover:bg-indigo-50"
+                                                        }`}
+                                                        onclick={() =>
+                                                            (answers[
+                                                                question.questionId
+                                                            ] = value)}
                                                     >
                                                         {value}
-                                                    </Button>
+                                                    </button>
                                                 {/each}
                                             </div>
                                         {/if}
