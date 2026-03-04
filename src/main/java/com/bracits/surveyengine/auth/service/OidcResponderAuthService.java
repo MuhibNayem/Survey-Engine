@@ -17,8 +17,6 @@ import com.bracits.surveyengine.campaign.repository.CampaignRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -51,14 +48,11 @@ public class OidcResponderAuthService {
     private final OidcAuthStateRepository oidcAuthStateRepository;
     private final ResponderAccessCodeRepository responderAccessCodeRepository;
     private final TokenValidationService tokenValidationService;
+    private final AuthRemoteCacheService authRemoteCacheService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final SecureRandom secureRandom = new SecureRandom();
-    private final Cache<String, OidcMetadata> oidcMetadataCache = Caffeine.newBuilder()
-            .maximumSize(256)
-            .expireAfterWrite(Duration.ofHours(24))
-            .build();
 
     @Transactional
     public OidcStartResponse start(OidcStartRequest request, String baseUrl) {
@@ -145,7 +139,15 @@ public class OidcResponderAuthService {
         String redirectUri = resolveRedirectUri(profile, baseUrl);
 
         String codeVerifier = required(authState.getCodeVerifier(), "OIDC PKCE code_verifier missing");
-        String tokenResponse = exchangeToken(metadata.tokenEndpoint, profile, code, redirectUri, codeVerifier);
+        String tokenResponse;
+        try {
+            tokenResponse = exchangeToken(metadata.tokenEndpoint, profile, code, redirectUri, codeVerifier);
+        } catch (BusinessException ex) {
+            // Metadata can go stale if IdP rotates endpoints. Refresh once and retry.
+            evictMetadataCache(profile.getOidcDiscoveryUrl());
+            OidcMetadata refreshedMetadata = loadMetadata(profile);
+            tokenResponse = exchangeToken(refreshedMetadata.tokenEndpoint, profile, code, redirectUri, codeVerifier);
+        }
         Map<String, Object> tokenJson = parseJsonMap(tokenResponse);
         String idToken = asString(tokenJson.get("id_token"));
         if (idToken == null || idToken.isBlank()) {
@@ -225,23 +227,20 @@ public class OidcResponderAuthService {
     private OidcMetadata loadMetadata(AuthProfile profile) {
         try {
             String discoveryUrl = required(profile.getOidcDiscoveryUrl(), "OIDC discovery URL is required");
-            OidcMetadata cached = oidcMetadataCache.getIfPresent(discoveryUrl);
-            if (cached != null) {
-                return cached;
-            }
-            HttpRequest req = HttpRequest.newBuilder(URI.create(discoveryUrl)).GET().build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
-                throw new RuntimeException("OIDC discovery failed with status " + resp.statusCode());
-            }
-            Map<String, Object> json = parseJsonMap(resp.body());
+            String metadataJson = authRemoteCacheService.getOidcMetadataJson(discoveryUrl);
+            Map<String, Object> json = parseJsonMap(metadataJson);
             OidcMetadata metadata = new OidcMetadata(
                     required(asString(json.get("authorization_endpoint")), "authorization_endpoint missing"),
                     required(asString(json.get("token_endpoint")), "token_endpoint missing"));
-            oidcMetadataCache.put(discoveryUrl, metadata);
             return metadata;
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "Failed to load OIDC metadata: " + e.getMessage());
+        }
+    }
+
+    public void evictMetadataCache(String discoveryUrl) {
+        if (discoveryUrl != null && !discoveryUrl.isBlank()) {
+            authRemoteCacheService.evictOidcMetadata(discoveryUrl);
         }
     }
 

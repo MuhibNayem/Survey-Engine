@@ -29,4 +29,12 @@ public interface TokenValidationService {
     default TokenValidationResult validateToken(String tenantId, String token, String expectedNonce) {
         return validateToken(tenantId, token);
     }
+
+    /**
+     * Evicts a cached JWKS document for the given endpoint.
+     * Default no-op for implementations without endpoint caching.
+     */
+    default void evictJwksCache(String jwksEndpoint) {
+        // no-op by default
+    }
 }

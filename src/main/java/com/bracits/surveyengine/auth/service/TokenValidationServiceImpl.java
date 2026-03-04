@@ -10,8 +10,6 @@ import com.bracits.surveyengine.auth.repository.AuthProfileRepository;
 import com.bracits.surveyengine.auth.repository.AuthTokenReplayRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,17 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.RSAPublicKeySpec;
 import java.time.Instant;
-import java.time.Duration;
 import java.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -52,12 +45,8 @@ public class TokenValidationServiceImpl implements TokenValidationService {
 
     private final AuthProfileRepository authProfileRepository;
     private final AuthTokenReplayRepository authTokenReplayRepository;
+    private final AuthRemoteCacheService authRemoteCacheService;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final Cache<String, JwksKeySet> jwksCache = Caffeine.newBuilder()
-            .maximumSize(256)
-            .expireAfterWrite(Duration.ofMinutes(15))
-            .build();
 
     @Override
     @Transactional
@@ -86,6 +75,13 @@ public class TokenValidationServiceImpl implements TokenValidationService {
         } catch (Exception e) {
             log.warn("Token validation failed for tenant {}: {}", tenantId, e.getMessage());
             return handleFallback(profile, e.getMessage());
+        }
+    }
+
+    @Override
+    public void evictJwksCache(String jwksEndpoint) {
+        if (jwksEndpoint != null && !jwksEndpoint.isBlank()) {
+            authRemoteCacheService.evictJwks(jwksEndpoint);
         }
     }
 
@@ -411,7 +407,7 @@ public class TokenValidationServiceImpl implements TokenValidationService {
             PublicKey publicKey = jwks.resolvePublicKey(kid);
             if (publicKey == null) {
                 // Key rotation fallback: refresh JWKS once and retry.
-                jwksCache.invalidate(jwksEndpoint);
+                authRemoteCacheService.evictJwks(jwksEndpoint);
                 JwksKeySet refreshed = getOrLoadJwks(jwksEndpoint);
                 publicKey = refreshed.resolvePublicKey(kid);
             }
@@ -419,10 +415,15 @@ public class TokenValidationServiceImpl implements TokenValidationService {
                 throw new RuntimeException("No matching JWK found for kid");
             }
 
-            Signature verifier = Signature.getInstance("SHA256withRSA");
-            verifier.initVerify(publicKey);
-            verifier.update(signingInput.getBytes(StandardCharsets.UTF_8));
-            if (!verifier.verify(signature)) {
+            if (verifyRsa(signingInput, signature, publicKey)) {
+                return;
+            }
+
+            // Some providers rotate key material before kid changes; force-refresh once.
+            authRemoteCacheService.evictJwks(jwksEndpoint);
+            JwksKeySet refreshed = getOrLoadJwks(jwksEndpoint);
+            PublicKey refreshedKey = refreshed.resolvePublicKey(kid);
+            if (refreshedKey == null || !verifyRsa(signingInput, signature, refreshedKey)) {
                 throw new RuntimeException("External token RSA signature verification failed");
             }
         } catch (BusinessException ex) {
@@ -432,28 +433,25 @@ public class TokenValidationServiceImpl implements TokenValidationService {
         }
     }
 
+    private boolean verifyRsa(String signingInput, byte[] signature, PublicKey publicKey) throws Exception {
+        Signature verifier = Signature.getInstance("SHA256withRSA");
+        verifier.initVerify(publicKey);
+        verifier.update(signingInput.getBytes(StandardCharsets.UTF_8));
+        return verifier.verify(signature);
+    }
+
     private record MappedIdentity(String respondentId, String email, Map<String, String> claims) {
     }
 
     private JwksKeySet getOrLoadJwks(String jwksEndpoint) {
-        JwksKeySet cached = jwksCache.getIfPresent(jwksEndpoint);
-        if (cached != null) {
-            return cached;
-        }
-        JwksKeySet loaded = fetchJwks(jwksEndpoint);
-        jwksCache.put(jwksEndpoint, loaded);
-        return loaded;
+        String jwksJson = authRemoteCacheService.getJwksJson(jwksEndpoint);
+        return parseJwks(jwksJson);
     }
 
     @SuppressWarnings("unchecked")
-    private JwksKeySet fetchJwks(String jwksEndpoint) {
+    private JwksKeySet parseJwks(String jwksJsonString) {
         try {
-            HttpRequest req = HttpRequest.newBuilder(URI.create(jwksEndpoint)).GET().build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
-                throw new RuntimeException("JWKS fetch failed with status " + resp.statusCode());
-            }
-            Map<String, Object> jwksJson = parseJsonMap(resp.body());
+            Map<String, Object> jwksJson = parseJsonMap(jwksJsonString);
             Object keysObj = jwksJson.get("keys");
             if (!(keysObj instanceof List<?> keys) || keys.isEmpty()) {
                 throw new RuntimeException("No keys found in JWKS");
@@ -492,7 +490,7 @@ public class TokenValidationServiceImpl implements TokenValidationService {
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch JWKS: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to parse JWKS: " + e.getMessage(), e);
         }
     }
 

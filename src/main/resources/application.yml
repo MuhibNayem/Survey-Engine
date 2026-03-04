@@ -2,6 +2,12 @@ spring:
   application:
     name: Survey-Engine
 
+  cache:
+    type: redis
+    redis:
+      cache-null-values: false
+      use-key-prefix: true
+
   # --- JPA ---
   jpa:
     open-in-view: false
@@ -49,3 +55,13 @@ springdoc:
     url: /openapi.yaml
     display-request-duration: true
     doc-expansion: none
+
+survey-engine:
+  auth:
+    cache:
+      oidc-metadata:
+        ttl: ${SURVEY_ENGINE_AUTH_CACHE_OIDC_METADATA_TTL:24h}
+        key-prefix: ${SURVEY_ENGINE_AUTH_CACHE_OIDC_METADATA_KEY_PREFIX:survey-engine:auth-cache:oidc-metadata}
+      jwks:
+        ttl: ${SURVEY_ENGINE_AUTH_CACHE_JWKS_TTL:15m}
+        key-prefix: ${SURVEY_ENGINE_AUTH_CACHE_JWKS_KEY_PREFIX:survey-engine:auth-cache:jwks}

@@ -38,6 +38,8 @@ public class AuthProfileServiceImpl implements AuthProfileService {
     private final AuthConfigAuditRepository auditRepository;
     private final TenantService tenantService;
     private final AuthProviderTemplateService authProviderTemplateService;
+    private final TokenValidationService tokenValidationService;
+    private final OidcResponderAuthService oidcResponderAuthService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String DEFAULT_OIDC_SCOPES = "openid email profile";
@@ -87,6 +89,8 @@ public class AuthProfileServiceImpl implements AuthProfileService {
     public AuthProfileResponse update(UUID id, AuthProfileRequest request) {
         AuthProfile profile = findOrThrow(id);
         String before = snapshot(profile);
+        String beforeJwksEndpoint = profile.getJwksEndpoint();
+        String beforeDiscoveryUrl = profile.getOidcDiscoveryUrl();
         List<AuthProfileRequest.ClaimMappingRequest> claimMappings = request.getClaimMappings() != null
                 ? sanitizeAndValidateMappings(request.getClaimMappings())
                 : null;
@@ -125,6 +129,12 @@ public class AuthProfileServiceImpl implements AuthProfileService {
         }
 
         profile = authProfileRepository.save(profile);
+
+        invalidateAuthCaches(
+                beforeJwksEndpoint,
+                profile.getJwksEndpoint(),
+                beforeDiscoveryUrl,
+                profile.getOidcDiscoveryUrl());
 
         String after = snapshot(profile);
         logAudit(profile.getId(), "UPDATE", before, after);
@@ -266,6 +276,18 @@ public class AuthProfileServiceImpl implements AuthProfileService {
                     .required(cm.isRequired())
                     .build());
         }
+    }
+
+    private void invalidateAuthCaches(
+            String beforeJwksEndpoint,
+            String afterJwksEndpoint,
+            String beforeDiscoveryUrl,
+            String afterDiscoveryUrl) {
+        // Evict both before/after keys so updates apply immediately even when endpoint values stay unchanged.
+        tokenValidationService.evictJwksCache(beforeJwksEndpoint);
+        tokenValidationService.evictJwksCache(afterJwksEndpoint);
+        oidcResponderAuthService.evictMetadataCache(beforeDiscoveryUrl);
+        oidcResponderAuthService.evictMetadataCache(afterDiscoveryUrl);
     }
 
     private String normalizeOidcScopes(String rawScopes) {
