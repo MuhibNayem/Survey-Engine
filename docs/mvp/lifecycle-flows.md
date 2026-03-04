@@ -27,7 +27,8 @@ This is intentionally operational and sequence-driven for product, onboarding, a
 9. Response Lifecycle Flow
 10. Scoring Lifecycle Flow
 11. End-to-End Recommended Build Order
-12. Out-of-MVP Lifecycle Items
+12. Explicit Tagging Chain (Question -> Category -> Survey -> Campaign)
+13. Out-of-MVP Lifecycle Items
 
 ---
 
@@ -110,7 +111,7 @@ Create reusable building blocks before survey design.
 
 1. Create question (`POST /api/v1/questions`).
 - Why: Categories and surveys depend on question definitions.
-- How: Send question text/type/score config.
+- How: Send only `text`, `type`, and `maxScore`.
 - Result: Question created and versioned.
 
 2. List and review active questions (`GET /api/v1/questions`, `GET /api/v1/questions/{id}`).
@@ -137,6 +138,38 @@ Create reusable building blocks before survey design.
 - Why: Keep active catalog clean without deleting historical context.
 - How: Soft deactivate.
 - Result: No longer appears as active, audit/history integrity remains.
+
+### Exact tagging instructions in this flow
+
+Question -> Category tag (how it is created):
+1. Create question first (`POST /api/v1/questions`).
+2. Create category with `questionMappings` (`POST /api/v1/categories`).
+3. For each mapping item, provide:
+- `questionId` (required)
+- `sortOrder` (required)
+- `weight` (optional)
+4. System behavior:
+- Backend resolves and stores current `questionVersionId` automatically for each mapped `questionId`.
+
+Example category payload:
+```json
+{
+  "name": "Teaching Quality",
+  "description": "Questions about instructor quality",
+  "questionMappings": [
+    {
+      "questionId": "11111111-1111-1111-1111-111111111111",
+      "sortOrder": 1,
+      "weight": 40.0
+    },
+    {
+      "questionId": "22222222-2222-2222-2222-222222222222",
+      "sortOrder": 2,
+      "weight": 60.0
+    }
+  ]
+}
+```
 
 ---
 
@@ -183,6 +216,49 @@ Move survey from draft to publish-ready state, then through closure states.
 - Why: Operational clarity (closed/results/archive) and governance.
 - How: Use lifecycle transition endpoint.
 - Result: Predictable survey state management.
+
+### Exact tagging instructions in this flow
+
+Category -> Survey tag (how it is created):
+1. While building survey pages/questions, provide `categoryId` on each survey question item.
+2. Required/optional fields per survey question item:
+- `questionId` (required)
+- `sortOrder` (required)
+- `categoryId` (optional but required if you want category tagging in survey)
+- `mandatory` (optional)
+- `answerConfig` (optional)
+3. System behavior:
+- Backend resolves and stores current `questionVersionId` automatically from `questionId`.
+- Category mapping from category definitions is not auto-injected into survey pages.
+- You must explicitly place each question in survey pages, and explicitly set `categoryId` when needed.
+
+Example survey payload:
+```json
+{
+  "title": "Midterm Course Evaluation",
+  "description": "Student feedback survey",
+  "pages": [
+    {
+      "title": "Section A",
+      "sortOrder": 1,
+      "questions": [
+        {
+          "questionId": "11111111-1111-1111-1111-111111111111",
+          "categoryId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "sortOrder": 1,
+          "mandatory": true
+        },
+        {
+          "questionId": "22222222-2222-2222-2222-222222222222",
+          "categoryId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          "sortOrder": 2,
+          "mandatory": false
+        }
+      ]
+    }
+  ]
+}
+```
 
 ---
 
@@ -234,6 +310,31 @@ Create a live delivery instance from a published survey and control runtime beha
 - Why: Retire campaign without hard deleting history.
 - How: Soft deactivation.
 - Result: Campaign removed from active operations.
+
+### Exact tagging instructions in this flow
+
+Survey -> Campaign tag (how it is created):
+1. Create campaign with `surveyId` (`POST /api/v1/campaigns`).
+2. Required/optional fields:
+- `name` (required)
+- `surveyId` (required)
+- `description` (optional)
+- `authMode` (`PUBLIC` or `PRIVATE`, optional; defaults as per backend logic)
+3. Activate campaign (`POST /api/v1/campaigns/{id}/activate`).
+4. System behavior during activation:
+- Backend verifies survey is in `PUBLISHED` state.
+- Backend links campaign to latest survey snapshot (`surveySnapshotId`) automatically.
+- Campaign then accepts responses only when active.
+
+Example campaign payload:
+```json
+{
+  "name": "Spring 2026 CS101 Campaign",
+  "description": "Main collection window",
+  "surveyId": "33333333-3333-3333-3333-333333333333",
+  "authMode": "PRIVATE"
+}
+```
 
 ---
 
@@ -400,7 +501,13 @@ Collect responses with proper runtime checks, auth checks, and post-submit integ
 
 3. Runtime settings checks.
 - Why: Enforce campaign controls.
-- How: Validate quotas, restrictions, dates/timeouts, and configured constraints.
+- How: Validate exactly these submit-time checks:
+- `responseQuota`
+- `closeDate`
+- `oneResponsePerDevice` (device fingerprint dedup)
+- `ipRestrictionEnabled` (IP dedup)
+- `emailRestrictionEnabled` (respondent identifier dedup)
+- Note: `sessionTimeoutMinutes`, `captchaEnabled`, and presentation settings are configuration fields but are not submit-time blockers in current MVP response service.
 - Result: Only policy-compliant responses proceed.
 
 4. Persist response and answers.
@@ -504,7 +611,56 @@ If a new tenant asks “what should we configure first,” use this order:
 
 ---
 
-## 12. Out-of-MVP Lifecycle Items
+## 12. Explicit Tagging Chain (Question -> Category -> Survey -> Campaign)
+
+This section is the canonical no-ambiguity chain for entity tagging.
+
+### A. Question -> Category
+
+1. Create question (`POST /api/v1/questions`) to get `questionId`.
+2. Create/update category (`POST/PUT /api/v1/categories`) with `questionMappings[*].questionId`.
+3. Backend stores:
+- `category_question_mapping.question_id`
+- `category_question_mapping.question_version_id` (auto-resolved latest version)
+4. Important rule:
+- Category holds mappings, but this does not automatically place questions into survey pages.
+
+### B. Category -> Survey
+
+1. Create/update survey (`POST/PUT /api/v1/surveys`) with page question entries.
+2. To tag a survey question to a category, set `categoryId` in each survey question item.
+3. Backend stores:
+- `survey_question.question_id`
+- `survey_question.question_version_id` (auto-resolved latest version)
+- `survey_question.category_id` (your explicit tag)
+4. Important rule:
+- Category tagging in survey is explicit per survey question item.
+
+### C. Survey -> Campaign
+
+1. Create campaign (`POST /api/v1/campaigns`) with `surveyId`.
+2. Activate campaign (`POST /api/v1/campaigns/{id}/activate`).
+3. Backend stores:
+- `campaign.survey_id` at create time.
+- `campaign.survey_snapshot_id` at activation from latest published survey snapshot.
+4. Important rule:
+- Campaign is the runtime delivery object for one survey context.
+
+### D. Runtime response linkage (for completeness)
+
+1. Response submit uses `campaignId` (`POST /api/v1/responses`).
+2. Backend derives survey snapshot from campaign and validates submitted answers against that snapshot.
+3. Backend stores answer links:
+- `answer.question_id`
+- `answer.question_version_id`
+4. Integrity guarantees:
+- Question must exist in campaign snapshot.
+- Question version must match snapshot.
+- Duplicate answers for same question in one response are rejected.
+
+---
+
+## 13. Out-of-MVP Lifecycle Items
 
 The following flows exist in broader documentation but are not part of implemented MVP lifecycle scope:
 

@@ -2,9 +2,11 @@ package com.bracits.surveyengine.admin.filter;
 
 import com.bracits.surveyengine.admin.context.TenantContext;
 import com.bracits.surveyengine.admin.service.JwtService;
+import com.bracits.surveyengine.admin.util.CookieUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -16,13 +18,20 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
 /**
  * JWT authentication filter for engine-owned admin tokens.
- * Extracts Bearer token, validates via {@link JwtService},
- * populates SecurityContext and {@link TenantContext}.
+ * <p>
+ * Extracts the access token from:
+ * <ol>
+ * <li>{@code access_token} HttpOnly cookie (primary — cookie-based auth)</li>
+ * <li>{@code Authorization: Bearer ...} header (fallback — API clients)</li>
+ * </ol>
+ * Validates via {@link JwtService}, populates SecurityContext and
+ * {@link TenantContext}.
  */
 @Component
 @RequiredArgsConstructor
@@ -37,10 +46,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
         try {
-            String header = request.getHeader("Authorization");
+            String token = extractToken(request);
 
-            if (header != null && header.startsWith("Bearer ")) {
-                String token = header.substring(7);
+            if (token != null) {
                 try {
                     Claims claims = jwtService.parseToken(token);
 
@@ -72,5 +80,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    /**
+     * Extracts access token: cookie first, then Authorization header.
+     */
+    private String extractToken(HttpServletRequest request) {
+        // 1. Try HttpOnly cookie
+        if (request.getCookies() != null) {
+            String cookieToken = Arrays.stream(request.getCookies())
+                    .filter(c -> CookieUtil.ACCESS_TOKEN_COOKIE.equals(c.getName()))
+                    .map(Cookie::getValue)
+                    .findFirst()
+                    .orElse(null);
+            if (cookieToken != null && !cookieToken.isBlank()) {
+                return cookieToken;
+            }
+        }
+
+        // 2. Fallback to Authorization header (for API clients like Postman)
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+
+        return null;
     }
 }

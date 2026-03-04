@@ -43,12 +43,16 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
-                                                // Public — admin registration & login
+                                                // Authenticated — /me returns current user info (must be before
+                                                // wildcard)
+                                                .requestMatchers("/api/v1/admin/auth/me").authenticated()
+                                                // Public — admin registration, login, logout, refresh
                                                 .requestMatchers("/api/v1/admin/auth/**").permitAll()
                                                 .requestMatchers("/api/v1/admin/subscriptions/**").authenticated()
                                                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
                                                 .requestMatchers("/v3/api-docs/**").permitAll()
-                                                .requestMatchers("/openapi.yaml", "/openapi.yml", "/openapi.ymal").permitAll()
+                                                .requestMatchers("/openapi.yaml", "/openapi.yml", "/openapi.ymal")
+                                                .permitAll()
                                                 // Public — health checks
                                                 .requestMatchers("/actuator/**").permitAll()
                                                 .requestMatchers(HttpMethod.PUT, "/api/v1/admin/plans/**")

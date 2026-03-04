@@ -198,12 +198,256 @@ class ResponseIntegrationTest {
     }
 
     @Test
-    void shouldRejectPrivateCampaignSubmissionWithoutToken() {
-        String tenantId = "tenant-private-no-token-" + UUID.randomUUID();
-        UUID privateCampaignId = createActivePrivateCampaign(tenantId);
+    void shouldRejectAnswerForQuestionNotInCampaignSnapshot() {
+        QuestionResponse externalQuestion = questionService.create(QuestionRequest.builder()
+                .text("External question")
+                .type(QuestionType.RATING_SCALE)
+                .maxScore(new BigDecimal("10.00"))
+                .build());
 
         assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
-                .campaignId(privateCampaignId)
+                .campaignId(activeCampaignId)
+                .respondentIdentifier("foreign-question@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(externalQuestion.getId())
+                        .value("8")
+                        .build()))
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("not part of the campaign survey");
+    }
+
+    @Test
+    void shouldRejectWhenMandatoryAnswerMissing() {
+        assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(activeCampaignId)
+                .respondentIdentifier("missing-mandatory@example.com")
+                .answers(List.of())
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing mandatory answers");
+    }
+
+    @Test
+    void shouldRejectRatingScaleAnswerOutsideConfiguredRange() {
+        QuestionResponse ratingQuestion = questionService.create(QuestionRequest.builder()
+                .text("Rate from 1 to 5")
+                .type(QuestionType.RATING_SCALE)
+                .maxScore(new BigDecimal("10.00"))
+                .build());
+        UUID campaignId = createActivePublicCampaignWithSingleQuestion(
+                ratingQuestion.getId(),
+                true,
+                "{\"min\":1,\"max\":5,\"step\":1}");
+
+        assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(campaignId)
+                .respondentIdentifier("out-of-range@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(ratingQuestion.getId())
+                        .value("7")
+                        .build()))
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("out of range");
+    }
+
+    @Test
+    void shouldComputeScoreServerSideAndIgnoreClientScoreForRatingScale() {
+        QuestionResponse ratingQuestion = questionService.create(QuestionRequest.builder()
+                .text("Server score")
+                .type(QuestionType.RATING_SCALE)
+                .maxScore(new BigDecimal("10.00"))
+                .build());
+        UUID campaignId = createActivePublicCampaignWithSingleQuestion(
+                ratingQuestion.getId(),
+                true,
+                "{\"min\":1,\"max\":5,\"step\":1}");
+
+        SurveyResponseResponse response = responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(campaignId)
+                .respondentIdentifier("score-calc@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(ratingQuestion.getId())
+                        .value("5")
+                        .score(new BigDecimal("0.01"))
+                        .build()))
+                .build());
+
+        assertThat(response.getAnswers()).hasSize(1);
+        assertThat(response.getAnswers().get(0).getScore()).isEqualByComparingTo(new BigDecimal("10.00"));
+    }
+
+    @Test
+    void shouldRejectDuplicateAnswersForSameQuestion() {
+        assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(activeCampaignId)
+                .respondentIdentifier("duplicate-answer@example.com")
+                .answers(List.of(
+                        ResponseSubmissionRequest.AnswerRequest.builder()
+                                .questionId(questionId)
+                                .value("8")
+                                .build(),
+                        ResponseSubmissionRequest.AnswerRequest.builder()
+                                .questionId(questionId)
+                                .value("9")
+                                .build()))
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Duplicate answer submitted");
+    }
+
+    @Test
+    void shouldRejectWhenQuestionVersionIdDoesNotMatchSnapshot() {
+        assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(activeCampaignId)
+                .respondentIdentifier("version-mismatch@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(questionId)
+                        .questionVersionId(UUID.randomUUID())
+                        .value("8")
+                        .build()))
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("questionVersionId mismatch");
+    }
+
+    @Test
+    void shouldComputeScoreServerSideForSingleChoice() {
+        QuestionResponse singleChoiceQuestion = questionService.create(QuestionRequest.builder()
+                .text("Single choice score")
+                .type(QuestionType.SINGLE_CHOICE)
+                .maxScore(new BigDecimal("5.00"))
+                .build());
+        UUID campaignId = createActivePublicCampaignWithSingleQuestion(
+                singleChoiceQuestion.getId(),
+                true,
+                "{\"options\":[{\"value\":\"A\",\"score\":5},{\"value\":\"B\",\"score\":2}]}");
+
+        SurveyResponseResponse response = responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(campaignId)
+                .respondentIdentifier("single-choice@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(singleChoiceQuestion.getId())
+                        .value("A")
+                        .score(new BigDecimal("0.01"))
+                        .build()))
+                .build());
+
+        assertThat(response.getAnswers()).hasSize(1);
+        assertThat(response.getAnswers().get(0).getScore()).isEqualByComparingTo(new BigDecimal("5.00"));
+        assertThat(response.getAnswers().get(0).getValue()).isEqualTo("A");
+    }
+
+    @Test
+    void shouldRejectSingleChoiceWhenOptionNotConfigured() {
+        QuestionResponse singleChoiceQuestion = questionService.create(QuestionRequest.builder()
+                .text("Single choice strict option")
+                .type(QuestionType.SINGLE_CHOICE)
+                .maxScore(new BigDecimal("5.00"))
+                .build());
+        UUID campaignId = createActivePublicCampaignWithSingleQuestion(
+                singleChoiceQuestion.getId(),
+                true,
+                "{\"options\":[\"A\",\"B\"]}");
+
+        assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(campaignId)
+                .respondentIdentifier("single-choice-invalid@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(singleChoiceQuestion.getId())
+                        .value("C")
+                        .build()))
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("one configured option");
+    }
+
+    @Test
+    void shouldComputeAndCapScoreForMultipleChoice() {
+        QuestionResponse multipleChoiceQuestion = questionService.create(QuestionRequest.builder()
+                .text("Multiple choice score")
+                .type(QuestionType.MULTIPLE_CHOICE)
+                .maxScore(new BigDecimal("10.00"))
+                .build());
+        UUID campaignId = createActivePublicCampaignWithSingleQuestion(
+                multipleChoiceQuestion.getId(),
+                true,
+                "{\"options\":[{\"value\":\"x\",\"score\":7},{\"value\":\"y\",\"score\":6},{\"value\":\"z\",\"score\":1}],\"minSelections\":1,\"maxSelections\":3}");
+
+        SurveyResponseResponse response = responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(campaignId)
+                .respondentIdentifier("multiple-choice@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(multipleChoiceQuestion.getId())
+                        .value("[\"x\",\"y\"]")
+                        .score(new BigDecimal("0.01"))
+                        .build()))
+                .build());
+
+        assertThat(response.getAnswers()).hasSize(1);
+        assertThat(response.getAnswers().get(0).getScore()).isEqualByComparingTo(new BigDecimal("10.00"));
+        assertThat(response.getAnswers().get(0).getValue()).isEqualTo("[\"x\",\"y\"]");
+    }
+
+    @Test
+    void shouldRejectMultipleChoiceWithDuplicateSelections() {
+        QuestionResponse multipleChoiceQuestion = questionService.create(QuestionRequest.builder()
+                .text("Multiple choice duplicate")
+                .type(QuestionType.MULTIPLE_CHOICE)
+                .maxScore(new BigDecimal("10.00"))
+                .build());
+        UUID campaignId = createActivePublicCampaignWithSingleQuestion(
+                multipleChoiceQuestion.getId(),
+                true,
+                "{\"options\":[\"x\",\"y\",\"z\"],\"minSelections\":1,\"maxSelections\":3}");
+
+        assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(campaignId)
+                .respondentIdentifier("multiple-choice-duplicate@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(multipleChoiceQuestion.getId())
+                        .value("[\"x\",\"x\"]")
+                        .build()))
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("duplicate values");
+    }
+
+    @Test
+    void shouldComputeRankScoreUsingCorrectOrder() {
+        QuestionResponse rankQuestion = questionService.create(QuestionRequest.builder()
+                .text("Rank correct order")
+                .type(QuestionType.RANK)
+                .maxScore(new BigDecimal("10.00"))
+                .build());
+        UUID campaignId = createActivePublicCampaignWithSingleQuestion(
+                rankQuestion.getId(),
+                true,
+                "{\"options\":[\"a\",\"b\",\"c\"],\"correctOrder\":[\"a\",\"b\",\"c\"]}");
+
+        SurveyResponseResponse response = responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(campaignId)
+                .respondentIdentifier("rank@example.com")
+                .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
+                        .questionId(rankQuestion.getId())
+                        .value("[\"a\",\"c\",\"b\"]")
+                        .score(new BigDecimal("10.00"))
+                        .build()))
+                .build());
+
+        assertThat(response.getAnswers()).hasSize(1);
+        assertThat(response.getAnswers().get(0).getScore()).isEqualByComparingTo(new BigDecimal("3.33"));
+        assertThat(response.getAnswers().get(0).getValue()).isEqualTo("[\"a\",\"c\",\"b\"]");
+    }
+
+    @Test
+    void shouldRejectPrivateCampaignSubmissionWithoutToken() {
+        String tenantId = "tenant-private-no-token-" + UUID.randomUUID();
+        CampaignQuestion privateCampaign = createActivePrivateCampaign(tenantId);
+
+        assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
+                .campaignId(privateCampaign.campaignId())
                 .respondentIdentifier("private-user@example.com")
                 .answers(List.of())
                 .build()))
@@ -214,7 +458,7 @@ class ResponseIntegrationTest {
     @Test
     void shouldRejectPrivateCampaignSubmissionWithInvalidToken() {
         String tenantId = "tenant-private-invalid-token-" + UUID.randomUUID();
-        UUID privateCampaignId = createActivePrivateCampaign(tenantId);
+        CampaignQuestion privateCampaign = createActivePrivateCampaign(tenantId);
         authProfileService.create(AuthProfileRequest.builder()
                 .tenantId(tenantId)
                 .authMode(AuthenticationMode.SIGNED_LAUNCH_TOKEN)
@@ -222,7 +466,7 @@ class ResponseIntegrationTest {
                 .build());
 
         assertThatThrownBy(() -> responseService.submit(ResponseSubmissionRequest.builder()
-                .campaignId(privateCampaignId)
+                .campaignId(privateCampaign.campaignId())
                 .respondentIdentifier("private-user@example.com")
                 .responderToken("bad.token")
                 .answers(List.of())
@@ -235,7 +479,7 @@ class ResponseIntegrationTest {
     void shouldAcceptPrivateCampaignSubmissionWithValidToken() throws Exception {
         String tenantId = "tenant-private-valid-token-" + UUID.randomUUID();
         String secret = "private-valid-secret-123456789";
-        UUID privateCampaignId = createActivePrivateCampaign(tenantId);
+        CampaignQuestion privateCampaign = createActivePrivateCampaign(tenantId);
         authProfileService.create(AuthProfileRequest.builder()
                 .tenantId(tenantId)
                 .authMode(AuthenticationMode.SIGNED_LAUNCH_TOKEN)
@@ -261,10 +505,10 @@ class ResponseIntegrationTest {
         String token = createSignedToken(secret, payload);
 
         SurveyResponseResponse response = responseService.submit(ResponseSubmissionRequest.builder()
-                .campaignId(privateCampaignId)
+                .campaignId(privateCampaign.campaignId())
                 .responderToken(token)
                 .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
-                        .questionId(questionId)
+                        .questionId(privateCampaign.questionId())
                         .value("9")
                         .score(new BigDecimal("9.00"))
                         .build()))
@@ -277,13 +521,13 @@ class ResponseIntegrationTest {
     @Test
     void shouldAcceptPrivateCampaignSubmissionWithAccessCode() {
         String tenantId = "tenant-private-access-code-" + UUID.randomUUID();
-        UUID privateCampaignId = createActivePrivateCampaign(tenantId);
+        CampaignQuestion privateCampaign = createActivePrivateCampaign(tenantId);
         String accessCode = "ac-" + UUID.randomUUID().toString().replace("-", "");
 
         responderAccessCodeRepository.save(ResponderAccessCode.builder()
                 .accessCode(accessCode)
                 .tenantId(tenantId)
-                .campaignId(privateCampaignId)
+                .campaignId(privateCampaign.campaignId())
                 .respondentId("responder-access-1")
                 .email("private-access@example.com")
                 .expiresAt(Instant.now().plusSeconds(300))
@@ -291,10 +535,10 @@ class ResponseIntegrationTest {
                 .build());
 
         SurveyResponseResponse response = responseService.submit(ResponseSubmissionRequest.builder()
-                .campaignId(privateCampaignId)
+                .campaignId(privateCampaign.campaignId())
                 .responderAccessCode(accessCode)
                 .answers(List.of(ResponseSubmissionRequest.AnswerRequest.builder()
-                        .questionId(questionId)
+                        .questionId(privateCampaign.questionId())
                         .value("10")
                         .score(new BigDecimal("10.00"))
                         .build()))
@@ -317,7 +561,7 @@ class ResponseIntegrationTest {
                 .build());
     }
 
-    private UUID createActivePrivateCampaign(String tenantId) {
+    private CampaignQuestion createActivePrivateCampaign(String tenantId) {
         TenantContext.set(new TenantContext.TenantInfo(
                 tenantId,
                 "admin-user",
@@ -346,10 +590,35 @@ class ResponseIntegrationTest {
                     .surveyId(tenantSurvey.getId())
                     .authMode(AuthMode.PRIVATE)
                     .build());
-            return campaignService.activate(campaign.getId()).getId();
+            UUID campaignId = campaignService.activate(campaign.getId()).getId();
+            return new CampaignQuestion(campaignId, tenantQuestion.getId());
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private UUID createActivePublicCampaignWithSingleQuestion(UUID questionId, boolean mandatory, String answerConfig) {
+        SurveyResponse survey = surveyService.create(SurveyRequest.builder()
+                .title("Public validation campaign")
+                .pages(List.of(SurveyPageRequest.builder()
+                        .title("Page 1").sortOrder(1)
+                        .questions(List.of(SurveyQuestionRequest.builder()
+                                .questionId(questionId)
+                                .sortOrder(1)
+                                .mandatory(mandatory)
+                                .answerConfig(answerConfig)
+                                .build()))
+                        .build()))
+                .build());
+        surveyService.transitionLifecycle(survey.getId(),
+                LifecycleTransitionRequest.builder().targetState("PUBLISHED").build());
+
+        CampaignResponse campaign = campaignService.create(CampaignRequest.builder()
+                .name("Public Validation Campaign " + UUID.randomUUID())
+                .surveyId(survey.getId())
+                .authMode(AuthMode.PUBLIC)
+                .build());
+        return campaignService.activate(campaign.getId()).getId();
     }
 
     private String createSignedToken(String secret, String payloadJson) throws Exception {
@@ -364,5 +633,8 @@ class ResponseIntegrationTest {
         String signature = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(mac.doFinal(signingInput.getBytes(StandardCharsets.UTF_8)));
         return signingInput + "." + signature;
+    }
+
+    private record CampaignQuestion(UUID campaignId, UUID questionId) {
     }
 }

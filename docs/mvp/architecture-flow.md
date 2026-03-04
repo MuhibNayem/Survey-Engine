@@ -141,9 +141,9 @@ Tenant Admin      Admin Auth Svc      Tenant Svc      Subscription Svc
     |------------------>|                |                 |
 2. Ensure tenant exists |--------------->|                 |
 3. Ensure trial exists  |--------------------------------->|
-4. Issue access+refresh token                                
+4. Issue access+refresh tokens as HttpOnly cookies            
     |<------------------|                |                 |
-5. Access admin APIs with bearer token                       
+5. Access admin APIs (cookies sent automatically)            
 ```
 
 ### 3.3 Mermaid Sequence
@@ -158,8 +158,8 @@ sequenceDiagram
   TA->>AA: Register (name,email,password,tenantId)
   AA->>TS: ensureProvisioned(tenantId)
   AA->>SS: ensureTrial(tenantId)
-  AA-->>TA: accessToken + refreshToken
-  TA->>AA: Use token for admin API access
+  AA-->>TA: Set-Cookie: access_token + refresh_token (HttpOnly)
+  TA->>AA: Use cookies for admin API access
 ```
 
 ---
@@ -198,7 +198,7 @@ Authentication is engine-issued JWT. Tenant context is derived from JWT claims.
 ### 4.3 Mermaid Flowchart
 ```mermaid
 flowchart TD
-  A[Admin Request] --> B{Bearer token present?}
+  A[Admin Request] --> B{"access_token cookie or Bearer header present?"}
   B -->|No| X1[401 Unauthorized]
   B -->|Yes| C[Parse JWT claims]
   C --> D[Set tenant context]
@@ -521,7 +521,7 @@ sequenceDiagram
 [Admin request arrives]
       |
       v
-[Auth token valid + tenant context?] --no--> [401]
+[Auth cookie/token valid + tenant context?] --no--> [401]
       |
      yes
       v
@@ -637,9 +637,11 @@ sequenceDiagram
 
 | Endpoint Pattern | Primary Flow Section | Business Purpose |
 | --- | --- | --- |
-| `/api/v1/admin/auth/register` | 3 | Tenant bootstrap onboarding |
-| `/api/v1/admin/auth/login` | 4 | Admin authentication |
-| `/api/v1/admin/auth/refresh` | 4 | Session continuity |
+| `/api/v1/admin/auth/register` | 3 | Tenant bootstrap onboarding (sets HttpOnly cookies) |
+| `/api/v1/admin/auth/login` | 4 | Admin authentication (sets HttpOnly cookies) |
+| `/api/v1/admin/auth/refresh` | 4 | Session continuity (rotates cookies) |
+| `/api/v1/admin/auth/logout` | 4 | Clears auth cookies |
+| `/api/v1/admin/auth/me` | 4 | Returns current user from cookie session |
 | `/api/v1/admin/subscriptions/me` | 14 | Subscription visibility |
 | `/api/v1/admin/subscriptions/checkout` | 3, 14 | Plan activation/update |
 | `/api/v1/admin/plans` (GET/PUT) | 14 | Plan catalog/governance |

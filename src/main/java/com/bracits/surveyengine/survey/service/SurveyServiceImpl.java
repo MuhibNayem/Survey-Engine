@@ -11,6 +11,8 @@ import com.bracits.surveyengine.survey.entity.*;
 import com.bracits.surveyengine.survey.repository.SurveyRepository;
 import com.bracits.surveyengine.survey.repository.SurveySnapshotRepository;
 import com.bracits.surveyengine.tenant.service.TenantService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,7 @@ public class SurveyServiceImpl implements SurveyService {
     private final QuestionService questionService;
     private final AuditLogService auditLogService;
     private final TenantService tenantService;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -80,7 +83,7 @@ public class SurveyServiceImpl implements SurveyService {
                                 .categoryId(qReq.getCategoryId())
                                 .sortOrder(qReq.getSortOrder())
                                 .mandatory(qReq.isMandatory())
-                                .answerConfig(qReq.getAnswerConfig())
+                                .answerConfig(normalizeAnswerConfig(qReq.getAnswerConfig()))
                                 .build();
                         page.getQuestions().add(sq);
                     }
@@ -139,7 +142,7 @@ public class SurveyServiceImpl implements SurveyService {
                                 .categoryId(qReq.getCategoryId())
                                 .sortOrder(qReq.getSortOrder())
                                 .mandatory(qReq.isMandatory())
-                                .answerConfig(qReq.getAnswerConfig())
+                                .answerConfig(normalizeAnswerConfig(qReq.getAnswerConfig()))
                                 .build();
                         page.getQuestions().add(sq);
                     }
@@ -228,43 +231,47 @@ public class SurveyServiceImpl implements SurveyService {
     }
 
     private void createSnapshot(Survey survey) {
-        // Build a JSON representation of the survey structure
-        StringBuilder json = new StringBuilder();
-        json.append("{\"title\":\"").append(escapeJson(survey.getTitle())).append("\"");
-        json.append(",\"description\":\"").append(escapeJson(
-                survey.getDescription() != null ? survey.getDescription() : "")).append("\"");
-        json.append(",\"pages\":[");
+        String snapshotJson;
+        try {
+            Map<String, Object> root = new LinkedHashMap<>();
+            root.put("title", survey.getTitle());
+            root.put("description", survey.getDescription() != null ? survey.getDescription() : "");
+            List<Map<String, Object>> pages = new ArrayList<>();
 
-        for (int i = 0; i < survey.getPages().size(); i++) {
-            SurveyPage page = survey.getPages().get(i);
-            if (i > 0)
-                json.append(",");
-            json.append("{\"title\":\"").append(escapeJson(
-                    page.getTitle() != null ? page.getTitle() : "")).append("\"");
-            json.append(",\"sortOrder\":").append(page.getSortOrder());
-            json.append(",\"questions\":[");
+            for (SurveyPage page : survey.getPages()) {
+                Map<String, Object> pageJson = new LinkedHashMap<>();
+                pageJson.put("title", page.getTitle() != null ? page.getTitle() : "");
+                pageJson.put("sortOrder", page.getSortOrder());
+                List<Map<String, Object>> questions = new ArrayList<>();
 
-            for (int j = 0; j < page.getQuestions().size(); j++) {
-                SurveyQuestion sq = page.getQuestions().get(j);
-                if (j > 0)
-                    json.append(",");
-                json.append("{\"questionId\":\"").append(sq.getQuestionId()).append("\"");
-                json.append(",\"questionVersionId\":\"").append(sq.getQuestionVersionId()).append("\"");
-                if (sq.getCategoryId() != null) {
-                    json.append(",\"categoryId\":\"").append(sq.getCategoryId()).append("\"");
+                for (SurveyQuestion sq : page.getQuestions()) {
+                    Map<String, Object> questionJson = new LinkedHashMap<>();
+                    questionJson.put("questionId", sq.getQuestionId().toString());
+                    questionJson.put("questionVersionId", sq.getQuestionVersionId().toString());
+                    if (sq.getCategoryId() != null) {
+                        questionJson.put("categoryId", sq.getCategoryId().toString());
+                    }
+                    questionJson.put("sortOrder", sq.getSortOrder());
+                    questionJson.put("mandatory", sq.isMandatory());
+                    if (sq.getAnswerConfig() != null && !sq.getAnswerConfig().isBlank()) {
+                        questionJson.put("answerConfig", objectMapper.readTree(sq.getAnswerConfig()));
+                    }
+                    questions.add(questionJson);
                 }
-                json.append(",\"sortOrder\":").append(sq.getSortOrder());
-                json.append(",\"mandatory\":").append(sq.isMandatory());
-                json.append("}");
+                pageJson.put("questions", questions);
+                pages.add(pageJson);
             }
-            json.append("]}");
+            root.put("pages", pages);
+            snapshotJson = objectMapper.writeValueAsString(root);
+        } catch (Exception ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "Survey snapshot generation failed due to invalid answer configuration");
         }
-        json.append("]}");
 
         SurveySnapshot snapshot = SurveySnapshot.builder()
                 .surveyId(survey.getId())
                 .versionNumber(survey.getCurrentVersion())
-                .snapshotData(json.toString())
+                .snapshotData(snapshotJson)
                 .publishedBy("system")
                 .build();
 
@@ -272,10 +279,23 @@ public class SurveyServiceImpl implements SurveyService {
         survey.setCurrentVersion(survey.getCurrentVersion() + 1);
     }
 
-    private String escapeJson(String value) {
-        if (value == null)
-            return "";
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    private String normalizeAnswerConfig(String rawAnswerConfig) {
+        if (rawAnswerConfig == null || rawAnswerConfig.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(rawAnswerConfig);
+            if (!node.isObject()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "answerConfig must be a JSON object");
+            }
+            return objectMapper.writeValueAsString(node);
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "answerConfig must be valid JSON");
+        }
     }
 
     private Survey findOrThrow(UUID id) {
