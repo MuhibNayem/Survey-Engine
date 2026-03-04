@@ -25,5 +25,5 @@ public interface CategoryService {
 
     void deactivate(UUID id);
 
-    CategoryVersion getLatestVersion(UUID categoryId);
+    CategoryVersion getLiveVersion(UUID categoryId);
 }

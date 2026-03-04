@@ -37,6 +37,9 @@ public class SurveyQuestion {
     @Column(name = "category_id")
     private UUID categoryId;
 
+    @Column(name = "category_version_id")
+    private UUID categoryVersionId;
+
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;
 

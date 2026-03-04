@@ -2,8 +2,13 @@ package com.bracits.surveyengine.questionbank.service;
 
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
 import com.bracits.surveyengine.common.tenant.TenantSupport;
-import com.bracits.surveyengine.questionbank.dto.*;
-import com.bracits.surveyengine.questionbank.entity.*;
+import com.bracits.surveyengine.questionbank.dto.CategoryQuestionMappingRequest;
+import com.bracits.surveyengine.questionbank.dto.CategoryRequest;
+import com.bracits.surveyengine.questionbank.dto.CategoryResponse;
+import com.bracits.surveyengine.questionbank.entity.Category;
+import com.bracits.surveyengine.questionbank.entity.CategoryQuestionMapping;
+import com.bracits.surveyengine.questionbank.entity.CategoryVersion;
+import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import com.bracits.surveyengine.questionbank.repository.CategoryRepository;
 import com.bracits.surveyengine.questionbank.repository.CategoryVersionRepository;
 import com.bracits.surveyengine.tenant.service.TenantService;
@@ -16,14 +21,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Implementation of {@link CategoryService}.
- * <p>
- * SRS §4.2: "A survey/campaign shall use categories, not ad-hoc unmanaged
- * question lists."
+ * Category bank keeps a mutable live definition (version=1).
+ * Survey authoring creates pinned category versions separate from this flow.
  */
 @Service
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
+
+    private static final int LIVE_VERSION_NUMBER = 1;
 
     private final CategoryRepository categoryRepository;
     private final CategoryVersionRepository categoryVersionRepository;
@@ -35,36 +40,32 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponse create(CategoryRequest request) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         tenantService.ensureProvisioned(tenantId);
+
         Category category = Category.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .tenantId(tenantId)
+                .currentVersion(LIVE_VERSION_NUMBER)
                 .build();
         category = categoryRepository.save(category);
 
-        CategoryVersion version = createVersionSnapshot(category, request.getQuestionMappings());
-
-        return toResponse(category, version);
+        CategoryVersion liveVersion = upsertLiveVersion(category, request.getQuestionMappings());
+        return toResponse(category, liveVersion);
     }
 
     @Override
     @Transactional(readOnly = true)
     public CategoryResponse getById(UUID id) {
         Category category = findOrThrow(id);
-        CategoryVersion latestVersion = getLatestVersion(id);
-        return toResponse(category, latestVersion);
+        CategoryVersion liveVersion = getLiveVersion(id);
+        return toResponse(category, liveVersion);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllActive() {
         return categoryRepository.findByActiveTrueAndTenantId(TenantSupport.currentTenantOrDefault()).stream()
-                .map(cat -> {
-                    CategoryVersion version = categoryVersionRepository
-                            .findTopByCategoryIdOrderByVersionNumberDesc(cat.getId())
-                            .orElse(null);
-                    return toResponse(cat, version);
-                })
+                .map(category -> toResponse(category, getLiveVersion(category.getId())))
                 .toList();
     }
 
@@ -74,12 +75,11 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = findOrThrow(id);
         category.setName(request.getName());
         category.setDescription(request.getDescription());
-        category.setCurrentVersion(category.getCurrentVersion() + 1);
+        category.setCurrentVersion(LIVE_VERSION_NUMBER);
         category = categoryRepository.save(category);
 
-        CategoryVersion version = createVersionSnapshot(category, request.getQuestionMappings());
-
-        return toResponse(category, version);
+        CategoryVersion liveVersion = upsertLiveVersion(category, request.getQuestionMappings());
+        return toResponse(category, liveVersion);
     }
 
     @Override
@@ -92,37 +92,47 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public CategoryVersion getLatestVersion(UUID categoryId) {
+    public CategoryVersion getLiveVersion(UUID categoryId) {
+        findOrThrow(categoryId);
         return categoryVersionRepository
-                .findTopByCategoryIdOrderByVersionNumberDesc(categoryId)
+                .findByCategoryIdAndVersionNumber(categoryId, LIVE_VERSION_NUMBER)
                 .orElseThrow(() -> new ResourceNotFoundException("CategoryVersion", categoryId));
     }
 
-    private CategoryVersion createVersionSnapshot(Category category,
-            List<CategoryQuestionMappingRequest> mappingRequests) {
-        CategoryVersion version = CategoryVersion.builder()
-                .categoryId(category.getId())
-                .versionNumber(category.getCurrentVersion())
-                .name(category.getName())
-                .description(category.getDescription())
-                .questionMappings(new ArrayList<>())
-                .build();
+    private CategoryVersion upsertLiveVersion(Category category, List<CategoryQuestionMappingRequest> mappingRequests) {
+        CategoryVersion liveVersion = categoryVersionRepository
+                .findByCategoryIdAndVersionNumber(category.getId(), LIVE_VERSION_NUMBER)
+                .orElse(null);
+
+        if (liveVersion == null) {
+            liveVersion = CategoryVersion.builder()
+                    .categoryId(category.getId())
+                    .versionNumber(LIVE_VERSION_NUMBER)
+                    .name(category.getName())
+                    .description(category.getDescription())
+                    .questionMappings(new ArrayList<>())
+                    .build();
+        } else {
+            liveVersion.setName(category.getName());
+            liveVersion.setDescription(category.getDescription());
+            liveVersion.getQuestionMappings().clear();
+        }
 
         if (mappingRequests != null) {
             for (CategoryQuestionMappingRequest mr : mappingRequests) {
-                QuestionVersion qv = questionService.getLatestVersion(mr.getQuestionId());
+                QuestionVersion liveQuestionVersion = questionService.getLiveVersion(mr.getQuestionId());
                 CategoryQuestionMapping mapping = CategoryQuestionMapping.builder()
-                        .categoryVersion(version)
+                        .categoryVersion(liveVersion)
                         .questionId(mr.getQuestionId())
-                        .questionVersionId(qv.getId())
+                        .questionVersionId(liveQuestionVersion.getId())
                         .sortOrder(mr.getSortOrder())
                         .weight(mr.getWeight())
                         .build();
-                version.getQuestionMappings().add(mapping);
+                liveVersion.getQuestionMappings().add(mapping);
             }
         }
 
-        return categoryVersionRepository.save(version);
+        return categoryVersionRepository.save(liveVersion);
     }
 
     private Category findOrThrow(UUID id) {

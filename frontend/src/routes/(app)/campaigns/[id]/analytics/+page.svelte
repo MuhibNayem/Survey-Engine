@@ -116,7 +116,8 @@
             {#if campaign}
                 <Button
                     variant="secondary"
-                    onclick={() => goto(`/campaigns/${campaign.id}`)}
+                    onclick={() =>
+                        campaign && goto(`/campaigns/${campaign.id}`)}
                 >
                     Campaign Settings
                 </Button>

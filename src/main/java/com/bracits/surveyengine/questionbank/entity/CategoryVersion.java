@@ -21,6 +21,7 @@ import java.util.UUID;
         @UniqueConstraint(name = "uk_category_version", columnNames = { "category_id", "version_number" })
 })
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)

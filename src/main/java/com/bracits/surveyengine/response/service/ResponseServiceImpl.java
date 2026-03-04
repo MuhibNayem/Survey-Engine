@@ -287,7 +287,13 @@ public class ResponseServiceImpl implements ResponseService {
                 throw validationError("Snapshot question-version binding is invalid for question " + questionId);
             }
 
-            AnswerPayload payload = validateAnswerPayload(questionVersion, snapshotQuestion.answerConfig(), answer.getValue());
+            AnswerPayload payload = validateAnswerPayload(
+                    questionVersion,
+                    snapshotQuestion.optionConfig() != null
+                            ? snapshotQuestion.optionConfig()
+                            : questionVersion.getOptionConfig(),
+                    snapshotQuestion.answerConfig(),
+                    answer.getValue());
             validated.add(new ValidatedAnswer(
                     questionId,
                     snapshotQuestion.questionVersionId(),
@@ -320,11 +326,12 @@ public class ResponseServiceImpl implements ResponseService {
                     UUID questionVersionId = parseUuid(
                             questionNode.path("questionVersionId").asText(null), "questionVersionId");
                     boolean mandatory = questionNode.path("mandatory").asBoolean(false);
+                    String optionConfig = extractOptionConfig(questionNode.get("optionConfig"));
                     String answerConfig = extractAnswerConfig(questionNode.get("answerConfig"));
 
                     SnapshotQuestion previous = questionsById.putIfAbsent(
                             questionId,
-                            new SnapshotQuestion(questionId, questionVersionId, mandatory, answerConfig));
+                            new SnapshotQuestion(questionId, questionVersionId, mandatory, optionConfig, answerConfig));
                     if (previous != null) {
                         throw validationError("Survey snapshot contains duplicate questionId: " + questionId);
                     }
@@ -364,6 +371,21 @@ public class ResponseServiceImpl implements ResponseService {
         }
     }
 
+    private String extractOptionConfig(JsonNode optionConfigNode) {
+        if (optionConfigNode == null || optionConfigNode.isNull()) {
+            return null;
+        }
+        try {
+            if (optionConfigNode.isTextual()) {
+                String raw = optionConfigNode.asText();
+                return raw == null || raw.isBlank() ? null : raw;
+            }
+            return objectMapper.writeValueAsString(optionConfigNode);
+        } catch (Exception ex) {
+            throw validationError("Survey snapshot optionConfig is invalid");
+        }
+    }
+
     private QuestionVersion loadQuestionVersion(UUID questionVersionId, Map<UUID, QuestionVersion> cache) {
         return cache.computeIfAbsent(questionVersionId, id -> questionVersionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("QuestionVersion", id)));
@@ -383,16 +405,23 @@ public class ResponseServiceImpl implements ResponseService {
         }
     }
 
-    private AnswerPayload validateAnswerPayload(QuestionVersion questionVersion, String answerConfig, String rawValue) {
+    private AnswerPayload validateAnswerPayload(
+            QuestionVersion questionVersion,
+            String optionConfig,
+            String answerConfig,
+            String rawValue) {
         if (rawValue == null || rawValue.isBlank()) {
             throw validationError("Answer value is required for question " + questionVersion.getQuestionId());
         }
         JsonNode config = parseAnswerConfig(answerConfig, questionVersion.getType());
+        JsonNode optionNode = parseOptionConfig(optionConfig, questionVersion.getType());
+        JsonNode effectiveOptionNode = optionNode != null ? optionNode : config;
+        Map<String, OptionSpec> options = parseOptions(effectiveOptionNode, questionVersion.getType());
         return switch (questionVersion.getType()) {
             case RATING_SCALE -> validateRatingScaleAnswer(questionVersion, config, rawValue);
-            case SINGLE_CHOICE -> validateSingleChoiceAnswer(questionVersion, config, rawValue);
-            case MULTIPLE_CHOICE -> validateMultipleChoiceAnswer(questionVersion, config, rawValue);
-            case RANK -> validateRankAnswer(questionVersion, config, rawValue);
+            case SINGLE_CHOICE -> validateSingleChoiceAnswer(questionVersion, options, rawValue);
+            case MULTIPLE_CHOICE -> validateMultipleChoiceAnswer(questionVersion, config, options, rawValue);
+            case RANK -> validateRankAnswer(questionVersion, config, options, rawValue);
         };
     }
 
@@ -410,6 +439,23 @@ public class ResponseServiceImpl implements ResponseService {
             throw ex;
         } catch (Exception ex) {
             throw validationError("answerConfig is invalid JSON for question type " + questionType);
+        }
+    }
+
+    private JsonNode parseOptionConfig(String rawConfig, QuestionType questionType) {
+        if (rawConfig == null || rawConfig.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(rawConfig);
+            if (!node.isObject()) {
+                throw validationError("optionConfig must be a JSON object for question type " + questionType);
+            }
+            return node;
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw validationError("optionConfig is invalid JSON for question type " + questionType);
         }
     }
 
@@ -441,12 +487,14 @@ public class ResponseServiceImpl implements ResponseService {
         return new AnswerPayload(value.stripTrailingZeros().toPlainString(), score);
     }
 
-    private AnswerPayload validateSingleChoiceAnswer(QuestionVersion questionVersion, JsonNode config, String rawValue) {
+    private AnswerPayload validateSingleChoiceAnswer(
+            QuestionVersion questionVersion,
+            Map<String, OptionSpec> options,
+            String rawValue) {
         String value = rawValue.trim();
         if (value.isBlank()) {
             throw validationError("SINGLE_CHOICE answer cannot be empty");
         }
-        Map<String, OptionSpec> options = parseOptions(config, QuestionType.SINGLE_CHOICE);
         if (!options.isEmpty() && !options.containsKey(value)) {
             throw validationError("SINGLE_CHOICE value must be one configured option");
         }
@@ -455,10 +503,13 @@ public class ResponseServiceImpl implements ResponseService {
         return new AnswerPayload(value, score);
     }
 
-    private AnswerPayload validateMultipleChoiceAnswer(QuestionVersion questionVersion, JsonNode config, String rawValue) {
+    private AnswerPayload validateMultipleChoiceAnswer(
+            QuestionVersion questionVersion,
+            JsonNode config,
+            Map<String, OptionSpec> options,
+            String rawValue) {
         List<String> selections = parseStringList(rawValue, "MULTIPLE_CHOICE");
         ensureNoDuplicates(selections, "MULTIPLE_CHOICE");
-        Map<String, OptionSpec> options = parseOptions(config, QuestionType.MULTIPLE_CHOICE);
         if (!options.isEmpty()) {
             for (String selected : selections) {
                 if (!options.containsKey(selected)) {
@@ -499,10 +550,13 @@ public class ResponseServiceImpl implements ResponseService {
         return new AnswerPayload(writeJsonArray(selections), score);
     }
 
-    private AnswerPayload validateRankAnswer(QuestionVersion questionVersion, JsonNode config, String rawValue) {
+    private AnswerPayload validateRankAnswer(
+            QuestionVersion questionVersion,
+            JsonNode config,
+            Map<String, OptionSpec> options,
+            String rawValue) {
         List<String> rankings = parseStringList(rawValue, "RANK");
         ensureNoDuplicates(rankings, "RANK");
-        Map<String, OptionSpec> options = parseOptions(config, QuestionType.RANK);
         if (!options.isEmpty()) {
             for (String rankedValue : rankings) {
                 if (!options.containsKey(rankedValue)) {
@@ -564,7 +618,7 @@ public class ResponseServiceImpl implements ResponseService {
         }
         JsonNode optionsNode = config.get("options");
         if (!optionsNode.isArray()) {
-            throw validationError("answerConfig.options must be an array for " + questionType);
+            throw validationError("optionConfig.options must be an array for " + questionType);
         }
         Map<String, OptionSpec> options = new LinkedHashMap<>();
         for (JsonNode optionNode : optionsNode) {
@@ -586,7 +640,7 @@ public class ResponseServiceImpl implements ResponseService {
             }
             OptionSpec previous = options.putIfAbsent(value, new OptionSpec(value, score));
             if (previous != null) {
-                throw validationError("Duplicate option value '%s' in answerConfig".formatted(value));
+                throw validationError("Duplicate option value '%s' in optionConfig".formatted(value));
             }
         }
         return options;
@@ -791,7 +845,12 @@ public class ResponseServiceImpl implements ResponseService {
     private record SurveySnapshotContext(Map<UUID, SnapshotQuestion> questionsById) {
     }
 
-    private record SnapshotQuestion(UUID questionId, UUID questionVersionId, boolean mandatory, String answerConfig) {
+    private record SnapshotQuestion(
+            UUID questionId,
+            UUID questionVersionId,
+            boolean mandatory,
+            String optionConfig,
+            String answerConfig) {
     }
 
     private record ValidatedAnswer(UUID questionId, UUID questionVersionId, String value, BigDecimal score) {

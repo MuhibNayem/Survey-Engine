@@ -69,7 +69,7 @@
             const [cRes, pRes, catRes] = await Promise.all([
                 api.get<CampaignResponse>(`/campaigns/${campaignId}`),
                 api.get<WeightProfileResponse[]>(
-                    `/profiles/campaign/${campaignId}`,
+                    `/scoring/profiles/campaign/${campaignId}`,
                 ),
                 api.get<CategoryResponse[]>("/categories"),
             ]);
@@ -127,11 +127,11 @@
             return;
         } else if (editingId) {
             try {
-                const { data } = await api.post<{
-                    valid: boolean;
-                    message: string;
-                }>(`/profiles/${editingId}/validate`);
-                currentValidation = data;
+                await api.post(`/scoring/profiles/${editingId}/validate`);
+                currentValidation = {
+                    valid: true,
+                    message: "Profile weight distribution is valid.",
+                };
             } catch {
                 currentValidation = {
                     valid: false,
@@ -162,9 +162,9 @@
 
         try {
             if (editingId) {
-                await api.put(`/profiles/${editingId}`, payload);
+                await api.put(`/scoring/profiles/${editingId}`, payload);
             } else {
-                await api.post("/profiles", payload);
+                await api.post("/scoring/profiles", payload);
             }
             formOpen = false;
             await loadData();
@@ -180,7 +180,7 @@
         if (!deleteTarget) return;
         deleteLoading = true;
         try {
-            await api.delete(`/profiles/${deleteTarget.id}`);
+            await api.delete(`/scoring/profiles/${deleteTarget.id}`);
             deleteTarget = null;
             await loadData();
         } catch {

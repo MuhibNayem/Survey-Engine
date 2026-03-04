@@ -16,7 +16,6 @@
         Trash2,
         Search,
         X,
-        Settings,
         FileText,
         ChevronRight,
         ArrowRightCircle,
@@ -52,8 +51,6 @@
                 categoryId?: string;
                 sortOrder: number;
                 mandatory: boolean;
-                parsedConfig: any;
-                showConfig?: boolean;
             }[];
         }[]
     >([]);
@@ -161,24 +158,12 @@
         formPages = s.pages.map((p) => ({
             title: p.title,
             sortOrder: p.sortOrder,
-            questions: p.questions.map((q) => {
-                let parsedConfig = {};
-                if (q.answerConfig) {
-                    try {
-                        parsedConfig = JSON.parse(q.answerConfig);
-                    } catch (e) {
-                        // ignore
-                    }
-                }
-                return {
-                    questionId: q.questionId,
-                    categoryId: q.categoryId,
-                    sortOrder: q.sortOrder,
-                    mandatory: q.mandatory,
-                    parsedConfig,
-                    showConfig: false,
-                };
-            }),
+            questions: p.questions.map((q) => ({
+                questionId: q.questionId,
+                categoryId: q.categoryId,
+                sortOrder: q.sortOrder,
+                mandatory: q.mandatory,
+            })),
         }));
         formError = null;
         dialogOpen = true;
@@ -211,8 +196,6 @@
                 questionId: "",
                 sortOrder: page.questions.length + 1,
                 mandatory: true,
-                parsedConfig: {},
-                showConfig: true,
             },
         ];
         formPages = [...formPages];
@@ -245,8 +228,6 @@
                 categoryId: category.id,
                 sortOrder: nextSortOrder + i,
                 mandatory: true,
-                parsedConfig: {},
-                showConfig: false,
             }));
 
         page.questions = [...page.questions, ...newQuestions];
@@ -273,20 +254,12 @@
                 pages: formPages.map((p) => ({
                     title: p.title,
                     sortOrder: p.sortOrder,
-                    questions: p.questions.map((q) => {
-                        const answerConfigStr =
-                            q.parsedConfig &&
-                            Object.keys(q.parsedConfig).length > 0
-                                ? JSON.stringify(q.parsedConfig)
-                                : undefined;
-                        return {
-                            questionId: q.questionId,
-                            categoryId: q.categoryId,
-                            sortOrder: q.sortOrder,
-                            mandatory: q.mandatory,
-                            answerConfig: answerConfigStr,
-                        } as SurveyQuestionRequest;
-                    }),
+                    questions: p.questions.map((q) => ({
+                        questionId: q.questionId,
+                        categoryId: q.categoryId,
+                        sortOrder: q.sortOrder,
+                        mandatory: q.mandatory,
+                    })) as SurveyQuestionRequest[],
                 })) as SurveyPageRequest[],
             };
             if (editingSurvey) {
@@ -741,25 +714,6 @@
                                                         size="sm"
                                                         type="button"
                                                         onclick={() =>
-                                                            (formPages[
-                                                                pIdx
-                                                            ].questions[
-                                                                qIdx
-                                                            ].showConfig =
-                                                                !formPages[pIdx]
-                                                                    .questions[
-                                                                    qIdx
-                                                                ].showConfig)}
-                                                    >
-                                                        <Settings
-                                                            class="h-4 w-4 text-muted-foreground"
-                                                        />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        type="button"
-                                                        onclick={() =>
                                                             removeQuestionFromPage(
                                                                 pIdx,
                                                                 qIdx,
@@ -770,267 +724,6 @@
                                                         />
                                                     </Button>
                                                 </div>
-
-                                                <!-- Configuration Panel -->
-                                                {#if q.showConfig}
-                                                    {@const qType =
-                                                        allQuestions.find(
-                                                            (aq) =>
-                                                                aq.id ===
-                                                                q.questionId,
-                                                        )?.type}
-                                                    <div
-                                                        class="mt-2 pl-8 border-t border-border/50 pt-4 space-y-4"
-                                                    >
-                                                        {#if !qType}
-                                                            <p
-                                                                class="text-xs text-muted-foreground"
-                                                            >
-                                                                Please select a
-                                                                question first.
-                                                            </p>
-                                                        {:else if qType === "RATING_SCALE"}
-                                                            <div
-                                                                class="flex items-center gap-4"
-                                                            >
-                                                                <div
-                                                                    class="space-y-1"
-                                                                >
-                                                                    <Label
-                                                                        class="text-xs"
-                                                                        >Min</Label
-                                                                    >
-                                                                    <Input
-                                                                        type="number"
-                                                                        bind:value={
-                                                                            formPages[
-                                                                                pIdx
-                                                                            ]
-                                                                                .questions[
-                                                                                qIdx
-                                                                            ]
-                                                                                .parsedConfig
-                                                                                .min
-                                                                        }
-                                                                        class="h-8 w-24 text-xs"
-                                                                        placeholder="1"
-                                                                    />
-                                                                </div>
-                                                                <div
-                                                                    class="space-y-1"
-                                                                >
-                                                                    <Label
-                                                                        class="text-xs"
-                                                                        >Max</Label
-                                                                    >
-                                                                    <Input
-                                                                        type="number"
-                                                                        bind:value={
-                                                                            formPages[
-                                                                                pIdx
-                                                                            ]
-                                                                                .questions[
-                                                                                qIdx
-                                                                            ]
-                                                                                .parsedConfig
-                                                                                .max
-                                                                        }
-                                                                        class="h-8 w-24 text-xs"
-                                                                    />
-                                                                </div>
-                                                                <div
-                                                                    class="space-y-1"
-                                                                >
-                                                                    <Label
-                                                                        class="text-xs"
-                                                                        >Step</Label
-                                                                    >
-                                                                    <Input
-                                                                        type="number"
-                                                                        step="0.5"
-                                                                        bind:value={
-                                                                            formPages[
-                                                                                pIdx
-                                                                            ]
-                                                                                .questions[
-                                                                                qIdx
-                                                                            ]
-                                                                                .parsedConfig
-                                                                                .step
-                                                                        }
-                                                                        class="h-8 w-24 text-xs"
-                                                                        placeholder="0.5"
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        {:else if qType === "SINGLE_CHOICE" || qType === "MULTIPLE_CHOICE" || qType === "RANK"}
-                                                            <div
-                                                                class="space-y-2"
-                                                            >
-                                                                <Label
-                                                                    class="text-xs font-semibold"
-                                                                    >Options</Label
-                                                                >
-                                                                {#if q.parsedConfig.options}
-                                                                    <div
-                                                                        class="space-y-2"
-                                                                    >
-                                                                        {#each q.parsedConfig.options as opt, optIdx}
-                                                                            <div
-                                                                                class="flex items-center gap-2"
-                                                                            >
-                                                                                <Input
-                                                                                    bind:value={
-                                                                                        formPages[
-                                                                                            pIdx
-                                                                                        ]
-                                                                                            .questions[
-                                                                                            qIdx
-                                                                                        ]
-                                                                                            .parsedConfig
-                                                                                            .options[
-                                                                                            optIdx
-                                                                                        ]
-                                                                                    }
-                                                                                    class="h-8 flex-1 text-xs"
-                                                                                    placeholder={`Option ${optIdx + 1}`}
-                                                                                />
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="sm"
-                                                                                    type="button"
-                                                                                    class="h-8 px-2"
-                                                                                    onclick={() => {
-                                                                                        formPages[
-                                                                                            pIdx
-                                                                                        ].questions[
-                                                                                            qIdx
-                                                                                        ].parsedConfig.options =
-                                                                                            formPages[
-                                                                                                pIdx
-                                                                                            ].questions[
-                                                                                                qIdx
-                                                                                            ].parsedConfig.options.filter(
-                                                                                                (
-                                                                                                    _: any,
-                                                                                                    i: number,
-                                                                                                ) =>
-                                                                                                    i !==
-                                                                                                    optIdx,
-                                                                                            );
-                                                                                    }}
-                                                                                >
-                                                                                    <X
-                                                                                        class="h-3 w-3 text-destructive"
-                                                                                    />
-                                                                                </Button>
-                                                                            </div>
-                                                                        {/each}
-                                                                    </div>
-                                                                {/if}
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    type="button"
-                                                                    class="text-[10px] h-6 px-2 mt-1"
-                                                                    onclick={() => {
-                                                                        if (
-                                                                            !formPages[
-                                                                                pIdx
-                                                                            ]
-                                                                                .questions[
-                                                                                qIdx
-                                                                            ]
-                                                                                .parsedConfig
-                                                                                .options
-                                                                        )
-                                                                            formPages[
-                                                                                pIdx
-                                                                            ].questions[
-                                                                                qIdx
-                                                                            ].parsedConfig.options =
-                                                                                [];
-                                                                        formPages[
-                                                                            pIdx
-                                                                        ].questions[
-                                                                            qIdx
-                                                                        ].parsedConfig.options =
-                                                                            [
-                                                                                ...formPages[
-                                                                                    pIdx
-                                                                                ]
-                                                                                    .questions[
-                                                                                    qIdx
-                                                                                ]
-                                                                                    .parsedConfig
-                                                                                    .options,
-                                                                                "",
-                                                                            ];
-                                                                    }}
-                                                                >
-                                                                    <Plus
-                                                                        class="mr-1 h-3 w-3"
-                                                                    /> Add Option
-                                                                </Button>
-                                                            </div>
-
-                                                            {#if qType === "MULTIPLE_CHOICE"}
-                                                                <div
-                                                                    class="flex items-center gap-4 pt-2 border-t border-border/50"
-                                                                >
-                                                                    <div
-                                                                        class="space-y-1 flex-1 max-w-[120px]"
-                                                                    >
-                                                                        <Label
-                                                                            class="text-xs"
-                                                                            >Min
-                                                                            Selections</Label
-                                                                        >
-                                                                        <Input
-                                                                            type="number"
-                                                                            bind:value={
-                                                                                formPages[
-                                                                                    pIdx
-                                                                                ]
-                                                                                    .questions[
-                                                                                    qIdx
-                                                                                ]
-                                                                                    .parsedConfig
-                                                                                    .minSelections
-                                                                            }
-                                                                            class="h-8 text-xs"
-                                                                            placeholder="1"
-                                                                        />
-                                                                    </div>
-                                                                    <div
-                                                                        class="space-y-1 flex-1 max-w-[120px]"
-                                                                    >
-                                                                        <Label
-                                                                            class="text-xs"
-                                                                            >Max
-                                                                            Selections</Label
-                                                                        >
-                                                                        <Input
-                                                                            type="number"
-                                                                            bind:value={
-                                                                                formPages[
-                                                                                    pIdx
-                                                                                ]
-                                                                                    .questions[
-                                                                                    qIdx
-                                                                                ]
-                                                                                    .parsedConfig
-                                                                                    .maxSelections
-                                                                            }
-                                                                            class="h-8 text-xs"
-                                                                            placeholder="All"
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            {/if}
-                                                        {/if}
-                                                    </div>
-                                                {/if}
                                             </div>
                                         {/each}
                                     {/if}

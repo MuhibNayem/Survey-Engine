@@ -24,6 +24,9 @@
     let formText = $state("");
     let formType = $state<QuestionType>("RATING_SCALE");
     let formMaxScore = $state(5);
+    type OptionRow = { id: number; value: string; score: string | number };
+    let optionRowSeq = 1;
+    let formOptions = $state<OptionRow[]>([]);
     let formLoading = $state(false);
     let formError = $state<string | null>(null);
 
@@ -62,11 +65,25 @@
         }
     }
 
+    function createOptionRow(value = "", score = ""): OptionRow {
+        return { id: optionRowSeq++, value, score };
+    }
+
+    function addOptionRow() {
+        formOptions = [...formOptions, createOptionRow()];
+    }
+
+    function removeOptionRow(id: number) {
+        if (formOptions.length <= 1) return;
+        formOptions = formOptions.filter((option) => option.id !== id);
+    }
+
     function openCreateDialog() {
         editingQuestion = null;
         formText = "";
         formType = "RATING_SCALE";
         formMaxScore = 5;
+        formOptions = [];
         formError = null;
         dialogOpen = true;
     }
@@ -76,8 +93,77 @@
         formText = q.text;
         formType = q.type;
         formMaxScore = q.maxScore;
+        formOptions = optionConfigToRows(q.optionConfig);
         formError = null;
         dialogOpen = true;
+    }
+
+    function requiresOptions(type: QuestionType): boolean {
+        return (
+            type === "SINGLE_CHOICE" ||
+            type === "MULTIPLE_CHOICE" ||
+            type === "RANK"
+        );
+    }
+
+    function optionConfigToRows(optionConfig?: string): OptionRow[] {
+        if (!optionConfig) return [];
+        try {
+            const parsed = JSON.parse(optionConfig) as {
+                options?: Array<string | { value?: string; score?: number }>;
+            };
+            if (!Array.isArray(parsed?.options)) return [];
+            return parsed.options
+                .map((option) => {
+                    if (typeof option === "string") {
+                        const value = option.trim();
+                        if (!value) return null;
+                        return createOptionRow(value);
+                    }
+                    const value = option?.value?.trim() ?? "";
+                    if (!value) return null;
+                    const score = option.score != null ? String(option.score) : "";
+                    return createOptionRow(value, score);
+                })
+                .filter((option): option is OptionRow => option !== null);
+        } catch {
+            return [];
+        }
+    }
+
+    function buildOptionConfigFromRows(
+        rows: OptionRow[],
+    ): { optionConfig?: string; error?: string } {
+        const options: Array<string | { value: string; score: number }> = [];
+        for (const row of rows) {
+            const valuePart = String(row.value ?? "").trim();
+            const scorePart =
+                row.score === null || row.score === undefined
+                    ? ""
+                    : String(row.score).trim();
+            if (!valuePart && !scorePart) continue;
+            if (!valuePart) {
+                return { error: "Option value cannot be empty." };
+            }
+            if (scorePart) {
+                const score = Number(scorePart);
+                if (!Number.isFinite(score) || score < 0) {
+                    return {
+                        error: `Invalid score for option '${valuePart}'.`,
+                    };
+                }
+                options.push({ value: valuePart, score });
+            } else {
+                options.push(valuePart);
+            }
+        }
+        if (options.length === 0) {
+            return {
+                error: "At least one option is required for this question type.",
+            };
+        }
+
+        return { optionConfig: JSON.stringify({ options }) };
     }
 
     async function handleSubmit(e: Event) {
@@ -85,10 +171,22 @@
         formLoading = true;
         formError = null;
         try {
+            let optionConfig: string | undefined;
+            if (requiresOptions(formType)) {
+                const parsed = buildOptionConfigFromRows(formOptions);
+                if (parsed.error) {
+                    formError = parsed.error;
+                    formLoading = false;
+                    return;
+                }
+                optionConfig = parsed.optionConfig;
+            }
+
             const payload = {
                 text: formText,
                 type: formType,
                 maxScore: formMaxScore,
+                optionConfig,
             };
             if (editingQuestion) {
                 await api.put(`/questions/${editingQuestion.id}`, payload);
@@ -144,6 +242,16 @@
             year: "numeric",
         });
     }
+
+    $effect(() => {
+        if (requiresOptions(formType) && formOptions.length === 0) {
+            formOptions = [createOptionRow()];
+            return;
+        }
+        if (!requiresOptions(formType) && formOptions.length > 0) {
+            formOptions = [];
+        }
+    });
 
     onMount(loadQuestions);
 </script>
@@ -393,6 +501,54 @@
                             />
                         </div>
                     </div>
+
+                    {#if requiresOptions(formType)}
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <Label>Options</Label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onclick={addOptionRow}
+                                >
+                                    <Plus class="mr-1 h-3.5 w-3.5" />
+                                    Add Option
+                                </Button>
+                            </div>
+                            <p class="text-xs text-muted-foreground">
+                                Add one option per row. Score is optional.
+                            </p>
+                            <div class="space-y-2">
+                                {#each formOptions as option, idx (option.id)}
+                                    <div class="grid grid-cols-[1fr_110px_auto] gap-2">
+                                        <Input
+                                            placeholder={`Option ${idx + 1}`}
+                                            bind:value={option.value}
+                                        />
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            placeholder="Score"
+                                            bind:value={option.score}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onclick={() =>
+                                                removeOptionRow(option.id)}
+                                            disabled={formOptions.length <= 1}
+                                            aria-label="Remove option"
+                                        >
+                                            <X class="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
 
                     <div class="flex justify-end gap-2 pt-2">
                         <Button

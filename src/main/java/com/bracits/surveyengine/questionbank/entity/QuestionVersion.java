@@ -20,6 +20,7 @@ import java.util.UUID;
         @UniqueConstraint(name = "uk_question_version", columnNames = { "question_id", "version_number" })
 })
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -44,6 +45,9 @@ public class QuestionVersion {
 
     @Column(name = "max_score", nullable = false, precision = 10, scale = 2)
     private BigDecimal maxScore;
+
+    @Column(name = "option_config", columnDefinition = "TEXT")
+    private String optionConfig;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

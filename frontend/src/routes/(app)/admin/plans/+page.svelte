@@ -69,12 +69,7 @@
         }
     }
 
-    onMount(() => {
-        if (auth.initialized && !isSuperAdmin) {
-            // Pre-emptive block if we already know state, but API will block anyway.
-        }
-        loadPlans();
-    });
+    onMount(loadPlans);
 </script>
 
 <svelte:head>

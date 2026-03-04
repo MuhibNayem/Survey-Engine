@@ -110,7 +110,7 @@
 
             // Fetch analytics for recent active/completed campaigns
             const campaignsWithAnalytics = await Promise.all(
-                recent.map(async (c) => {
+                recent.map(async (c): Promise<CampaignWithAnalytics> => {
                     if (c.status === "ACTIVE" || c.status === "COMPLETED") {
                         try {
                             const { data } = await api.get<AnalyticsResponse>(

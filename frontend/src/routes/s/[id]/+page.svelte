@@ -15,10 +15,12 @@
     type PreviewQuestion = {
         id: string;
         questionId: string;
+        questionVersionId: string;
         text: string;
         type: QuestionType;
         mandatory: boolean;
         sortOrder: number;
+        optionConfig?: string;
         answerConfig?: string;
         maxScore: number;
     };
@@ -30,13 +32,25 @@
         questions: PreviewQuestion[];
     };
 
+    type OidcStartResponse = {
+        authorizationUrl: string;
+        state: string;
+        expiresAt: string;
+    };
+
     const campaignId = $derived(page.params.id);
 
     let loading = $state(true);
     let error = $state<string | null>(null);
     let stage = $state<"intro" | "form" | "complete">("intro");
+    let submitLoading = $state(false);
+    let submitError = $state<string | null>(null);
+    let authLoading = $state(false);
+    let authError = $state<string | null>(null);
     let currentPageIndex = $state(0);
     let campaign = $state<CampaignPreviewResponse | null>(null);
+    let responderToken = $state<string | null>(null);
+    let responderAccessCode = $state<string | null>(null);
     let answers = $state<Record<string, AnswerValue>>({});
     let errors = $state<Record<string, string>>({});
     let respondent = $state({
@@ -56,13 +70,15 @@
                       sortOrder: p.sortOrder,
                       questions: [...p.questions]
                           .sort((a, b) => a.sortOrder - b.sortOrder)
-                          .map((q) => ({
+                              .map((q) => ({
                               id: q.id,
                               questionId: q.questionId,
+                              questionVersionId: q.questionVersionId,
                               text: q.text ?? `Question ${q.questionId}`,
                               type: q.type ?? "RATING_SCALE",
                               mandatory: q.mandatory,
                               sortOrder: q.sortOrder,
+                              optionConfig: q.optionConfig,
                               answerConfig: q.answerConfig,
                               maxScore: q.maxScore ?? 5,
                           })),
@@ -72,9 +88,38 @@
 
     const currentPage = $derived(resolvedPages[currentPageIndex] ?? null);
     const totalPages = $derived(resolvedPages.length);
+    const isPrivateCampaign = $derived(campaign?.authMode === "PRIVATE");
+    const hasPrivateCredential = $derived(
+        Boolean(
+            responderToken?.trim() || responderAccessCode?.trim(),
+        ),
+    );
     const progressPercent = $derived(
         totalPages <= 0 ? 0 : Math.round(((currentPageIndex + 1) / totalPages) * 100),
     );
+
+    function readAuthParamsFromUrl() {
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        const authCode = url.searchParams.get("auth_code")?.trim();
+        const tokenFromQuery =
+            url.searchParams.get("token")?.trim() ||
+            url.searchParams.get("responderToken")?.trim();
+
+        if (authCode) {
+            responderAccessCode = authCode;
+            authError = null;
+        }
+        if (tokenFromQuery && isLikelyJwtToken(tokenFromQuery)) {
+            responderToken = tokenFromQuery;
+            authError = null;
+        }
+    }
+
+    function isLikelyJwtToken(token: string): boolean {
+        const parts = token.split(".");
+        return parts.length === 3 && parts.every((p) => p.length > 0);
+    }
 
     function parseAnswerConfig(raw?: string): Record<string, unknown> {
         if (!raw) return {};
@@ -87,11 +132,15 @@
     }
 
     function getOptions(question: PreviewQuestion): string[] {
-        const config = parseAnswerConfig(question.answerConfig);
+        const config = parseAnswerConfig(question.optionConfig);
         const rawOptions = config.options;
         if (!Array.isArray(rawOptions)) return [];
         return rawOptions
-            .map((v) => String(v).trim())
+            .map((v) =>
+                typeof v === "string"
+                    ? v.trim()
+                    : String(v?.value ?? "").trim(),
+            )
             .filter((v) => v.length > 0);
     }
 
@@ -233,30 +282,169 @@
         return Object.keys(nextErrors).length === 0;
     }
 
-    function goNext() {
+    function buildRespondentIdentifier(): string | undefined {
+        const email = respondent.email.trim();
+        if (email) return email;
+        const name = respondent.name.trim();
+        if (name) return name;
+        const phone = respondent.phone.trim();
+        if (phone) return phone;
+        const address = respondent.address.trim();
+        if (address) return address;
+        return undefined;
+    }
+
+    function serializeAnswerValue(value: AnswerValue): string | null {
+        if (Array.isArray(value)) {
+            if (value.length === 0) return null;
+            return JSON.stringify(value.map((v) => String(v)));
+        }
+        if (typeof value === "number") return String(value);
+        if (typeof value === "string") {
+            const trimmed = value.trim();
+            return trimmed.length > 0 ? trimmed : null;
+        }
+        return null;
+    }
+
+    async function startPrivateAuth(): Promise<boolean> {
+        if (!campaign || campaign.authMode !== "PRIVATE") return true;
+        if (hasPrivateCredential) return true;
+        if (!campaign.tenantId) {
+            authError = "Unable to start private authentication.";
+            return false;
+        }
+
+        authLoading = true;
+        authError = null;
+        try {
+            const { data } = await api.post<OidcStartResponse>(
+                "/auth/respondent/oidc/start",
+                {
+                    tenantId: campaign.tenantId,
+                    campaignId: campaign.campaignId,
+                    returnPath: `/s/${campaignId}`,
+                },
+            );
+            if (!data.authorizationUrl) {
+                authError = "Authentication service did not return a login URL.";
+                return false;
+            }
+            if (typeof window !== "undefined") {
+                window.location.href = data.authorizationUrl;
+            }
+            return false;
+        } catch (err: unknown) {
+            const axiosErr = err as {
+                response?: { data?: { message?: string } };
+            };
+            authError =
+                axiosErr?.response?.data?.message ??
+                "Failed to start private sign-in.";
+            return false;
+        } finally {
+            authLoading = false;
+        }
+    }
+
+    async function handleStartSurvey() {
+        submitError = null;
+        if (campaign?.authMode === "PRIVATE" && !hasPrivateCredential) {
+            const authReady = await startPrivateAuth();
+            if (!authReady) return;
+        }
+        stage = "form";
+    }
+
+    async function submitResponse(): Promise<boolean> {
+        if (!campaign) return false;
+        if (campaign.authMode === "PRIVATE" && !hasPrivateCredential) {
+            submitError = "Private authentication is required before submission.";
+            return false;
+        }
+
+        const payloadAnswers: {
+            questionId: string;
+            questionVersionId: string;
+            value: string;
+        }[] = [];
+
+        for (const surveyPage of resolvedPages) {
+            for (const question of surveyPage.questions) {
+                const serializedValue = serializeAnswerValue(
+                    answers[question.questionId],
+                );
+                if (!serializedValue) continue;
+                payloadAnswers.push({
+                    questionId: question.questionId,
+                    questionVersionId: question.questionVersionId,
+                    value: serializedValue,
+                });
+            }
+        }
+
+        submitLoading = true;
+        submitError = null;
+        try {
+            await api.post("/responses", {
+                campaignId: campaign.campaignId,
+                respondentIdentifier: buildRespondentIdentifier(),
+                responderToken:
+                    campaign.authMode === "PRIVATE"
+                        ? responderToken || undefined
+                        : undefined,
+                responderAccessCode:
+                    campaign.authMode === "PRIVATE"
+                        ? responderAccessCode || undefined
+                        : undefined,
+                answers: payloadAnswers,
+            });
+            return true;
+        } catch (err: unknown) {
+            const axiosErr = err as {
+                response?: { data?: { message?: string } };
+            };
+            submitError =
+                axiosErr?.response?.data?.message ??
+                "Failed to submit response.";
+            return false;
+        } finally {
+            submitLoading = false;
+        }
+    }
+
+    async function goNext() {
         const respondentValid = validateRespondentFields();
         const pageValid = validateCurrentPage();
         if (!respondentValid || !pageValid) return;
         if (currentPageIndex >= totalPages - 1) {
-            stage = "complete";
+            const submitted = await submitResponse();
+            if (submitted) {
+                stage = "complete";
+                errors = {};
+            }
             return;
         }
         currentPageIndex += 1;
         errors = {};
+        submitError = null;
     }
 
     function goBack() {
         if (currentPageIndex <= 0) return;
         currentPageIndex -= 1;
         errors = {};
+        submitError = null;
     }
 
     async function load() {
         loading = true;
         error = null;
+        authError = null;
         try {
             const previewRes = await api.get<CampaignPreviewResponse>(`/public/campaigns/${campaignId}/preview`);
             campaign = previewRes.data;
+            readAuthParamsFromUrl();
         } catch (err: unknown) {
             const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
             if (axiosErr?.response?.status === 404) {
@@ -318,9 +506,21 @@
                             {#if campaign.startMessage}
                                 <p class="text-sm leading-6 text-foreground whitespace-pre-wrap">{campaign.startMessage}</p>
                             {/if}
-                            <Button onclick={() => (stage = "form")}>
+                            {#if campaign.authMode === "PRIVATE"}
+                                <p class="text-sm text-muted-foreground">
+                                    This is a private survey. You must complete sign-in before answering.
+                                </p>
+                            {/if}
+                            {#if authError}
+                                <p class="text-sm text-destructive">{authError}</p>
+                            {/if}
+                            <Button onclick={handleStartSurvey} disabled={authLoading}>
                                 <Play class="mr-2 h-4 w-4" />
-                                Start Survey
+                                {#if authLoading}
+                                    Redirecting to sign-in...
+                                {:else}
+                                    Start Survey
+                                {/if}
                             </Button>
                         </div>
                     {:else if stage === "complete"}
@@ -329,6 +529,22 @@
                             {#if campaign.finishMessage}
                                 <p class="text-sm leading-6 text-foreground whitespace-pre-wrap">{campaign.finishMessage}</p>
                             {/if}
+                        </div>
+                    {:else if isPrivateCampaign && !hasPrivateCredential}
+                        <div class="space-y-4">
+                            <p class="text-sm text-muted-foreground">
+                                Private authentication is required before filling this survey.
+                            </p>
+                            {#if authError}
+                                <p class="text-sm text-destructive">{authError}</p>
+                            {/if}
+                            <Button onclick={startPrivateAuth} disabled={authLoading}>
+                                {#if authLoading}
+                                    Redirecting to sign-in...
+                                {:else}
+                                    Continue with Sign-In
+                                {/if}
+                            </Button>
                         </div>
                     {:else if currentPage}
                         <div class="space-y-6">
@@ -462,10 +678,17 @@
                                     <span></span>
                                 {/if}
 
-                                <Button type="button" onclick={goNext}>
-                                    {currentPageIndex === totalPages - 1 ? "Finish" : "Next"}
+                                <Button type="button" onclick={goNext} disabled={submitLoading}>
+                                    {#if currentPageIndex === totalPages - 1 && submitLoading}
+                                        Submitting...
+                                    {:else}
+                                        {currentPageIndex === totalPages - 1 ? "Finish" : "Next"}
+                                    {/if}
                                 </Button>
                             </div>
+                            {#if submitError}
+                                <p class="text-sm text-destructive">{submitError}</p>
+                            {/if}
                         </div>
                     {/if}
 

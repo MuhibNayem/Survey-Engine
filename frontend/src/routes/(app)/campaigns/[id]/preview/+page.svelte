@@ -23,6 +23,7 @@
         type: QuestionType;
         mandatory: boolean;
         sortOrder: number;
+        optionConfig?: string;
         answerConfig?: string;
         maxScore: number;
     };
@@ -68,6 +69,7 @@
                                   type: q.type ?? "RATING_SCALE",
                                   mandatory: q.mandatory,
                                   sortOrder: q.sortOrder,
+                                  optionConfig: q.optionConfig,
                                   answerConfig: q.answerConfig,
                                   maxScore: q.maxScore ?? 5,
                               } satisfies PreviewQuestion;
@@ -93,11 +95,15 @@
     }
 
     function getOptions(question: PreviewQuestion): string[] {
-        const config = parseAnswerConfig(question.answerConfig);
+        const config = parseAnswerConfig(question.optionConfig);
         const rawOptions = config.options;
         if (!Array.isArray(rawOptions)) return [];
         return rawOptions
-            .map((v) => String(v).trim())
+            .map((v) =>
+                typeof v === "string"
+                    ? v.trim()
+                    : String(v?.value ?? "").trim(),
+            )
             .filter((v) => v.length > 0);
     }
 

@@ -44,6 +44,7 @@ public class SurveyResponse {
         private UUID questionId;
         private UUID questionVersionId;
         private UUID categoryId;
+        private UUID categoryVersionId;
         private Integer sortOrder;
         private boolean mandatory;
         private String answerConfig;

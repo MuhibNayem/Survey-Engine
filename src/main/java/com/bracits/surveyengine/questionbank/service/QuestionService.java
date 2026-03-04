@@ -24,7 +24,7 @@ public interface QuestionService {
 
     void deactivate(UUID id);
 
-    QuestionVersion createVersionSnapshot(Question question);
+    QuestionVersion createPinnedVersionSnapshot(Question question);
 
-    QuestionVersion getLatestVersion(UUID questionId);
+    QuestionVersion getLiveVersion(UUID questionId);
 }

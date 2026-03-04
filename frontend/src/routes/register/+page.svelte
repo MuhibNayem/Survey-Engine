@@ -7,6 +7,8 @@
     import * as Card from "$lib/components/ui/card";
     import { UserPlus } from "lucide-svelte";
 
+    let fullName = $state("");
+    let tenantId = $state("");
     let email = $state("");
     let password = $state("");
     let confirmPassword = $state("");
@@ -20,12 +22,25 @@
             localError = "Passwords do not match";
             return;
         }
-        if (password.length < 6) {
-            localError = "Password must be at least 6 characters";
+        if (password.length < 8) {
+            localError = "Password must be at least 8 characters";
+            return;
+        }
+        if (!fullName.trim()) {
+            localError = "Full name is required";
+            return;
+        }
+        if (!tenantId.trim()) {
+            localError = "Tenant ID is required";
             return;
         }
 
-        const success = await auth.register({ email, password });
+        const success = await auth.register({
+            fullName: fullName.trim(),
+            tenantId: tenantId.trim(),
+            email: email.trim(),
+            password,
+        });
         if (success) {
             goto("/onboarding/plan");
         }
@@ -67,6 +82,30 @@
                             {displayError}
                         </div>
                     {/if}
+
+                    <div class="space-y-2">
+                        <Label for="reg-fullname">Full Name</Label>
+                        <Input
+                            id="reg-fullname"
+                            type="text"
+                            placeholder="Jane Doe"
+                            bind:value={fullName}
+                            required
+                            autocomplete="name"
+                        />
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="reg-tenant">Tenant ID</Label>
+                        <Input
+                            id="reg-tenant"
+                            type="text"
+                            placeholder="acme"
+                            bind:value={tenantId}
+                            required
+                            autocomplete="organization"
+                        />
+                    </div>
 
                     <div class="space-y-2">
                         <Label for="reg-email">Email</Label>

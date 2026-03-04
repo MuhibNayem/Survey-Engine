@@ -283,11 +283,13 @@ public class CampaignServiceImpl implements CampaignService {
                 .id(sq.getId())
                 .questionId(sq.getQuestionId())
                 .questionVersionId(sq.getQuestionVersionId())
+                .categoryVersionId(sq.getCategoryVersionId())
                 .text(text)
                 .type(type)
                 .maxScore(maxScore)
                 .mandatory(sq.isMandatory())
                 .sortOrder(sq.getSortOrder())
+                .optionConfig(questionVersion != null ? questionVersion.getOptionConfig() : fallbackQuestion.getOptionConfig())
                 .answerConfig(sq.getAnswerConfig())
                 .build();
     }
@@ -300,6 +302,7 @@ public class CampaignServiceImpl implements CampaignService {
 
         return CampaignPreviewResponse.builder()
                 .campaignId(campaign.getId())
+                .tenantId(campaign.getTenantId())
                 .campaignName(campaign.getName())
                 .campaignStatus(campaign.getStatus())
                 .authMode(campaign.getAuthMode())

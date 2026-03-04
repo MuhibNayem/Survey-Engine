@@ -24,4 +24,6 @@ public class QuestionRequest {
     @NotNull(message = "Max score is required")
     @DecimalMin(value = "0.01", message = "Max score must be greater than 0")
     private BigDecimal maxScore;
+
+    private String optionConfig;
 }

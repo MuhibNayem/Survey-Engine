@@ -16,6 +16,7 @@ public class QuestionResponse {
     private String text;
     private QuestionType type;
     private BigDecimal maxScore;
+    private String optionConfig;
     private Integer currentVersion;
     private boolean active;
     private String createdBy;

@@ -9,8 +9,10 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+    fullName: string;
     email: string;
     password: string;
+    tenantId: string;
 }
 
 export interface AuthResponse {
@@ -27,9 +29,9 @@ export interface RefreshTokenRequest {
 
 /** Safe response DTO — no tokens exposed (cookie-based auth) */
 export interface AuthUserResponse {
-    userId: string;
+    userId?: string;
     email: string;
-    fullName: string;
+    fullName?: string;
     tenantId: string;
     role: string;
 }
@@ -41,6 +43,7 @@ export interface QuestionRequest {
     text: string;
     type: QuestionType;
     maxScore: number;
+    optionConfig?: string;
 }
 
 export interface QuestionResponse {
@@ -48,6 +51,7 @@ export interface QuestionResponse {
     text: string;
     type: QuestionType;
     maxScore: number;
+    optionConfig?: string;
     currentVersion: number;
     active: boolean;
     createdBy: string;
@@ -125,10 +129,11 @@ export interface SurveyResponse {
             id: string;
             questionId: string;
             questionVersionId: string;
-            categoryId: string;
+            categoryId?: string;
+            categoryVersionId?: string;
             sortOrder: number;
             mandatory: boolean;
-            answerConfig: string;
+            answerConfig?: string;
         }[];
     }[];
     createdBy: string;
@@ -215,6 +220,7 @@ export interface CampaignSettingsResponse {
 
 export interface CampaignPreviewResponse {
     campaignId: string;
+    tenantId: string;
     campaignName: string;
     campaignStatus: CampaignStatus;
     authMode: AuthMode;
@@ -240,11 +246,13 @@ export interface CampaignPreviewResponse {
             id: string;
             questionId: string;
             questionVersionId: string;
+            categoryVersionId?: string;
             text: string;
             type: QuestionType;
             maxScore: number;
             mandatory: boolean;
             sortOrder: number;
+            optionConfig?: string;
             answerConfig?: string;
         }[];
     }[];
@@ -363,11 +371,12 @@ export interface PlanDefinitionResponse {
     maxCampaigns: number;
     maxResponsesPerCampaign: number;
     maxAdminUsers: number;
+    active: boolean;
 }
 
 // --- Tenant Auth Config ---
-export type AuthenticationMode = 'STRICT' | 'ALLOW_ANONYMOUS' | 'REQUIRE_INVITE';
-export type FallbackPolicy = 'BLOCK' | 'ALLOW_LOCAL' | 'FORCE_SSO';
+export type AuthenticationMode = 'PUBLIC_ANONYMOUS' | 'SIGNED_LAUNCH_TOKEN' | 'EXTERNAL_SSO_TRUST';
+export type FallbackPolicy = 'SSO_REQUIRED' | 'ANONYMOUS_FALLBACK' | 'DISABLE_ON_FAILURE';
 
 export interface ClaimMappingResponse {
     id?: string;
@@ -401,6 +410,7 @@ export interface ClaimMappingRequest {
 }
 
 export interface AuthProfileRequest {
+    tenantId: string;
     authMode: AuthenticationMode;
     issuer?: string;
     audience?: string;
@@ -408,9 +418,11 @@ export interface AuthProfileRequest {
     oidcDiscoveryUrl?: string;
     oidcClientId?: string;
     oidcClientSecret?: string;
+    oidcRedirectUri?: string;
     oidcScopes?: string;
     clockSkewSeconds?: number;
     tokenTtlSeconds?: number;
+    signingSecret?: string;
     fallbackPolicy: FallbackPolicy;
     claimMappings: ClaimMappingRequest[];
 }

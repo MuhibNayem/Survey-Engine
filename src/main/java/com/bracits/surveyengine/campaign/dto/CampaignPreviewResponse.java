@@ -15,6 +15,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CampaignPreviewResponse {
     private UUID campaignId;
+    private String tenantId;
     private String campaignName;
     private CampaignStatus campaignStatus;
     private AuthMode authMode;
@@ -57,11 +58,13 @@ public class CampaignPreviewResponse {
         private UUID id;
         private UUID questionId;
         private UUID questionVersionId;
+        private UUID categoryVersionId;
         private String text;
         private QuestionType type;
         private BigDecimal maxScore;
         private boolean mandatory;
         private Integer sortOrder;
+        private String optionConfig;
         private String answerConfig;
     }
 }

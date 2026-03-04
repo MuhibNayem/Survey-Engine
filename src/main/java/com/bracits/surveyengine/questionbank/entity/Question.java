@@ -37,6 +37,9 @@ public class Question extends AuditableEntity {
     @Column(name = "max_score", nullable = false, precision = 10, scale = 2)
     private BigDecimal maxScore;
 
+    @Column(name = "option_config", columnDefinition = "TEXT")
+    private String optionConfig;
+
     @Column(name = "current_version", nullable = false)
     private Integer currentVersion;
 

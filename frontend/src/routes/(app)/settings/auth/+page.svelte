@@ -41,8 +41,8 @@
     let isEditing = $state(false);
     let formLoading = $state(false);
 
-    let authMode = $state<AuthenticationMode>("STRICT");
-    let fallbackPolicy = $state<FallbackPolicy>("BLOCK");
+    let authMode = $state<AuthenticationMode>("SIGNED_LAUNCH_TOKEN");
+    let fallbackPolicy = $state<FallbackPolicy>("SSO_REQUIRED");
     let issuer = $state("");
     let audience = $state("");
     let oidcClientId = $state("");
@@ -59,7 +59,9 @@
         loading = true;
         error = null;
         try {
-            // Get tenantId from auth store (or fetch me first if needed)
+            if (!auth.user?.tenantId) {
+                await auth.fetchCurrentUser();
+            }
             const tenantId = auth.user?.tenantId;
             if (!tenantId) throw new Error("No tenant ID found in session.");
 
@@ -134,8 +136,15 @@
         e.preventDefault();
         formLoading = true;
         error = null;
+        const tenantId = auth.user?.tenantId;
+        if (!tenantId) {
+            error = "No tenant ID found in session.";
+            formLoading = false;
+            return;
+        }
 
         const payload: AuthProfileRequest = {
+            tenantId,
             authMode,
             fallbackPolicy,
             issuer: issuer || undefined,
@@ -165,7 +174,7 @@
             isEditing = false;
         } catch (err: any) {
             error = err?.response?.data?.message || "Failed to save profile.";
-            toast.error(error);
+            toast.error(error ?? "Failed to save profile.");
         } finally {
             formLoading = false;
         }
@@ -262,21 +271,22 @@
                                     required
                                 >
                                     <Select.Trigger class="w-full">
-                                        {authMode === "STRICT"
-                                            ? "Strict (No Anonymous allowed)"
-                                            : authMode === "REQUIRE_INVITE"
-                                              ? "Require Invitation Only"
-                                              : "Allow Anonymous Fallback"}
+                                        {authMode === "PUBLIC_ANONYMOUS"
+                                            ? "Public Anonymous"
+                                            : authMode ===
+                                                  "EXTERNAL_SSO_TRUST"
+                                              ? "External SSO Trust"
+                                              : "Signed Launch Token"}
                                     </Select.Trigger>
                                     <Select.Content>
-                                        <Select.Item value="STRICT"
-                                            >Strict (Login Required)</Select.Item
+                                        <Select.Item value="SIGNED_LAUNCH_TOKEN"
+                                            >Signed Launch Token</Select.Item
                                         >
-                                        <Select.Item value="REQUIRE_INVITE"
-                                            >Require Invite</Select.Item
+                                        <Select.Item value="EXTERNAL_SSO_TRUST"
+                                            >External SSO Trust</Select.Item
                                         >
-                                        <Select.Item value="ALLOW_ANONYMOUS"
-                                            >Allow Anonymous</Select.Item
+                                        <Select.Item value="PUBLIC_ANONYMOUS"
+                                            >Public Anonymous</Select.Item
                                         >
                                     </Select.Content>
                                 </Select.Root>
@@ -290,21 +300,23 @@
                                     required
                                 >
                                     <Select.Trigger class="w-full">
-                                        {fallbackPolicy === "BLOCK"
-                                            ? "Block Missing Users"
-                                            : fallbackPolicy === "ALLOW_LOCAL"
-                                              ? "Allow Local Auth"
-                                              : "Force SSO"}
+                                        {fallbackPolicy === "SSO_REQUIRED"
+                                            ? "SSO Required"
+                                            : fallbackPolicy ===
+                                                  "ANONYMOUS_FALLBACK"
+                                              ? "Anonymous Fallback"
+                                              : "Disable On Failure"}
                                     </Select.Trigger>
                                     <Select.Content>
-                                        <Select.Item value="BLOCK"
-                                            >Block Missing Users</Select.Item
+                                        <Select.Item value="SSO_REQUIRED"
+                                            >SSO Required</Select.Item
                                         >
-                                        <Select.Item value="FORCE_SSO"
-                                            >Force SSO Router</Select.Item
+                                        <Select.Item
+                                            value="ANONYMOUS_FALLBACK"
+                                            >Anonymous Fallback</Select.Item
                                         >
-                                        <Select.Item value="ALLOW_LOCAL"
-                                            >Allow Local Auth Route</Select.Item
+                                        <Select.Item value="DISABLE_ON_FAILURE"
+                                            >Disable On Failure</Select.Item
                                         >
                                     </Select.Content>
                                 </Select.Root>
@@ -679,7 +691,7 @@
     title="Rotate Signing Keys"
     description="Rotating keys will invalidate all current active sessions initialized by this provider. Users will need to re-authenticate. Proceed with caution."
     confirmLabel="Rotate Keys Now"
-    confirmVariant="destructive"
+    variant="danger"
     loading={rotating}
     onConfirm={handleRotateKey}
     onCancel={() => (confirmRotate = false)}
