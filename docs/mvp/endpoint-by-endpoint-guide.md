@@ -25,8 +25,8 @@ Each endpoint answers 6 questions:
   1. Creates tenant if needed.
   2. Creates admin account.
   3. Starts trial subscription (if not present).
-  4. Returns access token + refresh token.
-- Caller gets back: Admin profile basics + tokens.
+  4. Sets `access_token` and `refresh_token` as HttpOnly, Secure, SameSite=Strict cookies.
+- Caller gets back: Admin profile basics (userId, email, fullName, tenantId, role). **No tokens in response body.**
 - Flow position: First step of tenant onboarding.
 
 ### 2) `POST /api/v1/admin/auth/login`
@@ -36,19 +36,35 @@ Each endpoint answers 6 questions:
 - System does:
   1. Verifies credentials.
   2. Revokes old refresh tokens for safety.
-  3. Issues fresh access and refresh tokens.
-- Caller gets back: New token pair and user info.
+  3. Sets new `access_token` and `refresh_token` as HttpOnly cookies.
+- Caller gets back: User info (no tokens in body).
 - Flow position: Start of daily admin operations.
 
 ### 3) `POST /api/v1/admin/auth/refresh`
 - Why necessary: Keep user logged in without full re-login when access token expires.
-- Who uses it: Logged-in admin session.
-- Caller provides: Refresh token.
+- Who uses it: Browser session (automatic via interceptor on 401).
+- Caller provides: Nothing explicitly — `refresh_token` cookie is sent automatically by browser.
 - System does:
-  1. Validates refresh token.
-  2. Rotates (revokes old one, issues new pair).
-- Caller gets back: New access token + new refresh token.
+  1. Reads `refresh_token` cookie.
+  2. Rotates (revokes old one, issues new pair as cookies).
+- Caller gets back: User info + fresh cookies set.
 - Flow position: Session continuity during dashboard usage.
+
+### 3b) `POST /api/v1/admin/auth/logout`
+- Why necessary: Securely end admin session and clear auth cookies.
+- Who uses it: Any logged-in admin.
+- Caller provides: Nothing — cookies are sent automatically.
+- System does: Clears `access_token` and `refresh_token` cookies (sets maxAge=0).
+- Caller gets back: 204 No Content.
+- Flow position: Session termination.
+
+### 3c) `GET /api/v1/admin/auth/me`
+- Why necessary: Verify current session is valid and retrieve user info on page load.
+- Who uses it: Frontend on app initialization / page refresh.
+- Caller provides: Nothing — `access_token` cookie is sent automatically.
+- System does: Parses JWT from cookie, returns user info from security context.
+- Caller gets back: Current user profile (email, tenantId, role).
+- Flow position: Session hydration after page refresh.
 
 ---
 
@@ -542,7 +558,7 @@ Admin-auth required endpoints:
 
 ## L) Data Flow Path (Simple View)
 
-1. Admin enters system -> gets tokens -> configures content/campaign/auth.
+1. Admin enters system -> auth cookies set -> configures content/campaign/auth.
 2. Campaign goes active -> responder accesses campaign path.
 3. If public -> responder submits directly.
 4. If private -> responder identity is validated (OIDC flow or signed token).
