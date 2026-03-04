@@ -1,0 +1,78 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: survey-engine-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: survey_engine
+      POSTGRES_USER: survey_user
+      POSTGRES_PASSWORD: survey_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - survey_engine_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U survey_user -d survey_engine"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: survey-engine-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: survey-engine-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  survey-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: survey-engine-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: jdbc:postgresql://postgres:5432/survey_engine
+      DATABASE_USERNAME: survey_user
+      DATABASE_PASSWORD: survey_pass
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      SURVEY_ENGINE_JWT_SECRET: survey-engine-default-secret-key-change-in-production-minimum-32-chars
+    ports:
+      - "8080:8080"
+
+volumes:
+  survey_engine_pgdata:
