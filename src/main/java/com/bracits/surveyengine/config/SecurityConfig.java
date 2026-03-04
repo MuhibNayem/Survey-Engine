@@ -59,6 +59,7 @@ public class SecurityConfig {
                                                 .hasRole("SUPER_ADMIN")
                                                 // Public — respondent-facing (external auth handled separately per
                                                 // campaign)
+                                                .requestMatchers("/api/v1/public/campaigns/**").permitAll()
                                                 .requestMatchers("/api/v1/auth/validate/**").permitAll()
                                                 .requestMatchers("/api/v1/auth/respondent/oidc/**").permitAll()
                                                 .requestMatchers("/api/v1/responses").permitAll()

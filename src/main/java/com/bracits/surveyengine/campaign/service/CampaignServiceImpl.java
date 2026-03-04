@@ -119,32 +119,25 @@ public class CampaignServiceImpl implements CampaignService {
         Survey survey = surveyRepository.findByIdAndTenantId(campaign.getSurveyId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Survey", campaign.getSurveyId()));
 
-        List<CampaignPreviewResponse.PagePreview> pages = survey.getPages().stream()
-                .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
-                .map(this::toPreviewPage)
-                .toList();
+        return buildPreview(campaign, settings, survey);
+    }
 
-        return CampaignPreviewResponse.builder()
-                .campaignId(campaign.getId())
-                .campaignName(campaign.getName())
-                .campaignStatus(campaign.getStatus())
-                .authMode(campaign.getAuthMode())
-                .surveyId(survey.getId())
-                .surveyTitle(survey.getTitle())
-                .surveyDescription(survey.getDescription())
-                .showQuestionNumbers(settings.isShowQuestionNumbers())
-                .showProgressIndicator(settings.isShowProgressIndicator())
-                .allowBackButton(settings.isAllowBackButton())
-                .startMessage(settings.getStartMessage())
-                .finishMessage(settings.getFinishMessage())
-                .headerHtml(settings.getHeaderHtml())
-                .footerHtml(settings.getFooterHtml())
-                .collectName(settings.isCollectName())
-                .collectEmail(settings.isCollectEmail())
-                .collectPhone(settings.isCollectPhone())
-                .collectAddress(settings.isCollectAddress())
-                .pages(pages)
-                .build();
+    @Override
+    @Transactional(readOnly = true)
+    public CampaignPreviewResponse getPublicPreview(UUID campaignId) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+
+        if (!campaign.isActive() || campaign.getStatus() != CampaignStatus.ACTIVE) {
+            throw new ResourceNotFoundException("Campaign", campaignId);
+        }
+
+        CampaignSettings settings = settingsRepository.findByCampaignId(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("CampaignSettings", campaignId));
+        Survey survey = surveyRepository.findById(campaign.getSurveyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Survey", campaign.getSurveyId()));
+
+        return buildPreview(campaign, settings, survey);
     }
 
     @Override
@@ -277,9 +270,10 @@ public class CampaignServiceImpl implements CampaignService {
             questionVersion = questionVersionRepository.findById(sq.getQuestionVersionId()).orElse(null);
         }
 
-        String tenantId = resolveTenantId();
-        Question fallbackQuestion = questionRepository.findByIdAndTenantId(sq.getQuestionId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Question", sq.getQuestionId()));
+        Question fallbackQuestion = questionRepository.findById(sq.getQuestionId()).orElse(null);
+        if (questionVersion == null && fallbackQuestion == null) {
+            throw new ResourceNotFoundException("Question", sq.getQuestionId());
+        }
 
         String text = questionVersion != null ? questionVersion.getText() : fallbackQuestion.getText();
         var type = questionVersion != null ? questionVersion.getType() : fallbackQuestion.getType();
@@ -295,6 +289,35 @@ public class CampaignServiceImpl implements CampaignService {
                 .mandatory(sq.isMandatory())
                 .sortOrder(sq.getSortOrder())
                 .answerConfig(sq.getAnswerConfig())
+                .build();
+    }
+
+    private CampaignPreviewResponse buildPreview(Campaign campaign, CampaignSettings settings, Survey survey) {
+        List<CampaignPreviewResponse.PagePreview> pages = survey.getPages().stream()
+                .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
+                .map(this::toPreviewPage)
+                .toList();
+
+        return CampaignPreviewResponse.builder()
+                .campaignId(campaign.getId())
+                .campaignName(campaign.getName())
+                .campaignStatus(campaign.getStatus())
+                .authMode(campaign.getAuthMode())
+                .surveyId(survey.getId())
+                .surveyTitle(survey.getTitle())
+                .surveyDescription(survey.getDescription())
+                .showQuestionNumbers(settings.isShowQuestionNumbers())
+                .showProgressIndicator(settings.isShowProgressIndicator())
+                .allowBackButton(settings.isAllowBackButton())
+                .startMessage(settings.getStartMessage())
+                .finishMessage(settings.getFinishMessage())
+                .headerHtml(settings.getHeaderHtml())
+                .footerHtml(settings.getFooterHtml())
+                .collectName(settings.isCollectName())
+                .collectEmail(settings.isCollectEmail())
+                .collectPhone(settings.isCollectPhone())
+                .collectAddress(settings.isCollectAddress())
+                .pages(pages)
                 .build();
     }
 

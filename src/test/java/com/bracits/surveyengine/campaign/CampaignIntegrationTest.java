@@ -164,6 +164,21 @@ class CampaignIntegrationTest {
     }
 
     @Test
+    void shouldReturnPublicCampaignPreviewForActiveCampaign() {
+        CampaignResponse campaign = campaignService.create(CampaignRequest.builder()
+                .name("Public Preview Test")
+                .surveyId(publishedSurveyId)
+                .build());
+        campaignService.activate(campaign.getId());
+
+        CampaignPreviewResponse preview = campaignService.getPublicPreview(campaign.getId());
+        assertThat(preview).isNotNull();
+        assertThat(preview.getCampaignId()).isEqualTo(campaign.getId());
+        assertThat(preview.getCampaignStatus()).isEqualTo(CampaignStatus.ACTIVE);
+        assertThat(preview.getPages()).isNotEmpty();
+    }
+
+    @Test
     void shouldActivateCampaignWithPublishedSurvey() {
         CampaignResponse campaign = campaignService.create(CampaignRequest.builder()
                 .name("Activate Test")

@@ -164,6 +164,38 @@
             : [...current, option];
     }
 
+    function optionCardClass(selected: boolean): string {
+        return `group flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-all ${
+            selected
+                ? "border-primary bg-primary/10 text-primary shadow-sm"
+                : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/5"
+        }`;
+    }
+
+    function radioDotClass(selected: boolean): string {
+        return `inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+            selected
+                ? "border-primary bg-primary"
+                : "border-border bg-background"
+        }`;
+    }
+
+    function checkBoxClass(selected: boolean): string {
+        return `inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs font-bold ${
+            selected
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background text-transparent"
+        }`;
+    }
+
+    function ratingButtonClass(selected: boolean): string {
+        return `inline-flex h-9 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${
+            selected
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/5"
+        }`;
+    }
+
     function moveRankOption(question: PreviewQuestion, index: number, direction: -1 | 1) {
         const ordered = [...ensureRankOrder(question)];
         const newIndex = index + direction;
@@ -422,11 +454,12 @@
                                                 {#each getOptions(question) as option}
                                                     <button
                                                         type="button"
-                                                        class={`group flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-all ${
-                                                            isSingleSelected(question.questionId, option)
-                                                                ? "border-sky-400 bg-sky-50 text-sky-900 shadow-sm"
-                                                                : "border-border bg-background text-foreground hover:border-sky-200 hover:bg-sky-50/40"
-                                                        }`}
+                                                        class={optionCardClass(
+                                                            isSingleSelected(
+                                                                question.questionId,
+                                                                option,
+                                                            ),
+                                                        )}
                                                         onclick={() =>
                                                             setSingleChoice(
                                                                 question.questionId,
@@ -436,15 +469,14 @@
                                                         <span class="pr-3 font-medium">
                                                             {option}
                                                         </span>
-                                                        <span
-                                                            class={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                                                                isSingleSelected(question.questionId, option)
-                                                                    ? "border-sky-500 bg-sky-500"
-                                                                    : "border-slate-300 bg-white"
-                                                            }`}
-                                                        >
+                                                        <span class={radioDotClass(
+                                                            isSingleSelected(
+                                                                question.questionId,
+                                                                option,
+                                                            ),
+                                                        )}>
                                                             {#if isSingleSelected(question.questionId, option)}
-                                                                <span class="h-2.5 w-2.5 rounded-full bg-white"></span>
+                                                                <span class="h-2.5 w-2.5 rounded-full bg-primary-foreground"></span>
                                                             {/if}
                                                         </span>
                                                     </button>
@@ -455,11 +487,12 @@
                                                 {#each getOptions(question) as option}
                                                     <button
                                                         type="button"
-                                                        class={`group flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-all ${
-                                                            isMultiSelected(question.questionId, option)
-                                                                ? "border-emerald-400 bg-emerald-50 text-emerald-900 shadow-sm"
-                                                                : "border-border bg-background text-foreground hover:border-emerald-200 hover:bg-emerald-50/40"
-                                                        }`}
+                                                        class={optionCardClass(
+                                                            isMultiSelected(
+                                                                question.questionId,
+                                                                option,
+                                                            ),
+                                                        )}
                                                         onclick={() =>
                                                             toggleMultiChoice(
                                                                 question.questionId,
@@ -469,13 +502,12 @@
                                                         <span class="pr-3 font-medium">
                                                             {option}
                                                         </span>
-                                                        <span
-                                                            class={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs font-bold ${
-                                                                isMultiSelected(question.questionId, option)
-                                                                    ? "border-emerald-600 bg-emerald-600 text-white"
-                                                                    : "border-slate-300 bg-white text-transparent"
-                                                            }`}
-                                                        >
+                                                        <span class={checkBoxClass(
+                                                            isMultiSelected(
+                                                                question.questionId,
+                                                                option,
+                                                            ),
+                                                        )}>
                                                             ✓
                                                         </span>
                                                     </button>
@@ -514,11 +546,11 @@
                                                 {#each getRatingValues(question) as value}
                                                     <button
                                                         type="button"
-                                                        class={`inline-flex h-9 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${
-                                                            answers[question.questionId] === value
-                                                                ? "border-indigo-500 bg-indigo-500 text-white"
-                                                                : "border-border bg-background text-foreground hover:border-indigo-300 hover:bg-indigo-50"
-                                                        }`}
+                                                        class={ratingButtonClass(
+                                                            answers[
+                                                                question.questionId
+                                                            ] === value,
+                                                        )}
                                                         onclick={() =>
                                                             (answers[
                                                                 question.questionId

@@ -23,6 +23,8 @@ public interface CampaignService {
 
     CampaignPreviewResponse getPreview(UUID campaignId);
 
+    CampaignPreviewResponse getPublicPreview(UUID campaignId);
+
     CampaignSettingsResponse getSettings(UUID campaignId);
 
     CampaignResponse updateSettings(UUID campaignId, CampaignSettingsRequest request);
