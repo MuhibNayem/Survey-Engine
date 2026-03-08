@@ -56,12 +56,19 @@
         paying = true;
         error = null;
         try {
-            await api.post<SubscriptionResponse>("/admin/subscriptions/checkout", {
-                planCode: plan.planCode,
-            });
+            await api.post<SubscriptionResponse>(
+                "/admin/subscriptions/checkout",
+                {
+                    planCode: plan.planCode,
+                },
+            );
 
             if (source === "onboarding") {
-                goto("/dashboard");
+                if (auth.user?.role === "SUPER_ADMIN") {
+                    goto("/admin/dashboard");
+                } else {
+                    goto("/dashboard");
+                }
             } else {
                 goto("/settings/subscription");
             }
@@ -82,15 +89,21 @@
         error = null;
         try {
             const params = new URLSearchParams(window.location.search);
-            const selectedPlanCode = params.get("planCode") as SubscriptionPlan | null;
-            source = params.get("source") === "onboarding" ? "onboarding" : "settings";
+            const selectedPlanCode = params.get(
+                "planCode",
+            ) as SubscriptionPlan | null;
+            source =
+                params.get("source") === "onboarding"
+                    ? "onboarding"
+                    : "settings";
 
             if (!selectedPlanCode) {
                 error = "No plan selected for checkout.";
                 return;
             }
 
-            const { data } = await api.get<PlanDefinitionResponse[]>("/admin/plans");
+            const { data } =
+                await api.get<PlanDefinitionResponse[]>("/admin/plans");
             plan = data.find((p) => p.planCode === selectedPlanCode) ?? null;
             if (!plan) {
                 error = "Selected plan is unavailable.";
@@ -113,7 +126,9 @@
     <div class="mx-auto max-w-3xl space-y-6">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-foreground">Payment Checkout</h1>
+                <h1 class="text-2xl font-bold text-foreground">
+                    Payment Checkout
+                </h1>
                 <p class="text-sm text-muted-foreground">
                     Complete payment to activate the selected plan.
                 </p>
@@ -156,13 +171,16 @@
                             >
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-muted-foreground">Billing cycle</span>
+                            <span class="text-muted-foreground"
+                                >Billing cycle</span
+                            >
                             <span class="font-medium"
                                 >{plan.billingCycleDays} days</span
                             >
                         </div>
                         <div class="pt-2 text-xs text-muted-foreground">
-                            This checkout uses a mock payment gateway in MVP mode.
+                            This checkout uses a mock payment gateway in MVP
+                            mode.
                         </div>
                     </Card.Content>
                 </Card.Root>
@@ -194,11 +212,19 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div class="space-y-2">
                                 <Label for="exp">Expiry (MM/YY)</Label>
-                                <Input id="exp" bind:value={expiry} placeholder="12/30" />
+                                <Input
+                                    id="exp"
+                                    bind:value={expiry}
+                                    placeholder="12/30"
+                                />
                             </div>
                             <div class="space-y-2">
                                 <Label for="cvv">CVV</Label>
-                                <Input id="cvv" bind:value={cvv} placeholder="123" />
+                                <Input
+                                    id="cvv"
+                                    bind:value={cvv}
+                                    placeholder="123"
+                                />
                             </div>
                         </div>
                     </Card.Content>

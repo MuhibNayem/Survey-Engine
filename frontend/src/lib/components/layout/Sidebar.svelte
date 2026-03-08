@@ -11,6 +11,7 @@
         ChevronsLeft,
         ChevronsRight,
         ShieldAlert,
+        Users,
     } from "lucide-svelte";
     import * as Tooltip from "$lib/components/ui/tooltip";
     import { auth } from "$lib/stores/auth.svelte";
@@ -32,6 +33,8 @@
     ];
 
     const superAdminItems = [
+        { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
+        { href: "/admin/tenants", label: "Tenants", icon: Users },
         { href: "/admin/plans", label: "System Plans", icon: ShieldAlert },
     ];
 
@@ -72,43 +75,8 @@
 
         <!-- Navigation -->
         <nav class="flex-1 space-y-1 overflow-y-auto p-3">
-            {#each navItems as item}
-                {@const active = isActive(item.href)}
-                {#if collapsed}
-                    <Tooltip.Root>
-                        <Tooltip.Trigger class="w-full focus:outline-none">
-                            <a
-                                href={item.href}
-                                class="mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition-colors
-                                    {active
-                                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}"
-                            >
-                                <item.icon class="h-5 w-5 shrink-0" />
-                            </a>
-                        </Tooltip.Trigger>
-                        <Tooltip.Content side="right">
-                            {item.label}
-                        </Tooltip.Content>
-                    </Tooltip.Root>
-                {:else}
-                    <a
-                        href={item.href}
-                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors overflow-hidden
-                            {active
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}"
-                    >
-                        <item.icon class="h-5 w-5 shrink-0" />
-                        <span class="whitespace-nowrap truncate"
-                            >{item.label}</span
-                        >
-                    </a>
-                {/if}
-            {/each}
-
             {#if auth.user?.role === "SUPER_ADMIN"}
-                <div class="pt-4 pb-2 px-3">
+                <div class="pb-2 px-3">
                     <p
                         class="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-widest {collapsed
                             ? 'text-center'
@@ -143,6 +111,41 @@
                                 {active
                                 ? 'bg-destructive/10 text-destructive'
                                 : 'text-destructive/70 hover:bg-destructive/10 hover:text-destructive'}"
+                        >
+                            <item.icon class="h-5 w-5 shrink-0" />
+                            <span class="whitespace-nowrap truncate"
+                                >{item.label}</span
+                            >
+                        </a>
+                    {/if}
+                {/each}
+            {:else}
+                {#each navItems as item}
+                    {@const active = isActive(item.href)}
+                    {#if collapsed}
+                        <Tooltip.Root>
+                            <Tooltip.Trigger class="w-full focus:outline-none">
+                                <a
+                                    href={item.href}
+                                    class="mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition-colors
+                                        {active
+                                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}"
+                                >
+                                    <item.icon class="h-5 w-5 shrink-0" />
+                                </a>
+                            </Tooltip.Trigger>
+                            <Tooltip.Content side="right">
+                                {item.label}
+                            </Tooltip.Content>
+                        </Tooltip.Root>
+                    {:else}
+                        <a
+                            href={item.href}
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors overflow-hidden
+                                {active
+                                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}"
                         >
                             <item.icon class="h-5 w-5 shrink-0" />
                             <span class="whitespace-nowrap truncate"

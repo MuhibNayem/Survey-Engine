@@ -458,3 +458,18 @@ export interface ProviderTemplateResponse {
     defaultClaimMappings: ClaimMappingRequest[];
     requiredConfigFields: string[];
 }
+
+// --- Super Admin Tenant Management ---
+export interface TenantOverviewResponse {
+    tenantId: string;
+    name: string;
+    primaryEmail: string;
+    plan: SubscriptionPlan | null;
+    subscriptionStatus: SubscriptionStatus | null;
+    active: boolean;
+    createdAt: string;
+}
+
+export interface OverrideSubscriptionRequest {
+    plan: SubscriptionPlan;
+}

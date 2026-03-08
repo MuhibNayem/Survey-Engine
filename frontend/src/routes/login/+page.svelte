@@ -14,7 +14,11 @@
         e.preventDefault();
         const success = await auth.login({ email, password });
         if (success) {
-            goto("/dashboard");
+            if (auth.user?.role === "SUPER_ADMIN") {
+                goto("/admin/dashboard");
+            } else {
+                goto("/dashboard");
+            }
         }
     }
 </script>

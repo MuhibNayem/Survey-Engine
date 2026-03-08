@@ -21,7 +21,11 @@
 
     onMount(() => {
         if (auth.isAuthenticated) {
-            goto("/dashboard");
+            if (auth.user?.role === "SUPER_ADMIN") {
+                goto("/admin/dashboard");
+            } else {
+                goto("/dashboard");
+            }
         }
     });
 
