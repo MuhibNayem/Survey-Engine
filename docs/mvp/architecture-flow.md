@@ -155,7 +155,7 @@ sequenceDiagram
   participant TS as Tenant Service
   participant SS as Subscription Service
 
-  TA->>AA: Register (name,email,password)
+  TA->>AA: Register (name,email,password,confirmPassword)
   AA->>AA: generateTenantId()
   AA->>TS: ensureProvisioned(generatedTenantId)
   AA->>SS: ensureTrial(generatedTenantId)

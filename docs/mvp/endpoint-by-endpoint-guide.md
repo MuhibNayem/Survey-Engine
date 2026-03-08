@@ -20,7 +20,7 @@ Each endpoint answers 6 questions:
 ### 1) `POST /api/v1/admin/auth/register`
 - Why necessary: A new tenant admin needs an account to start using the platform.
 - Who uses it: First admin user for a tenant.
-- Caller provides: Name, email, password.
+- Caller provides: Name, email, password, confirmPassword.
 - System does:
   1. Generates tenant ID server-side and provisions tenant.
   2. Creates admin account.
