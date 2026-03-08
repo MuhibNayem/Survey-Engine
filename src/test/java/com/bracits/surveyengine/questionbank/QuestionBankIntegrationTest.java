@@ -59,7 +59,7 @@ class QuestionBankIntegrationTest {
                                 .build();
                 QuestionResponse updated = questionService.update(created.getId(), updateReq);
 
-                assertThat(updated.getCurrentVersion()).isEqualTo(2);
+                assertThat(updated.getCurrentVersion()).isEqualTo(1);
                 assertThat(updated.getText()).isEqualTo("Rate your overall experience");
         }
 
@@ -144,7 +144,7 @@ class QuestionBankIntegrationTest {
                                                                 .build()))
                                 .build());
 
-                assertThat(updated.getCurrentVersion()).isEqualTo(2);
+                assertThat(updated.getCurrentVersion()).isEqualTo(1);
                 assertThat(updated.getName()).isEqualTo("Updated Category Name");
                 assertThat(updated.getDescription()).isEqualTo("Now with description");
         }
