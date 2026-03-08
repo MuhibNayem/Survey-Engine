@@ -3,6 +3,7 @@ package com.bracits.surveyengine.admin.controller;
 import com.bracits.surveyengine.admin.dto.AuthResponse;
 import com.bracits.surveyengine.admin.dto.AuthUserResponse;
 import com.bracits.surveyengine.admin.dto.OverrideSubscriptionRequest;
+import com.bracits.surveyengine.admin.dto.SuperAdminMetricsResponse;
 import com.bracits.surveyengine.admin.dto.TenantOverviewResponse;
 import com.bracits.surveyengine.admin.service.TenantAdminService;
 import com.bracits.surveyengine.admin.util.CookieUtil;
@@ -60,5 +61,10 @@ public class TenantAdminController {
             @Valid @RequestBody OverrideSubscriptionRequest request) {
         tenantAdminService.overrideSubscription(tenantId, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/metrics")
+    public ResponseEntity<SuperAdminMetricsResponse> getPlatformMetrics() {
+        return ResponseEntity.ok(tenantAdminService.getPlatformMetrics());
     }
 }

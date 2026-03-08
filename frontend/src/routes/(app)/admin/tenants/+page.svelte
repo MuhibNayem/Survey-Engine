@@ -190,14 +190,14 @@
         <div
             class="p-4 border-b border-border/50 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-muted/20 gap-4"
         >
-            <div class="relative w-full sm:w-72">
-                <Search
-                    class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-                />
-                <Input
+            <div
+                class="flex items-center w-full sm:w-72 h-10 rounded-md border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 transition-shadow shadow-sm"
+            >
+                <Search class="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                <input
                     type="text"
                     placeholder="Search tenants..."
-                    class="pl-11 h-9 bg-background w-full"
+                    class="flex h-full w-full rounded-md bg-transparent text-sm md:text-sm placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50 min-w-0"
                 />
             </div>
             <div class="text-sm text-muted-foreground whitespace-nowrap">
@@ -205,8 +205,8 @@
             </div>
         </div>
 
-        <div class="relative w-full overflow-auto">
-            <table class="w-full caption-bottom text-sm">
+        <div class="relative w-full overflow-x-auto">
+            <table class="w-full caption-bottom text-sm whitespace-nowrap">
                 <thead class="[&_tr]:border-b">
                     <tr
                         class="border-b transition-colors bg-muted/30 hover:bg-muted/30 data-[state=selected]:bg-muted"

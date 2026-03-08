@@ -12,50 +12,73 @@
         TrendingUp,
         ShieldAlert,
     } from "lucide-svelte";
+    import api from "$lib/api";
+    import type { SuperAdminMetricsResponse } from "$lib/types";
 
-    onMount(() => {
+    let liveMetrics = $state<SuperAdminMetricsResponse | null>(null);
+    let error = $state<string | null>(null);
+
+    onMount(async () => {
         if (!auth.isAuthenticated) {
             goto("/login");
+            return;
         } else if (auth.user?.role !== "SUPER_ADMIN") {
             goto("/dashboard");
+            return;
+        }
+
+        try {
+            const { data } = await api.get<SuperAdminMetricsResponse>(
+                "/admin/superadmin/metrics",
+            );
+            liveMetrics = data;
+        } catch (err) {
+            console.error("Failed to load platform metrics", err);
+            error = "Could not load real-time platform metrics.";
         }
     });
 
-    // Mock platform metrics for the Super Admin
-    const metrics = [
+    // Reactive platform metrics calculated dynamically from the API
+    const metrics = $derived([
         {
             label: "Total Tenants",
-            value: "1,204",
-            trend: "+12% this month",
+            value: liveMetrics
+                ? liveMetrics.totalTenants.toLocaleString()
+                : "...",
+            trend: "All instances",
             icon: Users,
             color: "text-blue-500",
             bg: "bg-blue-500/10",
         },
         {
             label: "Active Subscriptions",
-            value: "842",
-            trend: "+5% this month",
+            value: liveMetrics
+                ? liveMetrics.activeSubscriptions.toLocaleString()
+                : "...",
+            trend: "Currently active",
             icon: Activity,
             color: "text-emerald-500",
             bg: "bg-emerald-500/10",
         },
         {
-            label: "MRR",
-            value: "$42,500",
-            trend: "+18% this month",
+            label: "MRR / Value",
+            value: "Enterprise", // Placeholder for actual billing logic
+            trend: "SaaS Model",
             icon: CreditCard,
             color: "text-purple-500",
             bg: "bg-purple-500/10",
         },
         {
-            label: "Platform Usage",
-            value: "1.2M",
-            trend: "Responses collected",
+            label: "Global Responses",
+            value: liveMetrics
+                ? liveMetrics.totalPlatformUsage.toLocaleString()
+                : "...",
+            trend: "Across all surveys",
             icon: TrendingUp,
             color: "text-orange-500",
             bg: "bg-orange-500/10",
         },
-    ];
+    ]);
 </script>
 
 <svelte:head>

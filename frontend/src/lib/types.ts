@@ -470,6 +470,12 @@ export interface TenantOverviewResponse {
     createdAt: string;
 }
 
+export interface SuperAdminMetricsResponse {
+    totalTenants: number;
+    activeSubscriptions: number;
+    totalPlatformUsage: number;
+}
+
 export interface OverrideSubscriptionRequest {
     plan: SubscriptionPlan;
 }

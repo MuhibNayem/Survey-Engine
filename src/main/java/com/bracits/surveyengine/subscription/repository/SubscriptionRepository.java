@@ -17,4 +17,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
             String tenantId,
             Iterable<SubscriptionStatus> statuses,
             Instant now);
+
+    long countByStatus(SubscriptionStatus status);
 }
