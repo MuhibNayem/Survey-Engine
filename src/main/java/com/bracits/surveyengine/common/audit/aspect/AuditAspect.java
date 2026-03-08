@@ -8,13 +8,19 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.aop.framework.AopProxyUtils;
+import org.springframework.aop.support.AopUtils;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.lang.reflect.Method;
 
 /**
  * Spring AOP Aspect that intercepts methods annotated with {@link Auditable}.
@@ -36,8 +42,13 @@ public class AuditAspect {
 
     private final AuditLogService auditLogService;
 
-    @Around("@annotation(auditable)")
-    public Object auditMethod(ProceedingJoinPoint joinPoint, Auditable auditable) throws Throwable {
+    @Around("execution(* com.bracits.surveyengine..service..*(..)) && !within(com.bracits.surveyengine..*Filter*)")
+    public Object auditMethod(ProceedingJoinPoint joinPoint) throws Throwable {
+        Auditable auditable = resolveAuditableAnnotation(joinPoint);
+        if (auditable == null) {
+            return joinPoint.proceed();
+        }
+
         String action = auditable.action();
         String actor = resolveActor();
         String tenantId = resolveTenantId();
@@ -101,6 +112,20 @@ public class AuditAspect {
                 || action.contains("REGISTER")
                 || action.contains("IMPERSONAT")
                 || action.contains("REVERT");
+    }
+
+    private Auditable resolveAuditableAnnotation(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method interfaceMethod = signature.getMethod();
+        Class<?> targetClass = joinPoint.getTarget() != null
+                ? AopProxyUtils.ultimateTargetClass(joinPoint.getTarget())
+                : signature.getDeclaringType();
+        Method targetMethod = AopUtils.getMostSpecificMethod(interfaceMethod, targetClass);
+        Auditable fromTargetMethod = AnnotationUtils.findAnnotation(targetMethod, Auditable.class);
+        if (fromTargetMethod != null) {
+            return fromTargetMethod;
+        }
+        return AnnotationUtils.findAnnotation(interfaceMethod, Auditable.class);
     }
 
     private String resolveActor() {

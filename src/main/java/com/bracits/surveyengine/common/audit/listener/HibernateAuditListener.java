@@ -14,8 +14,6 @@ import org.hibernate.event.spi.*;
 import org.hibernate.internal.SessionFactoryImpl;
 import org.hibernate.persister.entity.EntityPersister;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -130,29 +128,27 @@ public class HibernateAuditListener implements PostInsertEventListener, PostUpda
             String reason = dbAction + " via AOP";
             String ipAddress = context.getIpAddress();
 
-            Runnable writer = () -> auditLogService.record(
-                    tenantId,
-                    entityType,
-                    entityId,
-                    action,
-                    actor,
-                    reason,
-                    beforeJson,
-                    afterJson,
-                    ipAddress);
+            Runnable writer = () -> {
+                try {
+                    auditLogService.record(
+                            tenantId,
+                            entityType,
+                            entityId,
+                            action,
+                            actor,
+                            reason,
+                            beforeJson,
+                            afterJson,
+                            ipAddress);
+                } catch (Exception ex) {
+                    log.error("Audit row write failed action={} entityType={} entityId={} tenant={}",
+                            action, entityType, entityId, tenantId, ex);
+                }
+            };
 
-            // Avoid writing audit rows while Hibernate is flushing the same session.
-            // Doing so can trigger re-entrant flush side effects.
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        writer.run();
-                    }
-                });
-            } else {
-                writer.run();
-            }
+            // Write immediately in an isolated REQUIRES_NEW transaction.
+            // This avoids relying on afterCommit callbacks where tx resources may still be in completion phase.
+            writer.run();
         } catch (Exception e) {
             log.error("Failed to record hibernate audit log for {} {}", entityType, entityId, e);
         }

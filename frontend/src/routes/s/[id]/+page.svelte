@@ -122,6 +122,24 @@
         }
     }
 
+    function readMetadataParamsFromUrl() {
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        url.searchParams.forEach((value, key) => {
+            if (key.startsWith("metadata.")) {
+                const cleanKey = key.replace("metadata.", "");
+                // The URL value might already be mostly decoded, but we decodeURIComponent just in case.
+                let finalVal = value;
+                try {
+                    finalVal = decodeURIComponent(value);
+                } catch {
+                    // ignore malformed URI component
+                }
+                respondentMetadata[cleanKey] = finalVal;
+            }
+        });
+    }
+
     function isLikelyJwtToken(token: string): boolean {
         const parts = token.split(".");
         return parts.length === 3 && parts.every((p) => p.length > 0);
@@ -478,11 +496,13 @@
         error = null;
         authError = null;
         try {
+            readAuthParamsFromUrl();
+            readMetadataParamsFromUrl();
+
             const previewRes = await api.get<CampaignPreviewResponse>(
                 `/public/campaigns/${campaignId}/preview`,
             );
             campaign = previewRes.data;
-            readAuthParamsFromUrl();
         } catch (err: unknown) {
             const axiosErr = err as {
                 response?: { status?: number; data?: { message?: string } };

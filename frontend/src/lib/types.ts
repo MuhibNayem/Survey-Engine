@@ -531,7 +531,7 @@ export interface OverrideSubscriptionRequest {
 export interface AuditLogEntry {
     id: string;
     tenantId: string | null;
-    timestamp: string;
+    createdAt: string;
     entityType: string;
     entityId: string;
     action: string;

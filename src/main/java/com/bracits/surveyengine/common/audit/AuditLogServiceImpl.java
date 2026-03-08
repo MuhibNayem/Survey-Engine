@@ -3,6 +3,7 @@ package com.bracits.surveyengine.common.audit;
 import com.bracits.surveyengine.admin.context.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -15,7 +16,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     private final AuditLogRepository auditLogRepository;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AuditLog record(String tenantId, String entityType, String entityId, String action,
             String actor, String reason,
             String beforeValue, String afterValue,

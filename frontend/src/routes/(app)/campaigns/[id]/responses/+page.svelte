@@ -31,6 +31,12 @@
     let searchQuery = $state("");
     let statusFilter = $state<ResponseStatus | "">("");
     let metadataFilters = $state<Record<string, string>>({});
+    
+    // Pagination state
+    let currentPageIndex = $state(0);
+    let totalPages = $state(0);
+    let totalElements = $state(0);
+    
     let initialLoadComplete = $state(false);
 
     const campaignId = $derived(page.params.id);
@@ -102,16 +108,29 @@
         try {
             // Build query params
             const params = new URLSearchParams();
+            params.append("page", currentPageIndex.toString());
+            params.append("size", "20");
+            
             Object.entries(metadataFilters).forEach(([key, value]) => {
                 if (value && value.trim() !== '') {
                     params.append(`metadata.${key}`, value.trim());
                 }
             });
 
-            const rRes = await api.get<SurveyResponseResponse[]>(`/responses/campaign/${campaignId}?${params.toString()}`);
-            responses = rRes.data;
+            // Backend returns a Spring Data Page
+            const rRes = await api.get<{
+                content: SurveyResponseResponse[];
+                totalPages: number;
+                totalElements: number;
+            }>(`/responses/campaign/${campaignId}?${params.toString()}`);
+            
+            responses = rRes.data?.content || [];
+            totalPages = rRes.data?.totalPages || 0;
+            totalElements = rRes.data?.totalElements || 0;
         } catch {
             responses = [];
+            totalPages = 0;
+            totalElements = 0;
         } finally {
             loading = false;
         }
@@ -122,10 +141,16 @@
         try {
             const [cRes, rRes] = await Promise.all([
                 api.get<CampaignResponse>(`/campaigns/${campaignId}`),
-                api.get<SurveyResponseResponse[]>(`/responses/campaign/${campaignId}`),
+                api.get<{
+                    content: SurveyResponseResponse[];
+                    totalPages: number;
+                    totalElements: number;
+                }>(`/responses/campaign/${campaignId}?page=${currentPageIndex}&size=20`),
             ]);
             campaign = cRes.data;
-            responses = rRes.data;
+            responses = rRes.data?.content || [];
+            totalPages = rRes.data?.totalPages || 0;
+            totalElements = rRes.data?.totalElements || 0;
             initialLoadComplete = true;
         } catch {
             goto("/campaigns");
@@ -143,9 +168,20 @@
             const serializedFilters = JSON.stringify(metadataFilters);
             // using serialized value to trigger derived effect reactively
             if (serializedFilters) {
-                // Introduce a tiny debounce naturally by awaiting the load
+                // Reset to page 0 when filters change explicitly
+                currentPageIndex = 0;
                 loadResponses();
             }
+        }
+    });
+
+    // Pagination triggers without destroying filters
+    $effect(() => {
+        if (initialLoadComplete) {
+            // Trigger load when page index explicitly changes
+            // Note: Make sure not to double triggers when filters zero-out the page, 
+            // but the URLSearchParam handles building it off the current state gracefully.
+            loadResponses();
         }
     });
 </script>
@@ -369,10 +405,34 @@
                     </tbody>
                 </table>
             </div>
-            <div class="border-t border-border px-4 py-3">
-                <p class="text-xs text-muted-foreground">
-                    {filteredResponses.length} of {responses.length} responses
+            <div class="flex items-center justify-between border-t border-border px-6 py-4">
+                <p class="text-sm text-muted-foreground">
+                    Showing <span class="font-medium text-foreground">{responses.length}</span> items across Page <span class="font-medium text-foreground">{currentPageIndex + 1}</span> 
+                    (Total: {totalElements})
                 </p>
+                
+                <div class="flex items-center gap-2">
+                    <Button 
+                        variant="outline" 
+                        size="sm"
+                        disabled={currentPageIndex === 0 || loading}
+                        onclick={() => {
+                            currentPageIndex = Math.max(0, currentPageIndex - 1);
+                        }}
+                    >
+                        Previous
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        size="sm"
+                        disabled={currentPageIndex >= totalPages - 1 || loading}
+                        onclick={() => {
+                            currentPageIndex = Math.min(totalPages - 1, currentPageIndex + 1);
+                        }}
+                    >
+                        Next
+                    </Button>
+                </div>
             </div>
         </Card.Root>
     {/if}

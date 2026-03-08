@@ -183,7 +183,7 @@ class ResponseIntegrationTest {
         submitTestResponse();
         submitTestResponse();
 
-        CampaignAnalytics analytics = analyticsService.getAnalytics(activeCampaignId);
+        CampaignAnalytics analytics = analyticsService.getAnalytics(activeCampaignId, Map.of());
 
         assertThat(analytics.getTotalResponses()).isGreaterThanOrEqualTo(2);
         assertThat(analytics.getLockedCount()).isGreaterThanOrEqualTo(2);
@@ -193,7 +193,7 @@ class ResponseIntegrationTest {
     @Test
     void shouldListResponsesByCampaign() {
         submitTestResponse();
-        List<SurveyResponseResponse> responses = responseService.getByCampaignId(activeCampaignId, org.springframework.data.domain.PageRequest.of(0, 50)).getContent();
+        List<SurveyResponseResponse> responses = responseService.getByCampaignId(activeCampaignId, Map.of(), org.springframework.data.domain.PageRequest.of(0, 50)).getContent();
         assertThat(responses).isNotEmpty();
     }
 

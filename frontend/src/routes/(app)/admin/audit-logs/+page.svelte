@@ -13,7 +13,10 @@
         ChevronLeft,
         ChevronRight,
         ShieldAlert,
+        ExternalLink,
+        Code
     } from "lucide-svelte";
+    import * as Dialog from "$lib/components/ui/dialog";
     import type { AuditLogEntry, PaginatedResponse } from "$lib/types";
 
     let loading = $state(true);
@@ -26,6 +29,10 @@
     let tenantFilter = $state<string>("");
     let pageNumber = $state(0);
     const pageSize = 20;
+
+    // Detailed View State
+    let selectedLog = $state<AuditLogEntry | null>(null);
+    let detailsOpen = $state(false);
 
     async function loadLogs() {
         loading = true;
@@ -88,6 +95,20 @@
             minute: "2-digit",
             second: "2-digit",
         });
+    }
+
+    function viewDetails(log: AuditLogEntry) {
+        selectedLog = log;
+        detailsOpen = true;
+    }
+
+    function tryFormatJson(val: string | null | undefined): string {
+        if (!val) return "—";
+        try {
+            return JSON.stringify(JSON.parse(val), null, 2);
+        } catch {
+            return val;
+        }
     }
 
     onMount(loadLogs);
@@ -186,8 +207,8 @@
                             <th class="px-4 py-3 font-medium">Actor</th>
                             <th class="px-4 py-3 font-medium">Action</th>
                             <th class="px-4 py-3 font-medium">Entity</th>
-                            <th class="px-4 py-3 font-medium">Reason/Details</th
-                            >
+                            <th class="px-4 py-3 font-medium">Reason/Details</th>
+                            <th class="px-4 py-3 text-right font-medium">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border/50">
@@ -196,7 +217,7 @@
                                 <td
                                     class="px-4 py-3 whitespace-nowrap text-muted-foreground font-mono text-xs"
                                 >
-                                    {formatDate(log.timestamp)}
+                                    {formatDate(log.createdAt)}
                                 </td>
                                 <td class="px-4 py-3">
                                     {#if log.tenantId}
@@ -266,20 +287,23 @@
                                                 <Badge
                                                     variant="outline"
                                                     class="text-[9px] bg-muted/50 border-dashed"
-                                                    title={log.beforeValue}
-                                                    >Before</Badge
-                                                >
-                                            {/if}
-                                            {#if log.afterValue}
-                                                <Badge
-                                                    variant="outline"
-                                                    class="text-[9px] bg-muted/50 border-dashed"
-                                                    title={log.afterValue}
-                                                    >After</Badge
+                                                    title="Data recorded"
+                                                    >Data Included</Badge
                                                 >
                                             {/if}
                                         </div>
                                     {/if}
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        class="h-8 px-2 text-muted-foreground hover:text-foreground"
+                                        onclick={() => viewDetails(log)}
+                                    >
+                                        <ExternalLink class="h-4 w-4 mr-1.5" />
+                                        Details
+                                    </Button>
                                 </td>
                             </tr>
                         {/each}
@@ -315,4 +339,84 @@
             </div>
         </Card.Root>
     {/if}
+
+    <!-- Detail View Dialog -->
+    <Dialog.Root bind:open={detailsOpen}>
+        <Dialog.Content class="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <Dialog.Header>
+                <Dialog.Title class="flex items-center gap-2">
+                    <Activity class="h-5 w-5 text-primary" />
+                    Audit Entry Details
+                </Dialog.Title>
+                <Dialog.Description>
+                    Complete captured payload for the selected event.
+                </Dialog.Description>
+            </Dialog.Header>
+
+            {#if selectedLog}
+                <div class="grid gap-4 py-4">
+                    <!-- Basic Meta Header -->
+                    <div class="grid grid-cols-2 gap-4 text-sm bg-muted/30 p-4 rounded-lg border border-border/50">
+                        <div>
+                            <span class="text-muted-foreground block mb-1">Timestamp</span>
+                            <span class="font-medium font-mono text-xs">{formatDate(selectedLog.createdAt)}</span>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground block mb-1">Actor (IP)</span>
+                            <span class="font-medium">{selectedLog.actor}</span>
+                            {#if selectedLog.ipAddress}
+                                <span class="text-xs text-muted-foreground ml-1">[{selectedLog.ipAddress}]</span>
+                            {/if}
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground block mb-1">Action Flow</span>
+                            <Badge variant="secondary" class="font-mono text-xs">{selectedLog.action}</Badge>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground block mb-1">Entity ID ({selectedLog.entityType})</span>
+                            <span class="font-mono text-xs text-foreground bg-muted px-1.5 py-0.5 rounded">{selectedLog.entityId}</span>
+                        </div>
+                    </div>
+
+                    <!-- JSON Payloads -->
+                    {#if selectedLog.beforeValue || selectedLog.afterValue}
+                        <div class="space-y-4">
+                            {#if selectedLog.beforeValue}
+                                <div class="space-y-2">
+                                    <div class="flex items-center text-sm font-medium text-muted-foreground">
+                                        <Code class="h-4 w-4 mr-2" />
+                                        Previous State (Before)
+                                    </div>
+                                    <div class="bg-muted p-4 rounded-md overflow-x-auto text-xs font-mono whitespace-pre-wrap border border-border">
+                                        {tryFormatJson(selectedLog.beforeValue)}
+                                    </div>
+                                </div>
+                            {/if}
+
+                            {#if selectedLog.afterValue}
+                                <div class="space-y-2">
+                                    <div class="flex items-center text-sm font-medium text-muted-foreground">
+                                        <Code class="h-4 w-4 mr-2" />
+                                        New State (After) / Payload
+                                    </div>
+                                    <div class="bg-muted p-4 rounded-md overflow-x-auto text-xs font-mono whitespace-pre-wrap border border-border">
+                                        {tryFormatJson(selectedLog.afterValue)}
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    {:else}
+                        <div class="text-center py-6 text-sm text-muted-foreground bg-muted/20 rounded-md border border-dashed border-border mt-2">
+                            No extended data payloads were captured for this event.
+                        </div>
+                    {/if}
+
+                </div>
+            {/if}
+
+            <Dialog.Footer>
+                <Button variant="outline" onclick={() => (detailsOpen = false)}>Close</Button>
+            </Dialog.Footer>
+        </Dialog.Content>
+    </Dialog.Root>
 </div>
