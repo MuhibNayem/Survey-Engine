@@ -23,6 +23,9 @@ public class RegisterRequest {
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
 
-    @NotBlank(message = "Tenant ID is required")
+    /**
+     * Optional for internal/trusted flows only.
+     * Public registration ignores client-provided tenant ids and server-generates one.
+     */
     private String tenantId;
 }

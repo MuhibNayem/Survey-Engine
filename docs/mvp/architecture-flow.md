@@ -155,9 +155,10 @@ sequenceDiagram
   participant TS as Tenant Service
   participant SS as Subscription Service
 
-  TA->>AA: Register (name,email,password,tenantId)
-  AA->>TS: ensureProvisioned(tenantId)
-  AA->>SS: ensureTrial(tenantId)
+  TA->>AA: Register (name,email,password)
+  AA->>AA: generateTenantId()
+  AA->>TS: ensureProvisioned(generatedTenantId)
+  AA->>SS: ensureTrial(generatedTenantId)
   AA-->>TA: Set-Cookie: access_token + refresh_token (HttpOnly)
   TA->>AA: Use cookies for admin API access
 ```

@@ -31,7 +31,7 @@ public class AdminAuthController {
     public ResponseEntity<AuthUserResponse> register(
             @Valid @RequestBody RegisterRequest request,
             HttpServletResponse response) {
-        AuthResponse authResponse = adminAuthService.register(request);
+        AuthResponse authResponse = adminAuthService.registerPublic(request);
         cookieUtil.addTokenCookies(response, authResponse);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(toUserResponse(authResponse));

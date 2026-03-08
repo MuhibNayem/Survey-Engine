@@ -1974,12 +1974,11 @@ components:
   schemas:
     RegisterRequest:
       type: object
-      required: [fullName, email, password, tenantId]
+      required: [fullName, email, password]
       properties:
         fullName: { type: string }
         email: { type: string, format: email }
         password: { type: string, minLength: 8 }
-        tenantId: { type: string }
 
     LoginRequest:
       type: object

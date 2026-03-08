@@ -20,4 +20,9 @@ public class TenantService {
                         .name(tenantId)
                         .build()));
     }
+
+    @Transactional(readOnly = true)
+    public boolean exists(String tenantId) {
+        return tenantRepository.existsById(tenantId);
+    }
 }

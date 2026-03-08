@@ -8,7 +8,6 @@
     import { UserPlus } from "lucide-svelte";
 
     let fullName = $state("");
-    let tenantId = $state("");
     let email = $state("");
     let password = $state("");
     let confirmPassword = $state("");
@@ -30,14 +29,9 @@
             localError = "Full name is required";
             return;
         }
-        if (!tenantId.trim()) {
-            localError = "Tenant ID is required";
-            return;
-        }
 
         const success = await auth.register({
             fullName: fullName.trim(),
-            tenantId: tenantId.trim(),
             email: email.trim(),
             password,
         });
@@ -92,18 +86,6 @@
                             bind:value={fullName}
                             required
                             autocomplete="name"
-                        />
-                    </div>
-
-                    <div class="space-y-2">
-                        <Label for="reg-tenant">Tenant ID</Label>
-                        <Input
-                            id="reg-tenant"
-                            type="text"
-                            placeholder="acme"
-                            bind:value={tenantId}
-                            required
-                            autocomplete="organization"
                         />
                     </div>
 

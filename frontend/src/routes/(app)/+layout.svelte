@@ -7,6 +7,7 @@
 
     let { children } = $props();
     let sidebarCollapsed = $state(false);
+    let desktopSidebarHidden = $state(false);
     let mobileSidebarOpen = $state(false);
 
     onMount(() => {
@@ -19,7 +20,14 @@
 {#if auth.isAuthenticated}
     <div class="flex h-screen overflow-hidden bg-background">
         <!-- Desktop sidebar -->
-        <div class="hidden md:flex">
+        <div
+            class="hidden md:flex transition-[margin] duration-300"
+            style:margin-left={desktopSidebarHidden
+                ? sidebarCollapsed
+                    ? "-4rem"
+                    : "-16rem"
+                : "0"}
+        >
             <Sidebar bind:collapsed={sidebarCollapsed} />
         </div>
 
@@ -42,6 +50,9 @@
             <Header
                 onToggleMobileSidebar={() =>
                     (mobileSidebarOpen = !mobileSidebarOpen)}
+                onToggleDesktopSidebar={() =>
+                    (desktopSidebarHidden = !desktopSidebarHidden)}
+                desktopSidebarHidden={desktopSidebarHidden}
             />
             <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                 {@render children()}

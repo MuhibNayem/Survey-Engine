@@ -12,7 +12,6 @@ export interface RegisterRequest {
     fullName: string;
     email: string;
     password: string;
-    tenantId: string;
 }
 
 export interface AuthResponse {

@@ -41,7 +41,7 @@ Bring a new tenant from zero state to authenticated admin access.
 
 1. Create admin account (`POST /api/v1/admin/auth/register`).
 - Why: This creates the first trusted operator account.
-- How: Send full name, email, password, tenant ID.
+- How: Send full name, email, password. Tenant ID is generated server-side.
 - Result: Tenant is provisioned, trial subscription is initialized, and token pair is returned.
 
 2. Store access and refresh tokens securely in admin session.

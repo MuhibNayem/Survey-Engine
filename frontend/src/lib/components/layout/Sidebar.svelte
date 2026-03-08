@@ -43,91 +43,48 @@
     }
 </script>
 
-<aside
-    class="flex h-full flex-col border-r border-border bg-sidebar transition-all duration-300 {collapsed
-        ? 'w-16'
-        : 'w-64'}"
->
-    <!-- Logo / Brand -->
-    <div class="flex h-16 items-center border-b border-sidebar-border px-4">
-        {#if !collapsed}
-            <div class="flex items-center gap-2">
+<Tooltip.Provider>
+    <aside
+        class="flex h-full shrink-0 overflow-hidden flex-col border-r border-border bg-sidebar transition-[width] duration-300
+            {collapsed ? 'w-16 min-w-16 max-w-16' : 'w-64 min-w-64 max-w-64'}"
+    >
+        <!-- Logo / Brand -->
+        <div class="flex h-16 items-center border-b border-sidebar-border px-4">
+            {#if !collapsed}
+                <div class="flex items-center gap-2">
+                    <div
+                        class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold"
+                    >
+                        SE
+                    </div>
+                    <span class="text-lg font-semibold text-sidebar-foreground"
+                        >Survey Engine</span
+                    >
+                </div>
+            {:else}
                 <div
-                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold"
+                    class="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold"
                 >
                     SE
                 </div>
-                <span class="text-lg font-semibold text-sidebar-foreground"
-                    >Survey Engine</span
-                >
-            </div>
-        {:else}
-            <div
-                class="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold"
-            >
-                SE
-            </div>
-        {/if}
-    </div>
-
-    <!-- Navigation -->
-    <nav class="flex-1 space-y-1 overflow-y-auto p-3">
-        {#each navItems as item}
-            {@const active = isActive(item.href)}
-            {#if collapsed}
-                <Tooltip.Root>
-                    <Tooltip.Trigger>
-                        <a
-                            href={item.href}
-                            class="flex h-10 w-10 items-center justify-center rounded-lg transition-colors
-								{active
-                                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}"
-                        >
-                            <item.icon class="h-5 w-5" />
-                        </a>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content side="right">
-                        {item.label}
-                    </Tooltip.Content>
-                </Tooltip.Root>
-            {:else}
-                <a
-                    href={item.href}
-                    class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-						{active
-                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}"
-                >
-                    <item.icon class="h-5 w-5 shrink-0" />
-                    <span>{item.label}</span>
-                </a>
             {/if}
-        {/each}
+        </div>
 
-        {#if auth.user?.role === "SUPER_ADMIN"}
-            <div class="pt-4 pb-2 px-3">
-                <p
-                    class="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-widest {collapsed
-                        ? 'text-center'
-                        : ''}"
-                >
-                    {collapsed ? "SA" : "Super Admin"}
-                </p>
-            </div>
-            {#each superAdminItems as item}
+        <!-- Navigation -->
+        <nav class="flex-1 space-y-1 overflow-y-auto p-3">
+            {#each navItems as item}
                 {@const active = isActive(item.href)}
                 {#if collapsed}
                     <Tooltip.Root>
-                        <Tooltip.Trigger>
+                        <Tooltip.Trigger class="w-full focus:outline-none">
                             <a
                                 href={item.href}
-                                class="flex h-10 w-10 items-center justify-center rounded-lg transition-colors
+                                class="mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition-colors
                                     {active
-                                    ? 'bg-destructive/10 text-destructive'
-                                    : 'text-destructive/70 hover:bg-destructive/10 hover:text-destructive'}"
+                                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}"
                             >
-                                <item.icon class="h-5 w-5" />
+                                <item.icon class="h-5 w-5 shrink-0" />
                             </a>
                         </Tooltip.Trigger>
                         <Tooltip.Content side="right">
@@ -137,30 +94,78 @@
                 {:else}
                     <a
                         href={item.href}
-                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
+                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors overflow-hidden
                             {active
-                            ? 'bg-destructive/10 text-destructive'
-                            : 'text-destructive/70 hover:bg-destructive/10 hover:text-destructive'}"
+                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}"
                     >
                         <item.icon class="h-5 w-5 shrink-0" />
-                        <span>{item.label}</span>
+                        <span class="whitespace-nowrap truncate"
+                            >{item.label}</span
+                        >
                     </a>
                 {/if}
             {/each}
-        {/if}
-    </nav>
 
-    <!-- Collapse Toggle -->
-    <div class="border-t border-sidebar-border p-3">
-        <button
-            onclick={() => (collapsed = !collapsed)}
-            class="flex w-full items-center justify-center rounded-lg py-2 text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
-        >
-            {#if collapsed}
-                <ChevronsRight class="h-5 w-5" />
-            {:else}
-                <ChevronsLeft class="h-5 w-5" />
+            {#if auth.user?.role === "SUPER_ADMIN"}
+                <div class="pt-4 pb-2 px-3">
+                    <p
+                        class="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-widest {collapsed
+                            ? 'text-center'
+                            : ''}"
+                    >
+                        {collapsed ? "SA" : "Super Admin"}
+                    </p>
+                </div>
+                {#each superAdminItems as item}
+                    {@const active = isActive(item.href)}
+                    {#if collapsed}
+                        <Tooltip.Root>
+                            <Tooltip.Trigger class="w-full focus:outline-none">
+                                <a
+                                    href={item.href}
+                                    class="mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition-colors
+                                        {active
+                                        ? 'bg-destructive/10 text-destructive'
+                                        : 'text-destructive/70 hover:bg-destructive/10 hover:text-destructive'}"
+                                >
+                                    <item.icon class="h-5 w-5 shrink-0" />
+                                </a>
+                            </Tooltip.Trigger>
+                            <Tooltip.Content side="right">
+                                {item.label}
+                            </Tooltip.Content>
+                        </Tooltip.Root>
+                    {:else}
+                        <a
+                            href={item.href}
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors overflow-hidden
+                                {active
+                                ? 'bg-destructive/10 text-destructive'
+                                : 'text-destructive/70 hover:bg-destructive/10 hover:text-destructive'}"
+                        >
+                            <item.icon class="h-5 w-5 shrink-0" />
+                            <span class="whitespace-nowrap truncate"
+                                >{item.label}</span
+                            >
+                        </a>
+                    {/if}
+                {/each}
             {/if}
-        </button>
-    </div>
-</aside>
+        </nav>
+
+        <!-- Collapse Toggle -->
+        <div class="border-t border-sidebar-border p-3">
+            <button
+                onclick={() => (collapsed = !collapsed)}
+                class="flex w-full items-center justify-center rounded-lg py-2 text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
+            >
+                {#if collapsed}
+                    <ChevronsRight class="h-5 w-5" />
+                {:else}
+                    <ChevronsLeft class="h-5 w-5" />
+                {/if}
+            </button>
+        </div>
+    </aside>
+</Tooltip.Provider>

@@ -1,6 +1,7 @@
 package com.bracits.surveyengine.config;
 
 import com.bracits.surveyengine.admin.filter.JwtAuthenticationFilter;
+import com.bracits.surveyengine.common.exception.CustomAuthenticationEntryPoint;
 import com.bracits.surveyengine.subscription.service.SubscriptionEnforcementFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,17 +30,22 @@ public class SecurityConfig {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final SubscriptionEnforcementFilter subscriptionEnforcementFilter;
+        private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
         public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                        SubscriptionEnforcementFilter subscriptionEnforcementFilter) {
+                        SubscriptionEnforcementFilter subscriptionEnforcementFilter,
+                        CustomAuthenticationEntryPoint customAuthenticationEntryPoint) {
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
                 this.subscriptionEnforcementFilter = subscriptionEnforcementFilter;
+                this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
         }
 
         @Bean
         public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
                 http
                                 .csrf(csrf -> csrf.disable())
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint(customAuthenticationEntryPoint))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth

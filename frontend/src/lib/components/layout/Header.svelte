@@ -1,14 +1,27 @@
 <script lang="ts">
     import { auth } from "$lib/stores/auth.svelte";
-    import { Menu, Moon, Sun, LogOut, User } from "lucide-svelte";
+    import {
+        Menu,
+        Moon,
+        Sun,
+        LogOut,
+        ChevronsLeft,
+        ChevronsRight,
+    } from "lucide-svelte";
     import { Button } from "$lib/components/ui/button";
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
 
     interface Props {
         onToggleMobileSidebar: () => void;
+        onToggleDesktopSidebar?: () => void;
+        desktopSidebarHidden?: boolean;
     }
 
-    let { onToggleMobileSidebar }: Props = $props();
+    let {
+        onToggleMobileSidebar,
+        onToggleDesktopSidebar = () => {},
+        desktopSidebarHidden = false,
+    }: Props = $props();
     let isDark = $state(false);
 
     function toggleDarkMode() {
@@ -31,6 +44,21 @@
             onclick={onToggleMobileSidebar}
         >
             <Menu class="h-5 w-5" />
+        </Button>
+        <Button
+            variant="ghost"
+            size="icon"
+            class="hidden md:inline-flex"
+            onclick={onToggleDesktopSidebar}
+            aria-label={desktopSidebarHidden
+                ? "Expand sidebar"
+                : "Collapse sidebar"}
+        >
+            {#if desktopSidebarHidden}
+                <ChevronsRight class="h-5 w-5" />
+            {:else}
+                <ChevronsLeft class="h-5 w-5" />
+            {/if}
         </Button>
         <div class="hidden md:block">
             <h2 class="text-lg font-semibold text-foreground">Survey Engine</h2>
