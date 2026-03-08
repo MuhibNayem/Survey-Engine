@@ -88,6 +88,7 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     @Transactional
+    @Auditable(action = "SURVEY_CREATED")
     public SurveyResponse create(SurveyRequest request) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         tenantService.ensureProvisioned(tenantId);
@@ -118,6 +119,7 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     @Transactional
+    @Auditable(action = "SURVEY_UPDATED")
     public SurveyResponse update(UUID id, SurveyRequest request) {
         Survey survey = findOrThrow(id);
         enforceModifiable(survey);
@@ -132,6 +134,7 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     @Transactional
+    @Auditable(action = "SURVEY_DELETED")
     public void deactivate(UUID id) {
         Survey survey = findOrThrow(id);
         survey.setActive(false);

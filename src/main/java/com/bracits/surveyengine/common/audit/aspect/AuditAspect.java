@@ -11,6 +11,8 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -49,6 +51,16 @@ public class AuditAspect {
                 .ipAddress(ipAddress)
                 .build();
         AuditContext.setContext(context);
+        boolean clearInFinally = true;
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            clearInFinally = false;
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    AuditContext.clearContext();
+                }
+            });
+        }
 
         boolean executedSuccessfully = false;
         try {
@@ -56,7 +68,9 @@ public class AuditAspect {
             executedSuccessfully = true;
             return result;
         } finally {
-            AuditContext.clearContext();
+            if (clearInFinally) {
+                AuditContext.clearContext();
+            }
 
             // Fallback: for non-entity actions (no JPA save → no EntityListener fires)
             if (executedSuccessfully && isNonEntityAction(action)) {
