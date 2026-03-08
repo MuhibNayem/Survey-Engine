@@ -29,7 +29,7 @@
 
         try {
             const { data } = await api.get<SuperAdminMetricsResponse>(
-                "/admin/superadmin/metrics",
+                "/admin/superadmin/tenants/metrics",
             );
             liveMetrics = data;
         } catch (err) {

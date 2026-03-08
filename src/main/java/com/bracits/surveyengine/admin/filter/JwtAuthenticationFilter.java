@@ -86,7 +86,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Extracts access token: cookie first, then Authorization header.
      */
     private String extractToken(HttpServletRequest request) {
-        // 1. Try HttpOnly cookie
+        // 1. Prefer Authorization header (token-mode clients)
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+
+        // 2. Fallback to HttpOnly cookie (browser session mode)
         if (request.getCookies() != null) {
             String cookieToken = Arrays.stream(request.getCookies())
                     .filter(c -> CookieUtil.ACCESS_TOKEN_COOKIE.equals(c.getName()))
@@ -96,12 +102,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (cookieToken != null && !cookieToken.isBlank()) {
                 return cookieToken;
             }
-        }
-
-        // 2. Fallback to Authorization header (for API clients like Postman)
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7);
         }
 
         return null;

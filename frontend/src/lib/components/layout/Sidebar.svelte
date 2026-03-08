@@ -12,6 +12,8 @@
         ChevronsRight,
         ShieldAlert,
         Users,
+        UserX,
+        Activity,
     } from "lucide-svelte";
     import * as Tooltip from "$lib/components/ui/tooltip";
     import { auth } from "$lib/stores/auth.svelte";
@@ -29,6 +31,7 @@
         { href: "/surveys", label: "Surveys", icon: FileText },
         { href: "/campaigns", label: "Campaigns", icon: Megaphone },
         { href: "/responses", label: "Responses", icon: MessageSquareText },
+        { href: "/activity", label: "Activity Log", icon: Activity },
         { href: "/settings", label: "Settings", icon: Settings },
     ];
 
@@ -36,6 +39,7 @@
         { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
         { href: "/admin/tenants", label: "Tenants", icon: Users },
         { href: "/admin/plans", label: "System Plans", icon: ShieldAlert },
+        { href: "/admin/audit-logs", label: "Audit Logs", icon: Activity },
     ];
 
     function isActive(href: string): boolean {
@@ -156,6 +160,50 @@
                 {/each}
             {/if}
         </nav>
+
+        <!-- Impersonation Reversion -->
+        {#if auth.isImpersonating}
+            <div class={collapsed ? "px-2 pb-4" : "px-4 pb-4"}>
+                {#if collapsed}
+                    <Tooltip.Root>
+                        <Tooltip.Trigger class="w-full focus:outline-none">
+                            <button
+                                onclick={() => auth.revertImpersonation()}
+                                class="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 transition-all border border-orange-500/20"
+                                disabled={auth.isLoading}
+                            >
+                                {#if auth.isLoading}
+                                    <span
+                                        class="h-4 w-4 animate-spin rounded-full border-2 border-orange-600 border-t-transparent"
+                                    ></span>
+                                {:else}
+                                    <UserX class="h-5 w-5 shrink-0" />
+                                {/if}
+                            </button>
+                        </Tooltip.Trigger>
+                        <Tooltip.Content side="right">
+                            Revert Impersonation
+                        </Tooltip.Content>
+                    </Tooltip.Root>
+                {:else}
+                    <button
+                        onclick={() => auth.revertImpersonation()}
+                        class="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500/10 py-2.5 px-3 text-sm font-semibold text-orange-600 hover:bg-orange-500/20 transition-all border border-orange-500/20"
+                        disabled={auth.isLoading}
+                    >
+                        {#if auth.isLoading}
+                            <span
+                                class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-orange-600 border-t-transparent"
+                            ></span>
+                            <span>Reverting...</span>
+                        {:else}
+                            <UserX class="h-4 w-4 shrink-0" />
+                            <span class="truncate">Exit Proxy Session</span>
+                        {/if}
+                    </button>
+                {/if}
+            </div>
+        {/if}
 
         <!-- Collapse Toggle -->
         <div class="border-t border-sidebar-border p-3">

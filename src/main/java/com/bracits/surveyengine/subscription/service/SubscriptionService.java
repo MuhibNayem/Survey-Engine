@@ -24,7 +24,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SubscriptionService {
 
-    private static final List<SubscriptionStatus> ACTIVE_STATES = List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL);
+    private static final List<SubscriptionStatus> ACTIVE_STATES = List.of(SubscriptionStatus.ACTIVE,
+            SubscriptionStatus.TRIAL);
 
     private final SubscriptionRepository subscriptionRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
@@ -32,19 +33,25 @@ public class SubscriptionService {
     private final PlanCatalogService planCatalogService;
 
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "SUBSCRIPTION_CREATED")
     public Subscription ensureTrial(String tenantId) {
         PlanDefinition trialPlan = planCatalogService.getActivePlanEntity(SubscriptionPlan.BASIC);
         return subscriptionRepository.findByTenantId(tenantId)
-                .orElseGet(() -> subscriptionRepository.save(Subscription.builder()
-                        .tenantId(tenantId)
-                        .plan(trialPlan.getPlanCode())
-                        .status(SubscriptionStatus.TRIAL)
-                        .currentPeriodStart(Instant.now())
-                        .currentPeriodEnd(Instant.now().plus(trialPlan.getTrialDays(), ChronoUnit.DAYS))
-                        .build()));
+                .orElseGet(() -> {
+                    Subscription newSubscription = subscriptionRepository.save(Subscription.builder()
+                            .tenantId(tenantId)
+                            .plan(trialPlan.getPlanCode())
+                            .status(SubscriptionStatus.TRIAL)
+                            .currentPeriodStart(Instant.now())
+                            .currentPeriodEnd(Instant.now().plus(trialPlan.getTrialDays(), ChronoUnit.DAYS))
+                            .build());
+
+                    return newSubscription;
+                });
     }
 
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "SUBSCRIPTION_UPGRADED")
     public SubscriptionResponse subscribe(String tenantId, SubscribeRequest request) {
         Subscription subscription = ensureTrial(tenantId);
         SubscriptionPlan requestedPlan = request.getPlan();

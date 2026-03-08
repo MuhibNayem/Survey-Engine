@@ -40,6 +40,7 @@ public class QuestionServiceImpl implements QuestionService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "QUESTION_CREATED")
     public QuestionResponse create(QuestionRequest request) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         tenantService.ensureProvisioned(tenantId);
@@ -55,6 +56,7 @@ public class QuestionServiceImpl implements QuestionService {
         question = questionRepository.save(question);
 
         upsertLiveVersion(question);
+
         return toResponse(question);
     }
 
@@ -74,6 +76,7 @@ public class QuestionServiceImpl implements QuestionService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "QUESTION_UPDATED")
     public QuestionResponse update(UUID id, QuestionRequest request) {
         Question question = findOrThrow(id);
         question.setText(request.getText());
@@ -84,11 +87,13 @@ public class QuestionServiceImpl implements QuestionService {
         question = questionRepository.save(question);
 
         upsertLiveVersion(question);
+
         return toResponse(question);
     }
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "QUESTION_DELETED")
     public void deactivate(UUID id) {
         Question question = findOrThrow(id);
         question.setActive(false);

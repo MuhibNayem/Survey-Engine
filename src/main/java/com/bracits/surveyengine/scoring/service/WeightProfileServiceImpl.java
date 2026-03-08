@@ -49,6 +49,7 @@ public class WeightProfileServiceImpl implements WeightProfileService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "WEIGHT_PROFILE_CREATED")
     public WeightProfileResponse create(WeightProfileRequest request) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         tenantService.ensureProvisioned(tenantId);
@@ -74,6 +75,7 @@ public class WeightProfileServiceImpl implements WeightProfileService {
 
         profile = weightProfileRepository.save(profile);
         validateWeightSum(profile.getId());
+
         return toResponse(profile);
     }
 
@@ -96,6 +98,7 @@ public class WeightProfileServiceImpl implements WeightProfileService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "WEIGHT_PROFILE_UPDATED")
     public WeightProfileResponse update(UUID id, WeightProfileRequest request) {
         WeightProfile profile = findOrThrow(id);
         profile.setName(request.getName());
@@ -114,11 +117,13 @@ public class WeightProfileServiceImpl implements WeightProfileService {
 
         profile = weightProfileRepository.save(profile);
         validateWeightSum(profile.getId());
+
         return toResponse(profile);
     }
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "WEIGHT_PROFILE_DEACTIVATED")
     public void deactivate(UUID id) {
         WeightProfile profile = findOrThrow(id);
         profile.setActive(false);

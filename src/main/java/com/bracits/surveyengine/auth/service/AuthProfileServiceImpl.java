@@ -50,6 +50,7 @@ public class AuthProfileServiceImpl implements AuthProfileService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "AUTH_PROFILE_CREATED")
     public AuthProfileResponse create(AuthProfileRequest request) {
         String tenantId = resolveRequestTenant(request.getTenantId());
         tenantService.ensureProvisioned(tenantId);
@@ -90,6 +91,7 @@ public class AuthProfileServiceImpl implements AuthProfileService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "AUTH_PROFILE_UPDATED")
     public AuthProfileResponse update(UUID id, AuthProfileRequest request) {
         AuthProfile profile = findOrThrow(id);
         String before = snapshot(profile);
@@ -161,6 +163,7 @@ public class AuthProfileServiceImpl implements AuthProfileService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "AUTH_PROFILE_KEY_ROTATION")
     public AuthProfileResponse rotateKey(UUID id) {
         AuthProfile profile = findOrThrow(id);
         int previousVersion = profile.getActiveKeyVersion();

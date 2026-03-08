@@ -17,7 +17,8 @@ import java.time.Instant;
 @Table(name = "audit_log", indexes = {
         @Index(name = "idx_audit_log_entity", columnList = "entityType, entityId"),
         @Index(name = "idx_audit_log_actor", columnList = "actor"),
-        @Index(name = "idx_audit_log_created_at", columnList = "createdAt")
+        @Index(name = "idx_audit_log_created_at", columnList = "createdAt"),
+        @Index(name = "idx_audit_log_tenant", columnList = "tenantId")
 })
 @Getter
 @Builder
@@ -28,6 +29,9 @@ public class AuditLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "tenant_id")
+    private String tenantId;
 
     @Column(name = "entity_type", nullable = false, length = 100)
     private String entityType;
@@ -51,6 +55,9 @@ public class AuditLog {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "after_value", columnDefinition = "jsonb")
     private String afterValue;
+
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

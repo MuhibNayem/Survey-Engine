@@ -52,6 +52,7 @@ public class CampaignServiceImpl implements CampaignService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "CAMPAIGN_CREATED")
     public CampaignResponse create(CampaignRequest request) {
         String tenantId = resolveTenantId();
         tenantService.ensureProvisioned(tenantId);
@@ -94,19 +95,23 @@ public class CampaignServiceImpl implements CampaignService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "CAMPAIGN_UPDATED")
     public CampaignResponse update(UUID id, CampaignRequest request) {
         Campaign campaign = findOrThrow(id);
+
         campaign.setName(request.getName());
         campaign.setDescription(request.getDescription());
         if (request.getAuthMode() != null) {
             campaign.setAuthMode(normalizeAccessMode(request.getAuthMode()));
         }
         campaign = campaignRepository.save(campaign);
+
         return toResponse(campaign);
     }
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "CAMPAIGN_CLOSED")
     public void deactivate(UUID id) {
         Campaign campaign = findOrThrow(id);
         campaign.setActive(false);
@@ -156,6 +161,7 @@ public class CampaignServiceImpl implements CampaignService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "CAMPAIGN_SETTINGS_UPDATED")
     public CampaignResponse updateSettings(UUID campaignId, CampaignSettingsRequest request) {
         Campaign campaign = findOrThrow(campaignId);
         CampaignSettings settings = settingsRepository.findByCampaignId(campaignId)
@@ -182,6 +188,7 @@ public class CampaignServiceImpl implements CampaignService {
         settings.setCollectAddress(request.isCollectAddress());
 
         settingsRepository.save(settings);
+
         Instant now = Instant.now();
         if (settings.getCloseDate() != null && !settings.getCloseDate().isAfter(now)) {
             responseLockingService.lockOpenResponsesForCampaignClosure(campaignId, now);
@@ -195,6 +202,7 @@ public class CampaignServiceImpl implements CampaignService {
      */
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "CAMPAIGN_ACTIVATED")
     public CampaignResponse activate(UUID id) {
         Campaign campaign = findOrThrow(id);
         UUID surveyId = campaign.getSurveyId();
@@ -212,6 +220,7 @@ public class CampaignServiceImpl implements CampaignService {
                 weightProfileService.upsertDefaultProfileFromSurveySnapshot(campaign.getId(), snapshot.getId()));
         campaign.setStatus(CampaignStatus.ACTIVE);
         campaign = campaignRepository.save(campaign);
+
         return toResponse(campaign);
     }
 
@@ -301,7 +310,8 @@ public class CampaignServiceImpl implements CampaignService {
                 .maxScore(maxScore)
                 .mandatory(sq.isMandatory())
                 .sortOrder(sq.getSortOrder())
-                .optionConfig(questionVersion != null ? questionVersion.getOptionConfig() : fallbackQuestion.getOptionConfig())
+                .optionConfig(questionVersion != null ? questionVersion.getOptionConfig()
+                        : fallbackQuestion.getOptionConfig())
                 .answerConfig(sq.getAnswerConfig())
                 .build();
     }

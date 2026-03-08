@@ -18,6 +18,7 @@ function createAuthStore() {
     let user = $state<User | null>(null);
     let isLoading = $state(false);
     let error = $state<string | null>(null);
+    let isImpersonating = $state(false);
 
     // Hydrate from sessionStorage on init (user info only, not tokens)
     if (typeof window !== 'undefined') {
@@ -29,6 +30,7 @@ function createAuthStore() {
                 user = null;
             }
         }
+        isImpersonating = sessionStorage.getItem('is_impersonating') === 'true';
     }
 
     function persistUser(u: User | null) {
@@ -103,7 +105,37 @@ function createAuthStore() {
         }
         persistUser(null);
         if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('is_impersonating');
+            isImpersonating = false;
             window.location.href = '/';
+        }
+    }
+
+    function beginImpersonation(data: AuthUserResponse) {
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('is_impersonating', 'true');
+            isImpersonating = true;
+        }
+        handleAuthUserResponse(data);
+    }
+
+    async function revertImpersonation() {
+        isLoading = true;
+        try {
+            await api.post('/admin/auth/revert-impersonation');
+            if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('is_impersonating');
+                isImpersonating = false;
+            }
+            await fetchCurrentUser();
+            if (typeof window !== 'undefined') {
+                window.location.href = '/admin/dashboard';
+            }
+        } catch (err) {
+            console.error('Failed to revert impersonation', err);
+            error = 'Could not revert impersonation. Please log out.';
+        } finally {
+            isLoading = false;
         }
     }
 
@@ -135,13 +167,18 @@ function createAuthStore() {
         get error() {
             return error;
         },
+        get isImpersonating() {
+            return isImpersonating;
+        },
         set error(v: string | null) {
             error = v;
         },
         login,
         register,
         logout,
-        fetchCurrentUser
+        fetchCurrentUser,
+        beginImpersonation,
+        revertImpersonation
     };
 }
 

@@ -1,5 +1,6 @@
 package com.bracits.surveyengine.common.audit;
 
+import com.bracits.surveyengine.admin.context.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,10 +16,12 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     @Override
     @Transactional
-    public AuditLog record(String entityType, String entityId, String action,
+    public AuditLog record(String tenantId, String entityType, String entityId, String action,
             String actor, String reason,
-            String beforeValue, String afterValue) {
+            String beforeValue, String afterValue,
+            String ipAddress) {
         AuditLog entry = AuditLog.builder()
+                .tenantId(tenantId)
                 .entityType(entityType)
                 .entityId(entityId)
                 .action(action)
@@ -26,6 +29,7 @@ public class AuditLogServiceImpl implements AuditLogService {
                 .reason(reason)
                 .beforeValue(ensureValidJson(beforeValue))
                 .afterValue(ensureValidJson(afterValue))
+                .ipAddress(ipAddress)
                 .build();
         return auditLogRepository.save(entry);
     }
@@ -33,8 +37,18 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Override
     @Transactional
     public AuditLog record(String entityType, String entityId, String action,
+            String actor, String reason,
+            String beforeValue, String afterValue) {
+        return record(TenantContext.getTenantId(), entityType, entityId, action,
+                actor, reason, beforeValue, afterValue, null);
+    }
+
+    @Override
+    @Transactional
+    public AuditLog record(String entityType, String entityId, String action,
             String actor, String reason) {
-        return record(entityType, entityId, action, actor, reason, null, null);
+        return record(TenantContext.getTenantId(), entityType, entityId, action,
+                actor, reason, null, null, null);
     }
 
     /**

@@ -90,6 +90,7 @@
             const { data } = await api.post<AuthUserResponse>(
                 `/admin/superadmin/tenants/${tenant.tenantId}/impersonate`,
             );
+            auth.beginImpersonation(data);
             window.location.href = "/dashboard";
         } catch (err: any) {
             alert(

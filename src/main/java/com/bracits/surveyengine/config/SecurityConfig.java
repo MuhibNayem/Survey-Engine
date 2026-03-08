@@ -3,6 +3,7 @@ package com.bracits.surveyengine.config;
 import com.bracits.surveyengine.admin.filter.JwtAuthenticationFilter;
 import com.bracits.surveyengine.common.exception.CustomAuthenticationEntryPoint;
 import com.bracits.surveyengine.subscription.service.SubscriptionEnforcementFilter;
+import org.springframework.http.HttpHeaders;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -12,8 +13,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * Security configuration with engine-owned JWT authentication.
@@ -27,6 +30,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+        private static final RequestMatcher BEARER_TOKEN_REQUEST_MATCHER = request -> {
+                String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+                return header != null && header.startsWith("Bearer ");
+        };
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final SubscriptionEnforcementFilter subscriptionEnforcementFilter;
@@ -42,8 +49,28 @@ public class SecurityConfig {
 
         @Bean
         public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+                CookieCsrfTokenRepository csrfRepo = CookieCsrfTokenRepository.withHttpOnlyFalse();
+                csrfRepo.setCookiePath("/");
+
                 http
-                                .csrf(csrf -> csrf.disable())
+                                .csrf(csrf -> csrf
+                                                .csrfTokenRepository(csrfRepo)
+                                                .ignoringRequestMatchers(
+                                                                // Token-mode and public endpoints do not use browser
+                                                                // cookies for auth
+                                                                BEARER_TOKEN_REQUEST_MATCHER)
+                                                .ignoringRequestMatchers(
+                                                                "/api/v1/admin/auth/**",
+                                                                "/api/v1/public/**",
+                                                                "/api/v1/auth/validate/**",
+                                                                "/api/v1/auth/respondent/oidc/**",
+                                                                "/api/v1/responses",
+                                                                "/actuator/**",
+                                                                "/swagger-ui/**",
+                                                                "/v3/api-docs/**",
+                                                                "/openapi.yaml",
+                                                                "/openapi.yml",
+                                                                "/openapi.ymal"))
                                 .exceptionHandling(exception -> exception
                                                 .authenticationEntryPoint(customAuthenticationEntryPoint))
                                 .sessionManagement(session -> session
@@ -79,6 +106,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/v1/scoring/**").authenticated()
                                                 .requestMatchers("/api/v1/auth/profiles/**").authenticated()
                                                 .requestMatchers("/api/v1/responses/**").authenticated()
+                                                .requestMatchers("/api/v1/audit-logs/**").authenticated()
 
                                                 .anyRequest().authenticated())
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

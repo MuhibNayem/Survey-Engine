@@ -23,6 +23,8 @@ public class CookieUtil {
 
     public static final String ACCESS_TOKEN_COOKIE = "access_token";
     public static final String REFRESH_TOKEN_COOKIE = "refresh_token";
+    public static final String IMPERSONATOR_ACCESS_TOKEN_COOKIE = "sa_access_token";
+    public static final String IMPERSONATOR_REFRESH_TOKEN_COOKIE = "sa_refresh_token";
     private static final String COOKIE_PATH = "/";
 
     private final long accessTokenMaxAge;
@@ -49,6 +51,42 @@ public class CookieUtil {
     public void clearTokenCookies(HttpServletResponse response) {
         addCookie(response, ACCESS_TOKEN_COOKIE, "", 0);
         addCookie(response, REFRESH_TOKEN_COOKIE, "", 0);
+        addCookie(response, IMPERSONATOR_ACCESS_TOKEN_COOKIE, "", 0);
+        addCookie(response, IMPERSONATOR_REFRESH_TOKEN_COOKIE, "", 0);
+    }
+
+    public void stashImpersonatorCookies(jakarta.servlet.http.HttpServletRequest request,
+            HttpServletResponse response) {
+        if (request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if (ACCESS_TOKEN_COOKIE.equals(cookie.getName())) {
+                    addCookie(response, IMPERSONATOR_ACCESS_TOKEN_COOKIE, cookie.getValue(), accessTokenMaxAge);
+                } else if (REFRESH_TOKEN_COOKIE.equals(cookie.getName())) {
+                    addCookie(response, IMPERSONATOR_REFRESH_TOKEN_COOKIE, cookie.getValue(), refreshTokenMaxAge);
+                }
+            }
+        }
+    }
+
+    public void restoreImpersonatorCookies(jakarta.servlet.http.HttpServletRequest request,
+            HttpServletResponse response) {
+        if (request.getCookies() != null) {
+            String saAccess = null;
+            String saRefresh = null;
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if (IMPERSONATOR_ACCESS_TOKEN_COOKIE.equals(cookie.getName())) {
+                    saAccess = cookie.getValue();
+                } else if (IMPERSONATOR_REFRESH_TOKEN_COOKIE.equals(cookie.getName())) {
+                    saRefresh = cookie.getValue();
+                }
+            }
+            if (saAccess != null && saRefresh != null) {
+                addCookie(response, ACCESS_TOKEN_COOKIE, saAccess, accessTokenMaxAge);
+                addCookie(response, REFRESH_TOKEN_COOKIE, saRefresh, refreshTokenMaxAge);
+                addCookie(response, IMPERSONATOR_ACCESS_TOKEN_COOKIE, "", 0);
+                addCookie(response, IMPERSONATOR_REFRESH_TOKEN_COOKIE, "", 0);
+            }
+        }
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, long maxAge) {

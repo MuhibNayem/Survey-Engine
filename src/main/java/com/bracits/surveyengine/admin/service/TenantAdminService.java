@@ -78,6 +78,7 @@ public class TenantAdminService {
         }
 
         @Transactional
+        @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "TENANT_SUSPENDED")
         public void suspendTenant(String tenantId) {
                 Tenant tenant = tenantRepository.findById(tenantId)
                                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
@@ -87,6 +88,7 @@ public class TenantAdminService {
         }
 
         @Transactional
+        @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "TENANT_ACTIVATED")
         public void activateTenant(String tenantId) {
                 Tenant tenant = tenantRepository.findById(tenantId)
                                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
@@ -96,6 +98,7 @@ public class TenantAdminService {
         }
 
         @Transactional
+        @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "TENANT_IMPERSONATED")
         public AuthResponse impersonateTenant(String tenantId) {
                 AdminUser user = adminUserRepository.findAll().stream()
                                 .filter(u -> u.getTenantId().equals(tenantId) && u.getRole() == AdminRole.ADMIN)
@@ -114,7 +117,7 @@ public class TenantAdminService {
                                 .build();
                 refreshTokenRepository.save(refreshToken);
 
-                return AuthResponse.builder()
+                AuthResponse response = AuthResponse.builder()
                                 .userId(user.getId())
                                 .email(user.getEmail())
                                 .fullName(user.getFullName())
@@ -125,9 +128,12 @@ public class TenantAdminService {
                                 .tokenType("Bearer")
                                 .expiresIn(jwtService.getTokenTtlSeconds())
                                 .build();
+
+                return response;
         }
 
         @Transactional
+        @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "SUBSCRIPTION_OVERRIDDEN")
         public void overrideSubscription(String tenantId, OverrideSubscriptionRequest request) {
                 Subscription subscription = subscriptionRepository.findByTenantId(tenantId)
                                 .orElseThrow(

@@ -1,6 +1,6 @@
 package com.bracits.surveyengine.survey.service;
 
-import com.bracits.surveyengine.common.audit.AuditLogService;
+import com.bracits.surveyengine.common.audit.annotation.Auditable;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
@@ -81,7 +81,6 @@ public class SurveyServiceImpl implements SurveyService {
     private final QuestionVersionRepository questionVersionRepository;
     private final CategoryRepository categoryRepository;
     private final CategoryVersionRepository categoryVersionRepository;
-    private final AuditLogService auditLogService;
     private final TenantService tenantService;
     private final ObjectMapper objectMapper;
 
@@ -140,6 +139,7 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     @Transactional
+    @Auditable(action = "SURVEY_LIFECYCLE_TRANSITION")
     public SurveyResponse transitionLifecycle(UUID id, LifecycleTransitionRequest request) {
         Survey survey = findOrThrow(id);
         SurveyLifecycleState targetState = SurveyLifecycleState.valueOf(request.getTargetState());
@@ -157,8 +157,6 @@ public class SurveyServiceImpl implements SurveyService {
                 throw new BusinessException(ErrorCode.INVALID_LIFECYCLE_TRANSITION,
                         "Reason is required when reopening a closed survey");
             }
-            auditLogService.record("Survey", id.toString(), "REOPEN",
-                    "system", request.getReason());
         }
 
         String previousState = currentState.name();
@@ -170,9 +168,6 @@ public class SurveyServiceImpl implements SurveyService {
         }
 
         survey = surveyRepository.save(survey);
-
-        auditLogService.record("Survey", id.toString(), "LIFECYCLE_TRANSITION",
-                "system", null, previousState, targetState.name());
 
         return toResponse(survey);
     }

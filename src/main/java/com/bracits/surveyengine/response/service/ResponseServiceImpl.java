@@ -73,6 +73,7 @@ public class ResponseServiceImpl implements ResponseService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "RESPONSE_SUBMITTED")
     public SurveyResponseResponse submit(ResponseSubmissionRequest request) {
         Campaign campaign = campaignRepository.findById(request.getCampaignId())
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", request.getCampaignId()));
@@ -98,7 +99,8 @@ public class ResponseServiceImpl implements ResponseService {
         ScoreResult weightedScoreResult = null;
         if (campaign.getDefaultWeightProfileId() != null) {
             Map<UUID, BigDecimal> categoryRawScores = computeCategoryRawScores(snapshotContext, validatedAnswers);
-            weightedScoreResult = scoringEngineService.calculateScore(campaign.getDefaultWeightProfileId(), categoryRawScores);
+            weightedScoreResult = scoringEngineService.calculateScore(campaign.getDefaultWeightProfileId(),
+                    categoryRawScores);
         }
 
         // 3. Build and save response
@@ -293,7 +295,8 @@ public class ResponseServiceImpl implements ResponseService {
                 throw validationError("questionVersionId mismatch for question " + questionId);
             }
 
-            QuestionVersion questionVersion = loadQuestionVersion(snapshotQuestion.questionVersionId(), questionVersionCache);
+            QuestionVersion questionVersion = loadQuestionVersion(snapshotQuestion.questionVersionId(),
+                    questionVersionCache);
             if (!questionId.equals(questionVersion.getQuestionId())) {
                 throw validationError("Snapshot question-version binding is invalid for question " + questionId);
             }
@@ -345,7 +348,8 @@ public class ResponseServiceImpl implements ResponseService {
 
                     SnapshotQuestion previous = questionsById.putIfAbsent(
                             questionId,
-                            new SnapshotQuestion(questionId, questionVersionId, categoryId, mandatory, optionConfig, answerConfig));
+                            new SnapshotQuestion(questionId, questionVersionId, categoryId, mandatory, optionConfig,
+                                    answerConfig));
                     if (previous != null) {
                         throw validationError("Survey snapshot contains duplicate questionId: " + questionId);
                     }

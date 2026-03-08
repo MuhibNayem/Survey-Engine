@@ -4,6 +4,7 @@ import com.bracits.surveyengine.admin.context.TenantContext;
 import com.bracits.surveyengine.admin.dto.AuthResponse;
 import com.bracits.surveyengine.admin.dto.AuthUserResponse;
 import com.bracits.surveyengine.admin.dto.LoginRequest;
+import com.bracits.surveyengine.admin.dto.RefreshTokenRequest;
 import com.bracits.surveyengine.admin.dto.RegisterRequest;
 import com.bracits.surveyengine.admin.entity.AdminRole;
 import com.bracits.surveyengine.admin.service.AdminAuthService;
@@ -15,9 +16,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/admin/auth")
@@ -46,6 +49,30 @@ public class AdminAuthController {
         return ResponseEntity.ok(toUserResponse(authResponse));
     }
 
+    @PostMapping("/token/register")
+    public ResponseEntity<AuthResponse> registerTokenMode(
+            @Valid @RequestBody RegisterRequest request) {
+        AuthResponse authResponse = adminAuthService.registerPublic(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
+    }
+
+    @PostMapping("/token/login")
+    public ResponseEntity<AuthResponse> loginTokenMode(
+            @Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(adminAuthService.login(request));
+    }
+
+    @PostMapping("/token/refresh")
+    public ResponseEntity<AuthResponse> refreshTokenMode(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(adminAuthService.refresh(request.getRefreshToken()));
+    }
+
+    @GetMapping("/csrf")
+    public ResponseEntity<Map<String, String>> csrf(CsrfToken token) {
+        return ResponseEntity.ok(Map.of("token", token.getToken()));
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<AuthUserResponse> refresh(
             HttpServletRequest request,
@@ -57,6 +84,14 @@ public class AdminAuthController {
         AuthResponse authResponse = adminAuthService.refresh(refreshToken);
         cookieUtil.addTokenCookies(response, authResponse);
         return ResponseEntity.ok(toUserResponse(authResponse));
+    }
+
+    @PostMapping("/revert-impersonation")
+    public ResponseEntity<Void> revertImpersonation(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        cookieUtil.restoreImpersonatorCookies(request, response);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/logout")

@@ -37,6 +37,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "CATEGORY_CREATED")
     public CategoryResponse create(CategoryRequest request) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         tenantService.ensureProvisioned(tenantId);
@@ -50,6 +51,7 @@ public class CategoryServiceImpl implements CategoryService {
         category = categoryRepository.save(category);
 
         CategoryVersion liveVersion = upsertLiveVersion(category, request.getQuestionMappings());
+
         return toResponse(category, liveVersion);
     }
 
@@ -71,6 +73,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "CATEGORY_UPDATED")
     public CategoryResponse update(UUID id, CategoryRequest request) {
         Category category = findOrThrow(id);
         category.setName(request.getName());
@@ -79,11 +82,13 @@ public class CategoryServiceImpl implements CategoryService {
         category = categoryRepository.save(category);
 
         CategoryVersion liveVersion = upsertLiveVersion(category, request.getQuestionMappings());
+
         return toResponse(category, liveVersion);
     }
 
     @Override
     @Transactional
+    @com.bracits.surveyengine.common.audit.annotation.Auditable(action = "CATEGORY_DELETED")
     public void deactivate(UUID id) {
         Category category = findOrThrow(id);
         category.setActive(false);

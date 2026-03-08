@@ -44,7 +44,9 @@ public class TenantAdminController {
 
     @PostMapping("/{tenantId}/impersonate")
     public ResponseEntity<AuthUserResponse> impersonateTenant(@PathVariable String tenantId,
+            jakarta.servlet.http.HttpServletRequest request,
             HttpServletResponse response) {
+        cookieUtil.stashImpersonatorCookies(request, response);
         AuthResponse authResponse = tenantAdminService.impersonateTenant(tenantId);
         cookieUtil.addTokenCookies(response, authResponse);
         return ResponseEntity.ok(AuthUserResponse.builder()
