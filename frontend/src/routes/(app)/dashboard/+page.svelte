@@ -78,12 +78,16 @@
 
     // Helper to extract content array and total from a Page or plain array response
     function unwrapPage<T>(data: any): { items: T[]; total: number } {
+        if (!data) {
+            return { items: [], total: 0 };
+        }
         if (Array.isArray(data)) {
             return { items: data, total: data.length };
         }
+        const content = Array.isArray(data.content) ? data.content : [];
         return {
-            items: data.content || [],
-            total: data.totalElements ?? (data.content?.length || 0),
+            items: content,
+            total: data.totalElements ?? content.length,
         };
     }
 

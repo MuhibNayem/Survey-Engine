@@ -42,13 +42,30 @@
 </script>
 
 {#if totalPages > 0}
-<div class="flex items-center justify-between px-2 py-4">
+<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2 py-4">
     <!-- Items Summary -->
-    <div class="flex-1 text-sm text-muted-foreground">
-        Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of <strong>{totalElements}</strong> items
-    </div>
-
-    <!-- Page Controls -->
+    <div class="flex items-center gap-4">
+        <span class="text-sm text-muted-foreground">
+            Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of <strong>{totalElements}</strong> items
+        </span>
+        <!-- Page Size Selector -->
+        <div class="flex items-center gap-2">
+            <label for="page-size-select" class="text-sm text-muted-foreground whitespace-nowrap">Rows:</label>
+            <select
+                id="page-size-select"
+                class="h-8 rounded-md border border-input bg-background px-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                value={pageSize}
+                onchange={(e) => {
+                    const target = e.target as HTMLSelectElement;
+                    onSizeChange(Number(target.value));
+                }}
+            >
+                {#each [10, 25, 50] as size}
+                    <option value={size} selected={size === pageSize}>{size}</option>
+                {/each}
+            </select>
+        </div>
+    </div>    <!-- Page Controls -->
     <div class="flex items-center space-x-2">
         <Button
             variant="outline"

@@ -1,5 +1,6 @@
 package com.bracits.surveyengine.common.audit.listener;
 
+import com.bracits.surveyengine.common.audit.AuditLog;
 import com.bracits.surveyengine.common.audit.AuditLogService;
 import com.bracits.surveyengine.common.audit.context.AuditContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -49,6 +50,7 @@ public class HibernateAuditListener implements PostInsertEventListener, PostUpda
 
     @Override
     public void onPostInsert(PostInsertEvent event) {
+        if (event.getEntity() instanceof AuditLog) return;
         AuditContext context = AuditContext.getContext();
         // Skip auditing if not triggered via an @Auditable business action
         if (context == null) return;
@@ -59,6 +61,7 @@ public class HibernateAuditListener implements PostInsertEventListener, PostUpda
 
     @Override
     public void onPostUpdate(PostUpdateEvent event) {
+        if (event.getEntity() instanceof AuditLog) return;
         AuditContext context = AuditContext.getContext();
         if (context == null) return;
 
@@ -70,6 +73,7 @@ public class HibernateAuditListener implements PostInsertEventListener, PostUpda
 
     @Override
     public void onPostDelete(PostDeleteEvent event) {
+        if (event.getEntity() instanceof AuditLog) return;
         AuditContext context = AuditContext.getContext();
         if (context == null) return;
 
