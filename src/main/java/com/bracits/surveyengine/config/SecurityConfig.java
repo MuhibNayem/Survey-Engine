@@ -39,13 +39,16 @@ public class SecurityConfig {
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final SubscriptionEnforcementFilter subscriptionEnforcementFilter;
         private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+        private final com.bracits.surveyengine.admin.filter.CsrfCookieFilter csrfCookieFilter;
 
         public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                        SubscriptionEnforcementFilter subscriptionEnforcementFilter,
-                        CustomAuthenticationEntryPoint customAuthenticationEntryPoint) {
+                              SubscriptionEnforcementFilter subscriptionEnforcementFilter,
+                              CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
+                              com.bracits.surveyengine.admin.filter.CsrfCookieFilter csrfCookieFilter) {
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
                 this.subscriptionEnforcementFilter = subscriptionEnforcementFilter;
                 this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
+                this.csrfCookieFilter = csrfCookieFilter;
         }
 
         @Bean
@@ -115,7 +118,8 @@ public class SecurityConfig {
 
                                                 .anyRequest().authenticated())
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                                .addFilterAfter(subscriptionEnforcementFilter, JwtAuthenticationFilter.class);
+                                .addFilterAfter(subscriptionEnforcementFilter, JwtAuthenticationFilter.class)
+                                .addFilterAfter(csrfCookieFilter, org.springframework.security.web.authentication.www.BasicAuthenticationFilter.class);
 
                 return http.build();
         }

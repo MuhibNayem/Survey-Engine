@@ -43,14 +43,6 @@ async function ensureCsrfCookie() {
     await csrfBootstrapPromise;
 }
 
-function readXsrfCookie(): string | null {
-    if (typeof document === 'undefined') return null;
-    const pair = document.cookie
-        .split(';')
-        .map((cookie) => cookie.trim())
-        .find((cookie) => cookie.startsWith('XSRF-TOKEN='));
-    return pair ? decodeURIComponent(pair.substring('XSRF-TOKEN='.length)) : null;
-}
 
 api.interceptors.request.use(async (config) => {
     const method = (config.method || 'get').toLowerCase();
@@ -59,11 +51,8 @@ api.interceptors.request.use(async (config) => {
 
     if (isMutation && !isAuthEndpoint) {
         await ensureCsrfCookie();
-        const token = readXsrfCookie();
-        if (token) {
-            config.headers = config.headers ?? {};
-            config.headers['X-XSRF-TOKEN'] = token;
-        }
+        // Axios native xsrfCookieName/xsrfHeaderName handles the token mapping automatically 
+        // as long as the cookie has been rendered by the server.
     }
 
     return config;

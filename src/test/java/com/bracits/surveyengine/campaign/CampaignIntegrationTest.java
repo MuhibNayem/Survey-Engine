@@ -246,7 +246,7 @@ class CampaignIntegrationTest {
                 .surveyId(publishedSurveyId)
                 .build());
 
-        List<CampaignResponse> activeList = campaignService.getAllActive();
+        List<CampaignResponse> activeList = campaignService.getAllActive(org.springframework.data.domain.PageRequest.of(0, 50)).getContent();
         assertThat(activeList).isNotEmpty();
     }
 }

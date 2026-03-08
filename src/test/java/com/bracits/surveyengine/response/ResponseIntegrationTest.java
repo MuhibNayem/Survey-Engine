@@ -193,7 +193,7 @@ class ResponseIntegrationTest {
     @Test
     void shouldListResponsesByCampaign() {
         submitTestResponse();
-        List<SurveyResponseResponse> responses = responseService.getByCampaignId(activeCampaignId);
+        List<SurveyResponseResponse> responses = responseService.getByCampaignId(activeCampaignId, org.springframework.data.domain.PageRequest.of(0, 50)).getContent();
         assertThat(responses).isNotEmpty();
     }
 

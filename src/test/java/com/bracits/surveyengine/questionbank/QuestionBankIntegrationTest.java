@@ -163,7 +163,7 @@ class QuestionBankIntegrationTest {
                                 .build());
                 questionService.deactivate(toDeactivate.getId());
 
-                List<QuestionResponse> activeList = questionService.getAllActive();
+                List<QuestionResponse> activeList = questionService.getAllActive(org.springframework.data.domain.PageRequest.of(0, 50)).getContent();
 
                 assertThat(activeList).extracting(QuestionResponse::getId).contains(active.getId());
                 assertThat(activeList).extracting(QuestionResponse::getId).doesNotContain(toDeactivate.getId());
