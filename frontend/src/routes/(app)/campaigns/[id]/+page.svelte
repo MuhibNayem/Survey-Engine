@@ -197,6 +197,7 @@
                 collectEmail: data.collectEmail ?? false,
                 collectPhone: data.collectPhone ?? false,
                 collectAddress: data.collectAddress ?? false,
+                dataCollectionFields: data.dataCollectionFields ?? [],
             };
             initializeBrandingBuilder();
         } catch {
@@ -823,7 +824,15 @@
                                             <div class="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                                 <!-- Field Key -->
                                                 <div class="space-y-2">
-                                                    <Label for="key-{i}">Key</Label>
+                                                    <div class="flex items-center gap-1.5">
+                                                        <Label for="key-{i}">Key</Label>
+                                                        <div 
+                                                            title="Internal variable name used for data segregation and analytics. Must be alphanumeric (e.g., student_id, age)." 
+                                                            class="text-muted-foreground hover:text-foreground cursor-help"
+                                                        >
+                                                            <Info class="h-3.5 w-3.5" />
+                                                        </div>
+                                                    </div>
                                                     <Input
                                                         id="key-{i}"
                                                         bind:value={field.fieldKey}
@@ -867,11 +876,12 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="flex justify-end sm:block">
+                                            <div class="flex justify-end sm:flex-col sm:space-y-2">
+                                                <Label class="text-transparent hidden sm:block">&nbsp;</Label>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    class="h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0 sm:mt-8"
+                                                    class="h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0"
                                                     onclick={() => removeDataCollectionField(i)}
                                                     type="button"
                                                     title="Remove field"
