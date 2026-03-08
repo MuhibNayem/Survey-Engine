@@ -88,10 +88,20 @@
     const hasPrivateCredential = $derived(
         Boolean(responderToken?.trim() || responderAccessCode?.trim()),
     );
+    
+    const totalQuestions = $derived(
+        resolvedPages.reduce((sum, p) => sum + p.questions.length, 0)
+    );
+    const answeredQuestions = $derived(
+        resolvedPages.reduce(
+            (sum, p) => sum + p.questions.filter((q) => isAnswered(q)).length, 
+            0
+        )
+    );
     const progressPercent = $derived(
-        totalPages <= 0
+        totalQuestions === 0
             ? 0
-            : Math.round(((currentPageIndex + 1) / totalPages) * 100),
+            : Math.round((answeredQuestions / totalQuestions) * 100),
     );
 
     function readAuthParamsFromUrl() {
@@ -291,7 +301,7 @@
                 nextErrors[question.questionId] = "This question is required";
             }
         }
-        errors = nextErrors;
+        errors = { ...errors, ...nextErrors };
         return Object.keys(nextErrors).length === 0;
     }
 
@@ -440,6 +450,7 @@
     }
 
     async function goNext() {
+        errors = {}; // Clear errors before running validations
         const respondentValid = validateRespondentFields();
         const pageValid = validateCurrentPage();
         if (!respondentValid || !pageValid) return;
@@ -452,7 +463,6 @@
             return;
         }
         currentPageIndex += 1;
-        errors = {};
         submitError = null;
     }
 

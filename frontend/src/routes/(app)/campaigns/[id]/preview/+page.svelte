@@ -75,8 +75,20 @@
 
     const currentPage = $derived(resolvedPages[currentPageIndex] ?? null);
     const totalPages = $derived(resolvedPages.length);
+    
+    const totalQuestions = $derived(
+        resolvedPages.reduce((sum, p) => sum + p.questions.length, 0)
+    );
+    const answeredQuestions = $derived(
+        resolvedPages.reduce(
+            (sum, p) => sum + p.questions.filter((q) => isAnswered(q)).length, 
+            0
+        )
+    );
     const progressPercent = $derived(
-        totalPages <= 0 ? 0 : Math.round(((currentPageIndex + 1) / totalPages) * 100),
+        totalQuestions === 0 
+            ? 0 
+            : Math.round((answeredQuestions / totalQuestions) * 100),
     );
 
     function parseAnswerConfig(raw?: string): Record<string, unknown> {
@@ -243,11 +255,12 @@
                 nextErrors[question.questionId] = "This question is required";
             }
         }
-        errors = nextErrors;
+        errors = { ...errors, ...nextErrors };
         return Object.keys(nextErrors).length === 0;
     }
 
     function goNext() {
+        errors = {}; // clear global errors before validation
         const respondentValid = validateRespondentFields();
         const pageValid = validateCurrentPage();
         if (!respondentValid || !pageValid) return;
@@ -256,7 +269,6 @@
             return;
         }
         currentPageIndex += 1;
-        errors = {};
     }
 
     function goBack() {
