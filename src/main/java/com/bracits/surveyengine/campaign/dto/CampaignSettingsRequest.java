@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.List;
 
 @Getter
 @Setter
@@ -32,4 +33,5 @@ public class CampaignSettingsRequest {
     private boolean collectEmail;
     private boolean collectPhone;
     private boolean collectAddress;
+    private List<DataCollectionFieldRequest> dataCollectionFields;
 }

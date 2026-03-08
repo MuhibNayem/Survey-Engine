@@ -14,6 +14,8 @@ import org.hibernate.event.spi.*;
 import org.hibernate.internal.SessionFactoryImpl;
 import org.hibernate.persister.entity.EntityPersister;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -122,17 +124,35 @@ public class HibernateAuditListener implements PostInsertEventListener, PostUpda
         try {
             String beforeJson = toJson(beforeState);
             String afterJson = toJson(afterState);
+            String tenantId = context.getTenantId();
+            String action = context.getAction();
+            String actor = context.getActor();
+            String reason = dbAction + " via AOP";
+            String ipAddress = context.getIpAddress();
 
-            auditLogService.record(
-                    context.getTenantId(),
+            Runnable writer = () -> auditLogService.record(
+                    tenantId,
                     entityType,
                     entityId,
-                    context.getAction(),
-                    context.getActor(),
-                    dbAction + " via AOP",
+                    action,
+                    actor,
+                    reason,
                     beforeJson,
                     afterJson,
-                    context.getIpAddress());
+                    ipAddress);
+
+            // Avoid writing audit rows while Hibernate is flushing the same session.
+            // Doing so can trigger re-entrant flush side effects.
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        writer.run();
+                    }
+                });
+            } else {
+                writer.run();
+            }
         } catch (Exception e) {
             log.error("Failed to record hibernate audit log for {} {}", entityType, entityId, e);
         }

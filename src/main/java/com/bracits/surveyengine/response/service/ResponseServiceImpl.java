@@ -25,6 +25,7 @@ import com.bracits.surveyengine.response.entity.Answer;
 import com.bracits.surveyengine.response.entity.ResponseStatus;
 import com.bracits.surveyengine.response.entity.SurveyResponse;
 import com.bracits.surveyengine.response.repository.SurveyResponseRepository;
+import com.bracits.surveyengine.response.repository.SurveyResponseSpecification;
 import com.bracits.surveyengine.scoring.dto.ScoreResult;
 import com.bracits.surveyengine.scoring.service.ScoringEngineService;
 import com.bracits.surveyengine.subscription.service.PlanQuotaService;
@@ -105,6 +106,16 @@ public class ResponseServiceImpl implements ResponseService {
                     categoryRawScores);
         }
 
+        String respondentMetadataJson = null;
+        if (request.getRespondentMetadata() != null && !request.getRespondentMetadata().isEmpty()) {
+            try {
+                respondentMetadataJson = objectMapper.writeValueAsString(request.getRespondentMetadata());
+            } catch (Exception e) {
+                // Log and ignore, or throw. Throwing is safer for data integrity.
+                throw new RuntimeException("Failed to serialize respondent metadata", e);
+            }
+        }
+
         // 3. Build and save response
         SurveyResponse surveyResponse = SurveyResponse.builder()
                 .campaignId(campaign.getId())
@@ -113,6 +124,7 @@ public class ResponseServiceImpl implements ResponseService {
                 .respondentIdentifier(request.getRespondentIdentifier())
                 .respondentIp(request.getRespondentIp())
                 .respondentDeviceFingerprint(request.getRespondentDeviceFingerprint())
+                .respondentMetadata(respondentMetadataJson)
                 .status(ResponseStatus.SUBMITTED)
                 .submittedAt(Instant.now())
                 .weightProfileId(weightedScoreResult != null ? weightedScoreResult.getWeightProfileId() : null)
@@ -203,10 +215,18 @@ public class ResponseServiceImpl implements ResponseService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<SurveyResponseResponse> getByCampaignId(UUID campaignId, Pageable pageable) {
+    public Page<SurveyResponseResponse> getByCampaignId(UUID campaignId, Map<String, String> metadataFilters, Pageable pageable) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         campaignRepository.findByIdAndTenantId(campaignId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+                
+        if (metadataFilters != null && !metadataFilters.isEmpty()) {
+            return responseRepository.findAll(
+                    SurveyResponseSpecification.matchesFilters(campaignId, tenantId, metadataFilters), 
+                    pageable)
+                    .map(this::toResponse);
+        }
+        
         return responseRepository.findByCampaignIdAndTenantId(campaignId, tenantId, pageable)
                 .map(this::toResponse);
     }

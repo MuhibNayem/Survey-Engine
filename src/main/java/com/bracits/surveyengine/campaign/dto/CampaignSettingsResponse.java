@@ -3,6 +3,7 @@ package com.bracits.surveyengine.campaign.dto;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -30,4 +31,5 @@ public class CampaignSettingsResponse {
     private boolean collectEmail;
     private boolean collectPhone;
     private boolean collectAddress;
+    private List<DataCollectionFieldResponse> dataCollectionFields;
 }

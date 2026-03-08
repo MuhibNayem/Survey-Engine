@@ -206,6 +206,28 @@ export interface CampaignResponse {
     createdAt: string;
     updatedBy: string;
     updatedAt: string;
+    dataCollectionFields?: DataCollectionFieldResponse[];
+}
+
+export type DataCollectionFieldType = 'TEXT' | 'EMAIL' | 'PHONE' | 'NUMBER' | 'TEXTAREA';
+
+export interface DataCollectionFieldRequest {
+    fieldKey: string;
+    label: string;
+    fieldType: DataCollectionFieldType;
+    required: boolean;
+    sortOrder: number;
+    enabled: boolean;
+}
+
+export interface DataCollectionFieldResponse {
+    id: string;
+    fieldKey: string;
+    label: string;
+    fieldType: DataCollectionFieldType;
+    required: boolean;
+    sortOrder: number;
+    enabled: boolean;
 }
 
 export interface CampaignSettingsRequest {
@@ -228,6 +250,7 @@ export interface CampaignSettingsRequest {
     collectEmail: boolean;
     collectPhone: boolean;
     collectAddress: boolean;
+    dataCollectionFields?: DataCollectionFieldRequest[];
 }
 
 export interface CampaignSettingsResponse {
@@ -251,6 +274,7 @@ export interface CampaignSettingsResponse {
     collectEmail: boolean;
     collectPhone: boolean;
     collectAddress: boolean;
+    dataCollectionFields?: DataCollectionFieldResponse[];
 }
 
 export interface CampaignPreviewResponse {
@@ -273,6 +297,7 @@ export interface CampaignPreviewResponse {
     collectEmail: boolean;
     collectPhone: boolean;
     collectAddress: boolean;
+    dataCollectionFields?: DataCollectionFieldResponse[];
     pages: {
         id: string;
         title: string;
@@ -317,6 +342,7 @@ export interface SurveyResponseResponse {
     campaignId: string;
     surveySnapshotId: string;
     respondentIdentifier: string;
+    respondentMetadata?: string;
     status: ResponseStatus;
     startedAt: string;
     submittedAt: string;

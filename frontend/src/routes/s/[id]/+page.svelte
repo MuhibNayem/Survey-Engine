@@ -7,6 +7,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
+    import { Textarea } from "$lib/components/ui/textarea";
     import { ChevronLeft, ChevronRight, Play } from "lucide-svelte";
     import type { CampaignPreviewResponse, QuestionType } from "$lib/types";
 
@@ -53,12 +54,7 @@
     let responderAccessCode = $state<string | null>(null);
     let answers = $state<Record<string, AnswerValue>>({});
     let errors = $state<Record<string, string>>({});
-    let respondent = $state({
-        name: "",
-        email: "",
-        phone: "",
-        address: "",
-    });
+    let respondentMetadata = $state<Record<string, string>>({});
 
     const resolvedPages = $derived(
         campaign
@@ -268,19 +264,21 @@
 
     function validateRespondentFields(): boolean {
         const nextErrors: Record<string, string> = {};
-        if (campaign?.collectName && respondent.name.trim().length === 0)
-            nextErrors["meta.name"] = "Name is required";
-        if (campaign?.collectEmail) {
-            const email = respondent.email.trim();
-            if (email.length === 0)
-                nextErrors["meta.email"] = "Email is required";
-            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-                nextErrors["meta.email"] = "Enter a valid email";
+        if (campaign?.dataCollectionFields) {
+            for (const field of campaign.dataCollectionFields) {
+                if (!field.enabled) continue;
+                
+                const val = (respondentMetadata[field.fieldKey] || "").trim();
+                if (field.required && val.length === 0) {
+                    nextErrors["meta." + field.fieldKey] = `${field.label} is required`;
+                } else if (val.length > 0 && field.fieldType === 'EMAIL') {
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                        nextErrors["meta." + field.fieldKey] = "Enter a valid email";
+                    }
+                }
+            }
         }
-        if (campaign?.collectPhone && respondent.phone.trim().length === 0)
-            nextErrors["meta.phone"] = "Phone is required";
-        if (campaign?.collectAddress && respondent.address.trim().length === 0)
-            nextErrors["meta.address"] = "Address is required";
+        
         errors = { ...errors, ...nextErrors };
         return Object.keys(nextErrors).length === 0;
     }
@@ -298,14 +296,24 @@
     }
 
     function buildRespondentIdentifier(): string | undefined {
-        const email = respondent.email.trim();
+        if (!campaign?.dataCollectionFields || campaign.dataCollectionFields.length === 0) return undefined;
+        
+        // Try to find a reasonable identifier for the admin UI to display.
+        // Prefer email, then phone, then name.
+        const email = respondentMetadata["email"]?.trim();
         if (email) return email;
-        const name = respondent.name.trim();
-        if (name) return name;
-        const phone = respondent.phone.trim();
+        const phone = respondentMetadata["phone"]?.trim();
         if (phone) return phone;
-        const address = respondent.address.trim();
-        if (address) return address;
+        const name = respondentMetadata["name"]?.trim();
+        if (name) return name;
+        
+        // Fallback: just return the first collected field value that exists
+        for (const field of campaign.dataCollectionFields) {
+            if (field.enabled && respondentMetadata[field.fieldKey]?.trim()) {
+                return respondentMetadata[field.fieldKey].trim();
+            }
+        }
+        
         return undefined;
     }
 
@@ -406,6 +414,7 @@
             await api.post("/responses", {
                 campaignId: campaign.campaignId,
                 respondentIdentifier: buildRespondentIdentifier(),
+                respondentMetadata: respondentMetadata,
                 responderToken:
                     campaign.authMode === "PRIVATE"
                         ? responderToken || undefined
@@ -625,7 +634,7 @@
                             </div>
                         {:else if currentPage}
                             <div class="space-y-6">
-                                {#if campaign.collectName || campaign.collectEmail || campaign.collectPhone || campaign.collectAddress}
+                                {#if campaign.dataCollectionFields?.some(f => f.enabled)}
                                     <Card.Root class="border border-border/70">
                                         <Card.Header class="pb-3">
                                             <Card.Title class="text-base"
@@ -635,88 +644,52 @@
                                         <Card.Content
                                             class="grid gap-3 sm:grid-cols-2"
                                         >
-                                            {#if campaign.collectName}
-                                                <div class="space-y-1">
-                                                    <Label for="meta-name"
-                                                        >Name</Label
-                                                    >
-                                                    <Input
-                                                        id="meta-name"
-                                                        bind:value={
-                                                            respondent.name
-                                                        }
-                                                    />
-                                                    {#if errors["meta.name"]}<p
-                                                            class="text-xs text-destructive"
-                                                        >
-                                                            {errors[
-                                                                "meta.name"
-                                                            ]}
-                                                        </p>{/if}
-                                                </div>
-                                            {/if}
-                                            {#if campaign.collectEmail}
-                                                <div class="space-y-1">
-                                                    <Label for="meta-email"
-                                                        >Email</Label
-                                                    >
-                                                    <Input
-                                                        id="meta-email"
-                                                        bind:value={
-                                                            respondent.email
-                                                        }
-                                                    />
-                                                    {#if errors["meta.email"]}<p
-                                                            class="text-xs text-destructive"
-                                                        >
-                                                            {errors[
-                                                                "meta.email"
-                                                            ]}
-                                                        </p>{/if}
-                                                </div>
-                                            {/if}
-                                            {#if campaign.collectPhone}
-                                                <div class="space-y-1">
-                                                    <Label for="meta-phone"
-                                                        >Phone</Label
-                                                    >
-                                                    <Input
-                                                        id="meta-phone"
-                                                        bind:value={
-                                                            respondent.phone
-                                                        }
-                                                    />
-                                                    {#if errors["meta.phone"]}<p
-                                                            class="text-xs text-destructive"
-                                                        >
-                                                            {errors[
-                                                                "meta.phone"
-                                                            ]}
-                                                        </p>{/if}
-                                                </div>
-                                            {/if}
-                                            {#if campaign.collectAddress}
-                                                <div
-                                                    class="space-y-1 sm:col-span-2"
-                                                >
-                                                    <Label for="meta-address"
-                                                        >Address</Label
-                                                    >
-                                                    <Input
-                                                        id="meta-address"
-                                                        bind:value={
-                                                            respondent.address
-                                                        }
-                                                    />
-                                                    {#if errors["meta.address"]}<p
-                                                            class="text-xs text-destructive"
-                                                        >
-                                                            {errors[
-                                                                "meta.address"
-                                                            ]}
-                                                        </p>{/if}
-                                                </div>
-                                            {/if}
+                                            {#each campaign.dataCollectionFields as field}
+                                                {#if field.enabled}
+                                                    <div class={field.fieldType === 'TEXTAREA' ? "space-y-1 sm:col-span-2" : "space-y-1"}>
+                                                        <Label for="meta-{field.fieldKey}">
+                                                            {field.label} {#if field.required}<span class="text-destructive">*</span>{/if}
+                                                        </Label>
+                                                        
+                                                        {#if field.fieldType === 'TEXTAREA'}
+                                                            <Textarea
+                                                                id="meta-{field.fieldKey}"
+                                                                bind:value={respondentMetadata[field.fieldKey]}
+                                                            />
+                                                        {:else if field.fieldType === 'NUMBER'}
+                                                            <Input
+                                                                id="meta-{field.fieldKey}"
+                                                                type="number"
+                                                                bind:value={respondentMetadata[field.fieldKey]}
+                                                            />
+                                                        {:else if field.fieldType === 'PHONE'}
+                                                            <Input
+                                                                id="meta-{field.fieldKey}"
+                                                                type="tel"
+                                                                bind:value={respondentMetadata[field.fieldKey]}
+                                                            />
+                                                        {:else if field.fieldType === 'EMAIL'}
+                                                            <Input
+                                                                id="meta-{field.fieldKey}"
+                                                                type="email"
+                                                                bind:value={respondentMetadata[field.fieldKey]}
+                                                            />
+                                                        {:else}
+                                                            <Input
+                                                                id="meta-{field.fieldKey}"
+                                                                type="text"
+                                                                bind:value={respondentMetadata[field.fieldKey]}
+                                                            />
+                                                        {/if}
+                                                        
+                                                        {#if errors["meta." + field.fieldKey]}
+                                                            <p class="text-xs text-destructive">
+                                                                {errors["meta." + field.fieldKey]}
+                                                            </p>
+                                                        {/if}
+                                                    </div>
+                                                {/if}
+                                            {/each}
                                         </Card.Content>
                                     </Card.Root>
                                 {/if}

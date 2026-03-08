@@ -12,7 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -37,8 +39,18 @@ public class ResponseController {
 
     @GetMapping("/campaign/{campaignId}")
     public ResponseEntity<Page<SurveyResponseResponse>> getByCampaign(
-            @PathVariable UUID campaignId, Pageable pageable) {
-        return ResponseEntity.ok(responseService.getByCampaignId(campaignId, pageable));
+            @PathVariable UUID campaignId, 
+            @RequestParam Map<String, String> allParams,
+            Pageable pageable) {
+        
+        Map<String, String> metadataFilters = new HashMap<>();
+        allParams.forEach((key, value) -> {
+            if (key.startsWith("metadata.")) {
+                metadataFilters.put(key.substring("metadata.".length()), value);
+            }
+        });
+        
+        return ResponseEntity.ok(responseService.getByCampaignId(campaignId, metadataFilters, pageable));
     }
 
     @PostMapping("/{id}/lock")
@@ -54,7 +66,17 @@ public class ResponseController {
     }
 
     @GetMapping("/analytics/{campaignId}")
-    public ResponseEntity<CampaignAnalytics> getAnalytics(@PathVariable UUID campaignId) {
-        return ResponseEntity.ok(analyticsService.getAnalytics(campaignId));
+    public ResponseEntity<CampaignAnalytics> getAnalytics(
+            @PathVariable UUID campaignId,
+            @RequestParam Map<String, String> allParams) {
+        
+        Map<String, String> metadataFilters = new HashMap<>();
+        allParams.forEach((key, value) -> {
+            if (key.startsWith("metadata.")) {
+                metadataFilters.put(key.substring("metadata.".length()), value);
+            }
+        });
+        
+        return ResponseEntity.ok(analyticsService.getAnalytics(campaignId, metadataFilters));
     }
 }

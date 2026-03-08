@@ -22,6 +22,7 @@
         CampaignResponse,
         SurveyResponseResponse,
         ResponseStatus,
+        DataCollectionFieldType
     } from "$lib/types";
 
     let campaign = $state<CampaignResponse | null>(null);
@@ -29,6 +30,8 @@
     let loading = $state(true);
     let searchQuery = $state("");
     let statusFilter = $state<ResponseStatus | "">("");
+    let metadataFilters = $state<Record<string, string>>({});
+    let initialLoadComplete = $state(false);
 
     const campaignId = $derived(page.params.id);
 
@@ -92,17 +95,38 @@
         });
     }
 
+    async function loadResponses() {
+        if (!campaignId) return;
+        loading = true;
+        
+        try {
+            // Build query params
+            const params = new URLSearchParams();
+            Object.entries(metadataFilters).forEach(([key, value]) => {
+                if (value && value.trim() !== '') {
+                    params.append(`metadata.${key}`, value.trim());
+                }
+            });
+
+            const rRes = await api.get<SurveyResponseResponse[]>(`/responses/campaign/${campaignId}?${params.toString()}`);
+            responses = rRes.data;
+        } catch {
+            responses = [];
+        } finally {
+            loading = false;
+        }
+    }
+
     async function loadData() {
         loading = true;
         try {
             const [cRes, rRes] = await Promise.all([
                 api.get<CampaignResponse>(`/campaigns/${campaignId}`),
-                api.get<SurveyResponseResponse[]>(
-                    `/responses/campaign/${campaignId}`,
-                ),
+                api.get<SurveyResponseResponse[]>(`/responses/campaign/${campaignId}`),
             ]);
             campaign = cRes.data;
             responses = rRes.data;
+            initialLoadComplete = true;
         } catch {
             goto("/campaigns");
         } finally {
@@ -111,6 +135,19 @@
     }
 
     onMount(loadData);
+    
+    // Watch for metadata filter changes after initial data is loaded
+    $effect(() => {
+        if (initialLoadComplete) {
+            // Re-run whenever metadataFilters change deep
+            const serializedFilters = JSON.stringify(metadataFilters);
+            // using serialized value to trigger derived effect reactively
+            if (serializedFilters) {
+                // Introduce a tiny debounce naturally by awaiting the load
+                loadResponses();
+            }
+        }
+    });
 </script>
 
 <svelte:head>
@@ -163,28 +200,55 @@
     </div>
 
     <!-- Filters -->
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div class="relative flex-1">
-            <Search
-                class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-                placeholder="Search by respondent identifier..."
-                bind:value={searchQuery}
-                class="pl-9"
-            />
+    <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div class="relative flex-1">
+                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input placeholder="Search by respondent identifier..." bind:value={searchQuery} class="pl-9" />
+            </div>
+            <Select.Root type="single" bind:value={statusFilter}>
+                <Select.Trigger class="w-full sm:w-48">
+                    {statusFilter ? statusFilter : "All Statuses"}
+                </Select.Trigger>
+                <Select.Content>
+                    <Select.Item value="">All Statuses</Select.Item>
+                    {#each statuses as s}
+                        <Select.Item value={s}>{s}</Select.Item>
+                    {/each}
+                </Select.Content>
+            </Select.Root>
         </div>
-        <Select.Root type="single" bind:value={statusFilter}>
-            <Select.Trigger class="w-full sm:w-48">
-                {statusFilter ? statusFilter : "All Statuses"}
-            </Select.Trigger>
-            <Select.Content>
-                <Select.Item value="">All Statuses</Select.Item>
-                {#each statuses as s}
-                    <Select.Item value={s}>{s}</Select.Item>
+
+        <!-- Dynamic Metadata Filters -->
+        {#if campaign?.dataCollectionFields && campaign.dataCollectionFields.length > 0}
+            <div class="flex flex-row flex-wrap gap-3 items-center pt-2 border-t border-border mt-1">
+                <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-2">Custom Filters:</span>
+                {#each campaign.dataCollectionFields as field}
+                    <div class="flex items-center gap-2">
+                        {#if field.fieldType === 'TEXT' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'NUMBER'}
+                            <Input 
+                                type={field.fieldType.toLowerCase() === 'number' ? 'number' : 'text'}
+                                placeholder={`Filter by ${field.label}...`}
+                                bind:value={metadataFilters[field.fieldKey]}
+                                class="w-48 h-9 text-sm"
+                            />
+                        {/if}
+                    </div>
                 {/each}
-            </Select.Content>
-        </Select.Root>
+                {#if Object.values(metadataFilters).some(v => v !== undefined && v.trim() !== '')}
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        class="h-9 px-2 text-muted-foreground hover:text-foreground"
+                        onclick={() => {
+                            metadataFilters = {};
+                        }}
+                    >
+                        Clear Filters
+                    </Button>
+                {/if}
+            </div>
+        {/if}
     </div>
 
     <!-- Table -->

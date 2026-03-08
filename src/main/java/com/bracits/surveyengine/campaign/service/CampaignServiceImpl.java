@@ -188,6 +188,22 @@ public class CampaignServiceImpl implements CampaignService {
         settings.setCollectPhone(request.isCollectPhone());
         settings.setCollectAddress(request.isCollectAddress());
 
+        // Sync data collection fields (clear + re-add)
+        if (request.getDataCollectionFields() != null) {
+            settings.getDataCollectionFields().clear();
+            for (DataCollectionFieldRequest fieldReq : request.getDataCollectionFields()) {
+                settings.getDataCollectionFields().add(DataCollectionField.builder()
+                        .campaignSettings(settings)
+                        .fieldKey(fieldReq.getFieldKey())
+                        .label(fieldReq.getLabel())
+                        .fieldType(fieldReq.getFieldType() != null ? fieldReq.getFieldType() : DataCollectionFieldType.TEXT)
+                        .required(fieldReq.isRequired())
+                        .sortOrder(fieldReq.getSortOrder())
+                        .enabled(fieldReq.isEnabled())
+                        .build());
+            }
+        }
+
         settingsRepository.save(settings);
 
         Instant now = Instant.now();
@@ -270,6 +286,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .collectEmail(settings.isCollectEmail())
                 .collectPhone(settings.isCollectPhone())
                 .collectAddress(settings.isCollectAddress())
+                .dataCollectionFields(toFieldResponses(settings.getDataCollectionFields()))
                 .build();
     }
 
@@ -343,8 +360,24 @@ public class CampaignServiceImpl implements CampaignService {
                 .collectEmail(settings.isCollectEmail())
                 .collectPhone(settings.isCollectPhone())
                 .collectAddress(settings.isCollectAddress())
+                .dataCollectionFields(toFieldResponses(settings.getDataCollectionFields()))
                 .pages(pages)
                 .build();
+    }
+
+    private List<DataCollectionFieldResponse> toFieldResponses(List<DataCollectionField> fields) {
+        if (fields == null || fields.isEmpty()) return List.of();
+        return fields.stream()
+                .map(f -> DataCollectionFieldResponse.builder()
+                        .id(f.getId())
+                        .fieldKey(f.getFieldKey())
+                        .label(f.getLabel())
+                        .fieldType(f.getFieldType())
+                        .required(f.isRequired())
+                        .sortOrder(f.getSortOrder())
+                        .enabled(f.isEnabled())
+                        .build())
+                .toList();
     }
 
     private AuthMode normalizeAccessMode(AuthMode requested) {

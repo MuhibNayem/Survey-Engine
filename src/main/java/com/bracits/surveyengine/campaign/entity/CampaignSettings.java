@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -88,19 +90,30 @@ public class CampaignSettings {
     private String footerHtml;
 
     // --- Respondent Metadata Collection (SRS §4.3) ---
+    // Legacy booleans kept for backward compatibility; replaced by dataCollectionFields
+    @Deprecated
     @Column(name = "collect_name", nullable = false)
     @Builder.Default
     private boolean collectName = false;
 
+    @Deprecated
     @Column(name = "collect_email", nullable = false)
     @Builder.Default
     private boolean collectEmail = false;
 
+    @Deprecated
     @Column(name = "collect_phone", nullable = false)
     @Builder.Default
     private boolean collectPhone = false;
 
+    @Deprecated
     @Column(name = "collect_address", nullable = false)
     @Builder.Default
     private boolean collectAddress = false;
+
+    // --- Dynamic Data Collection Fields ---
+    @OneToMany(mappedBy = "campaignSettings", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    @Builder.Default
+    private List<DataCollectionField> dataCollectionFields = new ArrayList<>();
 }

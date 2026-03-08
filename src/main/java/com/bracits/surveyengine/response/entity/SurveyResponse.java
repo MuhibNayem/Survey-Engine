@@ -69,6 +69,10 @@ public class SurveyResponse {
     @Column(name = "scored_at")
     private Instant scoredAt;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "respondent_metadata", columnDefinition = "jsonb")
+    private String respondentMetadata;
+
     @OneToMany(mappedBy = "surveyResponse", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Answer> answers = new ArrayList<>();

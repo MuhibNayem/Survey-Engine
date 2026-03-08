@@ -40,6 +40,15 @@
 
     const responseId = $derived(page.params.id);
 
+    const parsedMetadata = $derived.by(() => {
+        if (!responseObj?.respondentMetadata) return null;
+        try {
+            return JSON.parse(responseObj.respondentMetadata) as Record<string, string>;
+        } catch {
+            return null;
+        }
+    });
+
     function statusBadgeVariant(status: ResponseStatus) {
         switch (status) {
             case "SUBMITTED":
@@ -298,6 +307,21 @@
                                 {responseObj.id}
                             </p>
                         </div>
+                        {#if parsedMetadata}
+                            <div class="pt-4 border-t border-border space-y-3">
+                                <h4 class="text-sm font-semibold text-foreground">Collected Fields</h4>
+                                {#each Object.entries(parsedMetadata) as [key, value]}
+                                    <div class="space-y-1">
+                                        <p class="text-xs text-muted-foreground capitalize">
+                                            {key.replace(/_/g, ' ')}
+                                        </p>
+                                        <p class="text-sm text-foreground break-all">
+                                            {value || "—"}
+                                        </p>
+                                    </div>
+                                {/each}
+                            </div>
+                        {/if}
                     </Card.Content>
                 </Card.Root>
             </div>

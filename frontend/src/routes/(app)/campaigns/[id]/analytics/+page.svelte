@@ -6,6 +6,8 @@
     import * as Card from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
+    import { Input } from "$lib/components/ui/input";
+    import * as Select from "$lib/components/ui/select";
     import { ProgressBar } from "$lib/components/ui/progress-bar";
     import {
         ArrowLeft,
@@ -24,20 +26,23 @@
     let analytics = $state<AnalyticsResponse | null>(null);
     let loading = $state(true);
     let error = $state<string | null>(null);
+    let metadataFilters = $state<Record<string, string>>({});
+    let initialLoadComplete = $state(false);
 
     const campaignId = $derived(page.params.id);
 
-    async function loadAnalytics() {
+    async function refetchAnalytics() {
+        if (!campaignId) return;
         loading = true;
         error = null;
         try {
-            const [cRes, aRes] = await Promise.all([
-                api.get<CampaignResponse>(`/campaigns/${campaignId}`),
-                api.get<AnalyticsResponse>(
-                    `/responses/analytics/${campaignId}`,
-                ),
-            ]);
-            campaign = cRes.data;
+            const params = new URLSearchParams();
+            Object.entries(metadataFilters).forEach(([key, value]) => {
+                if (value && value.trim() !== '') {
+                    params.append(`metadata.${key}`, value.trim());
+                }
+            });
+            const aRes = await api.get<AnalyticsResponse>(`/responses/analytics/${campaignId}?${params.toString()}`);
             analytics = aRes.data;
         } catch (err) {
             error = "Failed to load analytics data.";
@@ -46,7 +51,34 @@
         }
     }
 
+    async function loadAnalytics() {
+        loading = true;
+        error = null;
+        try {
+            const [cRes, aRes] = await Promise.all([
+                api.get<CampaignResponse>(`/campaigns/${campaignId}`),
+                api.get<AnalyticsResponse>(`/responses/analytics/${campaignId}`),
+            ]);
+            campaign = cRes.data;
+            analytics = aRes.data;
+            initialLoadComplete = true;
+        } catch (err) {
+            error = "Failed to load analytics data.";
+        } finally {
+            loading = false;
+        }
+    }
+
     onMount(loadAnalytics);
+
+    $effect(() => {
+        if (initialLoadComplete) {
+            const serializedFilters = JSON.stringify(metadataFilters);
+            if (serializedFilters) {
+                refetchAnalytics();
+            }
+        }
+    });
 
     function statusBadgeVariant(status: string) {
         switch (status) {
@@ -123,6 +155,37 @@
             {/if}
         </div>
     </div>
+
+    <!-- Dynamic Metadata Filters -->
+    {#if campaign?.dataCollectionFields && campaign.dataCollectionFields.length > 0}
+        <div class="flex flex-row flex-wrap gap-3 items-center pt-2">
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-2">Segment Data By:</span>
+            {#each campaign.dataCollectionFields as field}
+                <div class="flex items-center gap-2">
+                    {#if field.fieldType === 'TEXT' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'NUMBER'}
+                        <Input 
+                            type={field.fieldType.toLowerCase() === 'number' ? 'number' : 'text'}
+                            placeholder={`Segment by ${field.label}...`}
+                            bind:value={metadataFilters[field.fieldKey]}
+                            class="w-48 h-9 text-sm"
+                        />
+                    {/if}
+                </div>
+            {/each}
+            {#if Object.values(metadataFilters).some(v => v !== undefined && v.trim() !== '')}
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    class="h-9 px-2 text-muted-foreground hover:text-foreground"
+                    onclick={() => {
+                        metadataFilters = {};
+                    }}
+                >
+                    Clear Segments
+                </Button>
+            {/if}
+        </div>
+    {/if}
 
     {#if loading}
         <div class="flex items-center justify-center py-16">

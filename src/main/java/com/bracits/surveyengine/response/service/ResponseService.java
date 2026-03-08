@@ -6,6 +6,7 @@ import com.bracits.surveyengine.response.dto.ResponseSubmissionRequest;
 import com.bracits.surveyengine.response.dto.SurveyResponseResponse;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -18,5 +19,5 @@ public interface ResponseService {
 
     SurveyResponseResponse getById(UUID id);
 
-    Page<SurveyResponseResponse> getByCampaignId(UUID campaignId, Pageable pageable);
+    Page<SurveyResponseResponse> getByCampaignId(UUID campaignId, Map<String, String> metadataFilters, Pageable pageable);
 }

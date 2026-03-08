@@ -12,7 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Map;
 import java.util.UUID;
+import com.bracits.surveyengine.response.repository.SurveyResponseSpecification;
 
 /**
  * Implementation of {@link AnalyticsService}.
@@ -28,18 +30,27 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     @Transactional(readOnly = true)
-    public CampaignAnalytics getAnalytics(UUID campaignId) {
+    public CampaignAnalytics getAnalytics(UUID campaignId, Map<String, String> metadataFilters) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         campaignRepository.findByIdAndTenantId(campaignId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
 
-        long total = responseRepository.countByCampaignIdAndTenantId(campaignId, tenantId);
-        long submitted = responseRepository.countByCampaignIdAndStatusAndTenantId(
-                campaignId, ResponseStatus.SUBMITTED, tenantId);
-        long locked = responseRepository.countByCampaignIdAndStatusAndTenantId(
-                campaignId, ResponseStatus.LOCKED, tenantId);
-        long inProgress = responseRepository.countByCampaignIdAndStatusAndTenantId(
-                campaignId, ResponseStatus.IN_PROGRESS, tenantId);
+        long total, submitted, locked, inProgress;
+
+        if (metadataFilters != null && !metadataFilters.isEmpty()) {
+            total = responseRepository.count(SurveyResponseSpecification.matchesFilters(campaignId, tenantId, metadataFilters));
+            submitted = responseRepository.count(SurveyResponseSpecification.matchesFiltersAndStatus(campaignId, tenantId, ResponseStatus.SUBMITTED, metadataFilters));
+            locked = responseRepository.count(SurveyResponseSpecification.matchesFiltersAndStatus(campaignId, tenantId, ResponseStatus.LOCKED, metadataFilters));
+            inProgress = responseRepository.count(SurveyResponseSpecification.matchesFiltersAndStatus(campaignId, tenantId, ResponseStatus.IN_PROGRESS, metadataFilters));
+        } else {
+            total = responseRepository.countByCampaignIdAndTenantId(campaignId, tenantId);
+            submitted = responseRepository.countByCampaignIdAndStatusAndTenantId(
+                    campaignId, ResponseStatus.SUBMITTED, tenantId);
+            locked = responseRepository.countByCampaignIdAndStatusAndTenantId(
+                    campaignId, ResponseStatus.LOCKED, tenantId);
+            inProgress = responseRepository.countByCampaignIdAndStatusAndTenantId(
+                    campaignId, ResponseStatus.IN_PROGRESS, tenantId);
+        }
 
         long completedCount = submitted + locked;
         BigDecimal completionRate = total > 0

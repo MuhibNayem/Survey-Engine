@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -22,6 +23,7 @@ public class ResponseSubmissionRequest {
     private String respondentDeviceFingerprint;
     private String responderToken;
     private String responderAccessCode;
+    private Map<String, String> respondentMetadata;
 
     private List<AnswerRequest> answers;
 

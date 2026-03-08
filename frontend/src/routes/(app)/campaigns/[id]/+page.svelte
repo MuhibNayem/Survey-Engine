@@ -24,6 +24,9 @@
         CalendarDays,
         X,
         BarChart3,
+        Plus,
+        Trash2,
+        GripVertical
     } from "lucide-svelte";
     import type {
         CampaignResponse,
@@ -56,6 +59,7 @@
         collectEmail: false,
         collectPhone: false,
         collectAddress: false,
+        dataCollectionFields: [],
     });
     let settingsLoading = $state(false);
     let settingsSaved = $state(false);
@@ -198,6 +202,25 @@
         } catch {
             // keep defaults
         }
+    }
+
+    function addDataCollectionField() {
+        if (!settings.dataCollectionFields) {
+            settings.dataCollectionFields = [];
+        }
+        settings.dataCollectionFields.push({
+            fieldKey: "new_field",
+            label: "New Field",
+            fieldType: "TEXT",
+            required: false,
+            sortOrder: settings.dataCollectionFields.length,
+            enabled: true,
+        });
+    }
+
+    function removeDataCollectionField(index: number) {
+        if (!settings.dataCollectionFields) return;
+        settings.dataCollectionFields.splice(index, 1);
     }
 
     async function saveSettings() {
@@ -468,10 +491,10 @@
         </div>
 
         <!-- Tabs -->
-        <div class="flex gap-1 border-b border-border">
+        <div class="flex gap-1 border-b border-border overflow-x-auto whitespace-nowrap pb-px no-scrollbar">
             {#each tabs as tab}
                 <button
-                    class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px {activeTab ===
+                    class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-[2px] {activeTab ===
                     tab.id
                         ? 'border-primary text-primary'
                         : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}"
@@ -482,7 +505,7 @@
                 </button>
             {/each}
             <button
-                class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-[2px] border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 onclick={() => goto(`/campaigns/${campaignId}/analytics`)}
             >
                 <BarChart3 class="h-4 w-4" />
@@ -769,51 +792,103 @@
                         </Card.Root>
                     </div>
 
-                    <!-- Data Collection -->
-                    <Card.Root>
+                    <!-- Data Collection Fields -->
+                    <Card.Root class="md:col-span-2">
                         <Card.Header>
-                            <Card.Title class="text-base"
-                                >Data Collection</Card.Title
-                            >
-                            <Card.Description
-                                >Personal identifiable information to collect
-                                along with responses</Card.Description
-                            >
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <Card.Title class="text-base">Data Collection</Card.Title>
+                                    <Card.Description>Configure what information respondents must provide before starting the survey.</Card.Description>
+                                </div>
+                                <Button size="sm" variant="outline" onclick={addDataCollectionField} class="h-8">
+                                    <Plus class="mr-2 h-4 w-4" /> Add Field
+                                </Button>
+                            </div>
                         </Card.Header>
-                        <Card.Content class="grid grid-cols-2 gap-4">
-                            <div class="flex items-center space-x-2">
-                                <Switch
-                                    id="req-name"
-                                    bind:checked={settings.collectName}
-                                />
-                                <Label for="req-name">Name</Label>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <Switch
-                                    id="req-email"
-                                    bind:checked={settings.collectEmail}
-                                />
-                                <Label for="req-email">Email</Label>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <Switch
-                                    id="req-phone"
-                                    bind:checked={settings.collectPhone}
-                                />
-                                <Label for="req-phone">Phone</Label>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <Switch
-                                    id="req-address"
-                                    bind:checked={settings.collectAddress}
-                                />
-                                <Label for="req-address">Address</Label>
-                            </div>
+                        <Card.Content>
+                            {#if !settings.dataCollectionFields || settings.dataCollectionFields.length === 0}
+                                <div class="flex flex-col items-center justify-center rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                                    No data collection fields configured.
+                                    <button type="button" class="mt-1 font-medium text-primary hover:underline" onclick={addDataCollectionField}>
+                                        Add your first field
+                                    </button>
+                                </div>
+                            {:else}
+                                <div class="space-y-4">
+                                    {#each settings.dataCollectionFields as field, i}
+                                        <div class="flex flex-col gap-4 rounded-md border bg-muted/40 p-4 sm:flex-row sm:items-start">
+                                            <div class="pt-2 text-muted-foreground hidden sm:block shrink-0">
+                                                <GripVertical class="h-5 w-5" />
+                                            </div>
+                                            <div class="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                                <!-- Field Key -->
+                                                <div class="space-y-2">
+                                                    <Label for="key-{i}">Key</Label>
+                                                    <Input
+                                                        id="key-{i}"
+                                                        bind:value={field.fieldKey}
+                                                        placeholder="e.g., student_id"
+                                                    />
+                                                    <p class="text-[10px] text-muted-foreground">Internal identifier</p>
+                                                </div>
+                                                
+                                                <!-- Display Label -->
+                                                <div class="space-y-2">
+                                                    <Label for="label-{i}">Display Label</Label>
+                                                    <Input
+                                                        id="label-{i}"
+                                                        bind:value={field.label}
+                                                        placeholder="e.g., Your Full Name"
+                                                    />
+                                                </div>
+
+                                                <!-- Type -->
+                                                <div class="space-y-2">
+                                                    <Label for="type-{i}">Input Type</Label>
+                                                    <select
+                                                        id="type-{i}"
+                                                        bind:value={field.fieldType}
+                                                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                                    >
+                                                        <option value="TEXT">Short Text</option>
+                                                        <option value="EMAIL">Email Address</option>
+                                                        <option value="PHONE">Phone Number</option>
+                                                        <option value="NUMBER">Number</option>
+                                                        <option value="TEXTAREA">Long Text (Paragraph)</option>
+                                                    </select>
+                                                </div>
+
+                                                <!-- Toggles -->
+                                                <div class="space-y-2 flex flex-col">
+                                                    <Label class="text-transparent hidden sm:block">&nbsp;</Label>
+                                                    <div class="flex items-center space-x-2 h-9">
+                                                        <Switch id="req-{i}" bind:checked={field.required} />
+                                                        <Label for="req-{i}" class="text-sm font-normal cursor-pointer leading-none">Required</Label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="flex justify-end sm:block">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    class="h-9 w-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0 sm:mt-8"
+                                                    onclick={() => removeDataCollectionField(i)}
+                                                    type="button"
+                                                    title="Remove field"
+                                                >
+                                                    <Trash2 class="h-4 w-4" />
+                                                    <span class="sr-only">Remove field</span>
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    {/each}
+                                </div>
+                            {/if}
                         </Card.Content>
                     </Card.Root>
 
                     <!-- Messages -->
-                    <Card.Root>
+                    <Card.Root class="md:col-span-2">
                         <Card.Header>
                             <Card.Title class="text-base">Messages</Card.Title>
                             <Card.Description
@@ -1229,6 +1304,14 @@
 {/if}
 
 <style>
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
     .campaign-branding-preview {
         border: 1px solid hsl(var(--border));
         border-radius: 0.75rem;

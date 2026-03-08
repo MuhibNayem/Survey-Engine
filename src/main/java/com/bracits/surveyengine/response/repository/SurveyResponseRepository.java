@@ -3,6 +3,7 @@ package com.bracits.surveyengine.response.repository;
 import com.bracits.surveyengine.response.entity.ResponseStatus;
 import com.bracits.surveyengine.response.entity.SurveyResponse;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -14,7 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 @Repository
-public interface SurveyResponseRepository extends JpaRepository<SurveyResponse, UUID> {
+public interface SurveyResponseRepository extends JpaRepository<SurveyResponse, UUID>, JpaSpecificationExecutor<SurveyResponse> {
     List<SurveyResponse> findByCampaignId(UUID campaignId);
     Page<SurveyResponse> findByCampaignIdAndTenantId(UUID campaignId, String tenantId, Pageable pageable);
 

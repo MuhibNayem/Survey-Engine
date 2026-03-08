@@ -37,6 +37,8 @@ public class CampaignPreviewResponse {
     private boolean collectPhone;
     private boolean collectAddress;
 
+    private List<DataCollectionFieldResponse> dataCollectionFields;
+
     private List<PagePreview> pages;
 
     @Getter

@@ -2,6 +2,7 @@ package com.bracits.surveyengine.response.service;
 
 import com.bracits.surveyengine.response.dto.CampaignAnalytics;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -10,5 +11,5 @@ import java.util.UUID;
  */
 public interface AnalyticsService {
 
-    CampaignAnalytics getAnalytics(UUID campaignId);
+    CampaignAnalytics getAnalytics(UUID campaignId, Map<String, String> metadataFilters);
 }
