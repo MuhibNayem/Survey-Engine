@@ -76,36 +76,49 @@
         },
     ]);
 
+    // Helper to extract content array and total from a Page or plain array response
+    function unwrapPage<T>(data: any): { items: T[]; total: number } {
+        if (Array.isArray(data)) {
+            return { items: data, total: data.length };
+        }
+        return {
+            items: data.content || [],
+            total: data.totalElements ?? (data.content?.length || 0),
+        };
+    }
+
     onMount(async () => {
         // Load stats in parallel
         const [questions, categories, surveys, campaigns, sub] =
             await Promise.allSettled([
-                api.get<unknown[]>("/questions"),
-                api.get<unknown[]>("/categories"),
-                api.get<unknown[]>("/surveys"),
-                api.get<CampaignResponse[]>("/campaigns"),
+                api.get<unknown>("/questions?size=1"),
+                api.get<unknown>("/categories?size=1"),
+                api.get<unknown>("/surveys?size=1"),
+                api.get<unknown>("/campaigns?size=5&sort=createdAt,desc"),
                 api.get<SubscriptionResponse>("/admin/subscriptions/me"),
             ]);
 
-        if (questions.status === "fulfilled")
-            stats.questions = String(questions.value.data.length);
-        if (categories.status === "fulfilled")
-            stats.categories = String(categories.value.data.length);
-        if (surveys.status === "fulfilled")
-            stats.surveys = String(surveys.value.data.length);
+        if (questions.status === "fulfilled") {
+            const { total } = unwrapPage(questions.value.data);
+            stats.questions = String(total);
+        }
+        if (categories.status === "fulfilled") {
+            const { total } = unwrapPage(categories.value.data);
+            stats.categories = String(total);
+        }
+        if (surveys.status === "fulfilled") {
+            const { total } = unwrapPage(surveys.value.data);
+            stats.surveys = String(total);
+        }
 
         if (campaigns.status === "fulfilled") {
-            const camps = campaigns.value.data;
-            stats.campaigns = String(camps.length);
+            const { items: camps, total } = unwrapPage<CampaignResponse>(
+                campaigns.value.data,
+            );
+            stats.campaigns = String(total);
 
-            // Get most recent up to 5
-            const recent = camps
-                .sort(
-                    (a, b) =>
-                        new Date(b.createdAt).getTime() -
-                        new Date(a.createdAt).getTime(),
-                )
-                .slice(0, 5);
+            // Already sorted by createdAt desc from the API, take up to 5
+            const recent = camps.slice(0, 5);
 
             // Fetch analytics for recent active/completed campaigns
             const campaignsWithAnalytics = await Promise.all(
