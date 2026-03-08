@@ -48,7 +48,16 @@ public class ScoringEngineServiceImpl implements ScoringEngineService {
     @Override
     @Transactional(readOnly = true)
     public ScoreResult calculateScore(UUID weightProfileId, Map<UUID, BigDecimal> categoryRawScores) {
-        String tenantId = TenantSupport.currentTenantOrDefault();
+        return calculateScore(weightProfileId, TenantSupport.currentTenantOrDefault(), categoryRawScores);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ScoreResult calculateScore(UUID weightProfileId, String tenantId, Map<UUID, BigDecimal> categoryRawScores) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, "Tenant context is required for score calculation");
+        }
+
         WeightProfile profile = weightProfileRepository.findByIdAndTenantId(weightProfileId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WeightProfile", weightProfileId));
 

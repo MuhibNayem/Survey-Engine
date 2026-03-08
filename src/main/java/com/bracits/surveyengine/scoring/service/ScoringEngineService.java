@@ -20,4 +20,14 @@ public interface ScoringEngineService {
      * @return full score breakdown
      */
     ScoreResult calculateScore(UUID weightProfileId, Map<UUID, BigDecimal> categoryRawScores);
+
+    /**
+     * Calculates weighted score with an explicit tenant context.
+     *
+     * @param weightProfileId   the weight profile to use
+     * @param tenantId          tenant that owns the scoring assets
+     * @param categoryRawScores map of categoryId → raw score obtained
+     * @return full score breakdown
+     */
+    ScoreResult calculateScore(UUID weightProfileId, String tenantId, Map<UUID, BigDecimal> categoryRawScores);
 }

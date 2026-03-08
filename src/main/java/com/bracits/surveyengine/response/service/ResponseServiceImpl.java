@@ -102,9 +102,10 @@ public class ResponseServiceImpl implements ResponseService {
         ScoreResult weightedScoreResult = null;
         if (campaign.getDefaultWeightProfileId() != null) {
             Map<UUID, BigDecimal> categoryRawScores = computeCategoryRawScores(snapshotContext, validatedAnswers);
-            weightedScoreResult = com.bracits.surveyengine.common.tenant.TenantSupport.executeWithTenant(
+            weightedScoreResult = scoringEngineService.calculateScore(
+                    campaign.getDefaultWeightProfileId(),
                     campaign.getTenantId(),
-                    () -> scoringEngineService.calculateScore(campaign.getDefaultWeightProfileId(), categoryRawScores)
+                    categoryRawScores
             );
         }
 
