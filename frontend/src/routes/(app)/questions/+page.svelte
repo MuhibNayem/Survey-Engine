@@ -9,14 +9,21 @@
     import * as Select from "$lib/components/ui/select";
     import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
     import PageHeader from "$lib/components/layout/PageHeader.svelte";
+    import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
     import { Plus, Pencil, Trash2, Search, X, HelpCircle } from "lucide-svelte";
-    import type { QuestionResponse, QuestionType } from "$lib/types";
+    import type { QuestionResponse, QuestionType, PageResponse } from "$lib/types";
 
     // --- State ---
     let questions = $state<QuestionResponse[]>([]);
     let loading = $state(true);
     let searchQuery = $state("");
     let typeFilter = $state<QuestionType | "">("");
+
+    // Pagination specific state
+    let currentPage = $state(0);
+    let pageSize = $state(10);
+    let totalElements = $state(0);
+    let totalPages = $state(0);
 
     // Dialog state
     let dialogOpen = $state(false);
@@ -56,10 +63,17 @@
     async function loadQuestions() {
         loading = true;
         try {
-            const { data } = await api.get<QuestionResponse[]>("/questions");
-            questions = data;
+            const { data } = await api.get<PageResponse<QuestionResponse>>(
+                `/questions?page=${currentPage}&size=${pageSize}`
+            );
+            const qData = data as any;
+            questions = Array.isArray(qData) ? qData : (qData.content || []);
+            totalElements = qData.totalElements || (Array.isArray(qData) ? qData.length : 0);
+            totalPages = qData.totalPages || 1;
         } catch {
             questions = [];
+            totalElements = 0;
+            totalPages = 0;
         } finally {
             loading = false;
         }
@@ -406,11 +420,15 @@
                     </tbody>
                 </table>
             </div>
-            <div class="border-t border-border px-4 py-3">
-                <p class="text-xs text-muted-foreground">
-                    {filteredQuestions.length} of {questions.length} questions
-                </p>
-            </div>
+            <div class="border-t border-border pt-2 pb-4"></div>
+            <Pagination
+                {currentPage}
+                {totalPages}
+                {totalElements}
+                {pageSize}
+                onPageChange={(p) => { currentPage = p; loadQuestions(); }}
+                onSizeChange={(s) => { pageSize = s; currentPage = 0; loadQuestions(); }}
+            />
         </Card.Root>
     {/if}
 </div>

@@ -8,9 +8,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
-    List<Category> findByActiveTrueAndTenantId(String tenantId);
+    Page<Category> findByActiveTrueAndTenantId(String tenantId, Pageable pageable);
 
     Optional<Category> findByIdAndTenantId(UUID id, String tenantId);
 }

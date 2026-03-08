@@ -5,21 +5,36 @@
     import * as Card from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
     import { MessageSquareText, Megaphone, ArrowRight } from "lucide-svelte";
-    import type { CampaignResponse } from "$lib/types";
+    import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
+    import type { CampaignResponse, PageResponse } from "$lib/types";
 
     let campaigns = $state<CampaignResponse[]>([]);
     let loading = $state(true);
 
-    onMount(async () => {
+    // Pagination specific state
+    let currentPage = $state(0);
+    let pageSize = $state(12); // Use 12 for grid
+    let totalElements = $state(0);
+    let totalPages = $state(0);
+
+    async function loadData() {
+        loading = true;
         try {
-            const { data } = await api.get<CampaignResponse[]>("/campaigns");
-            campaigns = data;
+            const { data } = await api.get<PageResponse<CampaignResponse>>(`/campaigns?page=${currentPage}&size=${pageSize}`);
+            const cData = data as any;
+            campaigns = Array.isArray(cData) ? cData : (cData.content || []);
+            totalElements = cData.totalElements || (Array.isArray(cData) ? cData.length : 0);
+            totalPages = cData.totalPages || 1;
         } catch {
-            // fallback / skip
+            campaigns = [];
+            totalElements = 0;
+            totalPages = 0;
         } finally {
             loading = false;
         }
-    });
+    }
+
+    onMount(loadData);
 </script>
 
 <svelte:head>
@@ -88,6 +103,16 @@
                     </Card.Content>
                 </Card.Root>
             {/each}
+        </div>
+        <div class="mt-6 flex justify-center">
+            <Pagination
+                {currentPage}
+                {totalPages}
+                {totalElements}
+                {pageSize}
+                onPageChange={(p) => { currentPage = p; loadData(); }}
+                onSizeChange={(s) => { pageSize = s; currentPage = 0; loadData(); }}
+            />
         </div>
     {/if}
 </div>

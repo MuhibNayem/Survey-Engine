@@ -10,10 +10,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 @Repository
 public interface SurveyResponseRepository extends JpaRepository<SurveyResponse, UUID> {
     List<SurveyResponse> findByCampaignId(UUID campaignId);
-    List<SurveyResponse> findByCampaignIdAndTenantId(UUID campaignId, String tenantId);
+    Page<SurveyResponse> findByCampaignIdAndTenantId(UUID campaignId, String tenantId, Pageable pageable);
 
     List<SurveyResponse> findByCampaignIdAndStatus(UUID campaignId, ResponseStatus status);
     List<SurveyResponse> findByCampaignIdAndStatusAndTenantId(UUID campaignId, ResponseStatus status, String tenantId);

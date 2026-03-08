@@ -29,12 +29,18 @@ public class CookieUtil {
 
     private final long accessTokenMaxAge;
     private final long refreshTokenMaxAge;
+    private final boolean cookieSecure;
+    private final String sameSite;
 
     public CookieUtil(
             @Value("${survey-engine.jwt.ttl-seconds:3600}") long accessTokenMaxAge,
-            @Value("${survey-engine.jwt.refresh-ttl-seconds:604800}") long refreshTokenMaxAge) {
+            @Value("${survey-engine.jwt.refresh-ttl-seconds:604800}") long refreshTokenMaxAge,
+            @Value("${survey-engine.security.cookies.secure:true}") boolean cookieSecure,
+            @Value("${survey-engine.security.cookies.same-site:Strict}") String sameSite) {
         this.accessTokenMaxAge = accessTokenMaxAge;
         this.refreshTokenMaxAge = refreshTokenMaxAge;
+        this.cookieSecure = cookieSecure;
+        this.sameSite = sameSite;
     }
 
     /**
@@ -92,10 +98,10 @@ public class CookieUtil {
     private void addCookie(HttpServletResponse response, String name, String value, long maxAge) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(true)
+                .secure(cookieSecure)
                 .path(COOKIE_PATH)
                 .maxAge(Duration.ofSeconds(maxAge))
-                .sameSite("Strict")
+                .sameSite(sameSite)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }

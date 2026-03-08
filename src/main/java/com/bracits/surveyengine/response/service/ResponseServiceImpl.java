@@ -35,6 +35,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -201,13 +203,12 @@ public class ResponseServiceImpl implements ResponseService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<SurveyResponseResponse> getByCampaignId(UUID campaignId) {
+    public Page<SurveyResponseResponse> getByCampaignId(UUID campaignId, Pageable pageable) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         campaignRepository.findByIdAndTenantId(campaignId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
-        return responseRepository.findByCampaignIdAndTenantId(campaignId, tenantId).stream()
-                .map(this::toResponse)
-                .toList();
+        return responseRepository.findByCampaignIdAndTenantId(campaignId, tenantId, pageable)
+                .map(this::toResponse);
     }
 
     /**

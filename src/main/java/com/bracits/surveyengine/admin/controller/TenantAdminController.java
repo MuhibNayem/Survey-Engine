@@ -15,6 +15,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/v1/admin/superadmin/tenants")
@@ -26,8 +28,8 @@ public class TenantAdminController {
     private final CookieUtil cookieUtil;
 
     @GetMapping
-    public ResponseEntity<List<TenantOverviewResponse>> getAllTenants() {
-        return ResponseEntity.ok(tenantAdminService.getAllTenants());
+    public ResponseEntity<Page<TenantOverviewResponse>> getAllTenants(Pageable pageable) {
+        return ResponseEntity.ok(tenantAdminService.getAllTenants(pageable));
     }
 
     @PutMapping("/{tenantId}/suspend")

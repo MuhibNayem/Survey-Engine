@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 @RestController
 @RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
@@ -30,8 +33,8 @@ public class CategoryController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CategoryResponse>> getAll() {
-        return ResponseEntity.ok(categoryService.getAllActive());
+    public ResponseEntity<Page<CategoryResponse>> getAll(Pageable pageable) {
+        return ResponseEntity.ok(categoryService.getAllActive(pageable));
     }
 
     @PutMapping("/{id}")

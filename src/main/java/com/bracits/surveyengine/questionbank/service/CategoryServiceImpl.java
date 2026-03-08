@@ -15,6 +15,8 @@ import com.bracits.surveyengine.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,10 +67,9 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CategoryResponse> getAllActive() {
-        return categoryRepository.findByActiveTrueAndTenantId(TenantSupport.currentTenantOrDefault()).stream()
-                .map(category -> toResponse(category, getLiveVersion(category.getId())))
-                .toList();
+    public Page<CategoryResponse> getAllActive(Pageable pageable) {
+        return categoryRepository.findByActiveTrueAndTenantId(TenantSupport.currentTenantOrDefault(), pageable)
+                .map(category -> toResponse(category, getLiveVersion(category.getId())));
     }
 
     @Override

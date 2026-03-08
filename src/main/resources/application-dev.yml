@@ -46,5 +46,9 @@ logging:
     org.hibernate.SQL: DEBUG
 
 survey-engine:
+  security:
+    cookies:
+      secure: false
+      same-site: Strict
   links:
     public-base-url: ${SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL:http://localhost:5173}

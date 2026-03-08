@@ -1,5 +1,7 @@
 package com.bracits.surveyengine.response.controller;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.bracits.surveyengine.response.dto.*;
 import com.bracits.surveyengine.response.service.AnalyticsService;
 import com.bracits.surveyengine.response.service.ResponseLockingService;
@@ -34,9 +36,9 @@ public class ResponseController {
     }
 
     @GetMapping("/campaign/{campaignId}")
-    public ResponseEntity<List<SurveyResponseResponse>> getByCampaign(
-            @PathVariable UUID campaignId) {
-        return ResponseEntity.ok(responseService.getByCampaignId(campaignId));
+    public ResponseEntity<Page<SurveyResponseResponse>> getByCampaign(
+            @PathVariable UUID campaignId, Pageable pageable) {
+        return ResponseEntity.ok(responseService.getByCampaignId(campaignId, pageable));
     }
 
     @PostMapping("/{id}/lock")

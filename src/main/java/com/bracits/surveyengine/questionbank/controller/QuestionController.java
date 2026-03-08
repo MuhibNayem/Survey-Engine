@@ -1,5 +1,7 @@
 package com.bracits.surveyengine.questionbank.controller;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.bracits.surveyengine.questionbank.dto.QuestionRequest;
 import com.bracits.surveyengine.questionbank.dto.QuestionResponse;
 import com.bracits.surveyengine.questionbank.service.QuestionService;
@@ -30,8 +32,8 @@ public class QuestionController {
     }
 
     @GetMapping
-    public ResponseEntity<List<QuestionResponse>> getAll() {
-        return ResponseEntity.ok(questionService.getAllActive());
+    public ResponseEntity<Page<QuestionResponse>> getAll(Pageable pageable) {
+        return ResponseEntity.ok(questionService.getAllActive(pageable));
     }
 
     @PutMapping("/{id}")

@@ -25,6 +25,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -43,8 +47,8 @@ public class TenantAdminService {
         private long refreshTtlSeconds;
 
         @Transactional(readOnly = true)
-        public List<TenantOverviewResponse> getAllTenants() {
-                List<Tenant> tenants = tenantRepository.findAll();
+        public Page<TenantOverviewResponse> getAllTenants(Pageable pageable) {
+                Page<Tenant> tenantPage = tenantRepository.findAll(pageable);
 
                 List<AdminUser> primaryUsers = adminUserRepository.findAll().stream()
                                 .filter(u -> u.getRole() == AdminRole.ADMIN)
@@ -62,7 +66,7 @@ public class TenantAdminService {
                                                 s -> s,
                                                 (existing, replacement) -> existing));
 
-                return tenants.stream().map(tenant -> {
+                return tenantPage.map(tenant -> {
                         Subscription sub = subscriptions.get(tenant.getId());
                         return TenantOverviewResponse.builder()
                                         .tenantId(tenant.getId())
@@ -74,7 +78,7 @@ public class TenantAdminService {
                                         .createdAt(tenant.getCreatedAt() != null ? tenant.getCreatedAt()
                                                         : Instant.now())
                                         .build();
-                }).toList();
+                });
         }
 
         @Transactional

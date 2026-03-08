@@ -14,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -55,6 +56,9 @@ public class SecurityConfig {
                 http
                                 .csrf(csrf -> csrf
                                                 .csrfTokenRepository(csrfRepo)
+                                                // SPA cookie/header mode: accept plain token submitted via
+                                                // X-XSRF-TOKEN header
+                                                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                                                 .ignoringRequestMatchers(
                                                                 // Token-mode and public endpoints do not use browser
                                                                 // cookies for auth
@@ -86,6 +90,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/v3/api-docs/**").permitAll()
                                                 .requestMatchers("/openapi.yaml", "/openapi.yml", "/openapi.ymal")
                                                 .permitAll()
+                                                .requestMatchers("/error", "/error/**").permitAll()
                                                 // Public — health checks
                                                 .requestMatchers("/actuator/**").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/api/v1/admin/plans").permitAll()

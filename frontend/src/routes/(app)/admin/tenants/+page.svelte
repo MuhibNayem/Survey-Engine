@@ -16,16 +16,24 @@
     import api from "$lib/api";
     import { auth } from "$lib/stores/auth.svelte";
     import { goto } from "$app/navigation";
+    import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
     import type {
         TenantOverviewResponse,
         SubscriptionPlan,
         AuthUserResponse,
+        PageResponse,
     } from "$lib/types";
 
     let tenants = $state<TenantOverviewResponse[]>([]);
     let loading = $state(true);
     let error = $state<string | null>(null);
     let actionLoading = $state(false);
+
+    // Pagination specific state
+    let currentPage = $state(0);
+    let pageSize = $state(10);
+    let totalElements = $state(0);
+    let totalPages = $state(0);
 
     // Override Subscription Modal State
     let overrideModalOpen = $state(false);
@@ -52,13 +60,19 @@
         loading = true;
         error = null;
         try {
-            const { data } = await api.get<TenantOverviewResponse[]>(
-                "/admin/superadmin/tenants",
+            const { data } = await api.get<PageResponse<TenantOverviewResponse>>(
+                `/admin/superadmin/tenants?page=${currentPage}&size=${pageSize}`,
             );
-            tenants = data;
+            const tData = data as any;
+            tenants = Array.isArray(tData) ? tData : (tData.content || []);
+            totalElements = tData.totalElements || (Array.isArray(tData) ? tData.length : 0);
+            totalPages = tData.totalPages || 1;
         } catch (err: any) {
             error = "Failed to load tenants data.";
             console.error(err);
+            tenants = [];
+            totalElements = 0;
+            totalPages = 0;
         } finally {
             loading = false;
         }
@@ -202,7 +216,7 @@
                 />
             </div>
             <div class="text-sm text-muted-foreground whitespace-nowrap">
-                {tenants.length} Total Tenants
+                {totalElements} Total Tenants
             </div>
         </div>
 
@@ -402,6 +416,17 @@
                 </tbody>
             </table>
         </div>
+        {#if !loading && tenants.length > 0}
+            <div class="border-t border-border pt-2 pb-4"></div>
+            <Pagination
+                {currentPage}
+                {totalPages}
+                {totalElements}
+                {pageSize}
+                onPageChange={(p) => { currentPage = p; loadTenants(); }}
+                onSizeChange={(s) => { pageSize = s; currentPage = 0; loadTenants(); }}
+            />
+        {/if}
     </div>
 </div>
 

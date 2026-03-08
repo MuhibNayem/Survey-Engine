@@ -1,5 +1,7 @@
 package com.bracits.surveyengine.survey.controller;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.bracits.surveyengine.survey.dto.LifecycleTransitionRequest;
 import com.bracits.surveyengine.survey.dto.SurveyRequest;
 import com.bracits.surveyengine.survey.dto.SurveyResponse;
@@ -31,8 +33,8 @@ public class SurveyController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SurveyResponse>> getAll() {
-        return ResponseEntity.ok(surveyService.getAllActive());
+    public ResponseEntity<Page<SurveyResponse>> getAll(Pageable pageable) {
+        return ResponseEntity.ok(surveyService.getAllActive(pageable));
     }
 
     @PutMapping("/{id}")

@@ -8,6 +8,9 @@ import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 /**
  * Service contract for managing questions and their versions.
  * SRS §4.1, §4.2
@@ -18,7 +21,7 @@ public interface QuestionService {
 
     QuestionResponse getById(UUID id);
 
-    List<QuestionResponse> getAllActive();
+    Page<QuestionResponse> getAllActive(Pageable pageable);
 
     QuestionResponse update(UUID id, QuestionRequest request);
 

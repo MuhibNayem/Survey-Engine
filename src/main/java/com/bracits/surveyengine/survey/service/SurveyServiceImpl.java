@@ -34,6 +34,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -109,10 +111,9 @@ public class SurveyServiceImpl implements SurveyService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<SurveyResponse> getAllActive() {
-        return surveyRepository.findByActiveTrueAndTenantId(TenantSupport.currentTenantOrDefault()).stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<SurveyResponse> getAllActive(Pageable pageable) {
+        return surveyRepository.findByActiveTrueAndTenantId(TenantSupport.currentTenantOrDefault(), pageable)
+                .map(this::toResponse);
     }
 
     @Override

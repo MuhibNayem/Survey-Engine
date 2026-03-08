@@ -10,6 +10,7 @@
     import * as Select from "$lib/components/ui/select";
     import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
     import PageHeader from "$lib/components/layout/PageHeader.svelte";
+    import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
     import {
         Plus,
         Pencil,
@@ -26,9 +27,10 @@
         SurveyLifecycleState,
         QuestionResponse,
         CategoryResponse,
-        SurveyPageRequest,
         SurveyQuestionRequest,
+        SurveyPageRequest,
         QuestionType,
+        PageResponse
     } from "$lib/types";
 
     // --- State ---
@@ -38,6 +40,12 @@
     let loading = $state(true);
     let searchQuery = $state("");
     let stateFilter = $state<SurveyLifecycleState | "">("");
+
+    // Pagination specific state
+    let currentPage = $state(0);
+    let pageSize = $state(10);
+    let totalElements = $state(0);
+    let totalPages = $state(0);
 
     // Create/Edit Dialog
     let dialogOpen = $state(false);
@@ -141,15 +149,26 @@
         loading = true;
         try {
             const [sRes, qRes, cRes] = await Promise.all([
-                api.get<SurveyResponse[]>("/surveys"),
-                api.get<QuestionResponse[]>("/questions"),
-                api.get<CategoryResponse[]>("/categories"),
+                api.get<PageResponse<SurveyResponse>>(`/surveys?page=${currentPage}&size=${pageSize}`),
+                api.get<PageResponse<QuestionResponse>>("/questions?size=1000"),
+                api.get<PageResponse<CategoryResponse>>("/categories?size=1000"),
             ]);
-            surveys = sRes.data;
-            allQuestions = qRes.data;
-            allCategories = cRes.data;
+            const sData = sRes.data as any;
+            surveys = Array.isArray(sData) ? sData : (sData.content || []);
+            totalElements = sData.totalElements || (Array.isArray(sData) ? sData.length : 0);
+            totalPages = sData.totalPages || 1;
+            
+            const qData = qRes.data as any;
+            allQuestions = Array.isArray(qData) ? qData : (qData.content || []);
+            
+            const cData = cRes.data as any;
+            allCategories = Array.isArray(cData) ? cData : (cData.content || []);
         } catch {
             surveys = [];
+            totalElements = 0;
+            totalPages = 0;
+            allQuestions = [];
+            allCategories = [];
         } finally {
             loading = false;
         }
@@ -891,11 +910,15 @@
                     </tbody>
                 </table>
             </div>
-            <div class="border-t border-border px-4 py-3">
-                <p class="text-xs text-muted-foreground">
-                    {filteredSurveys.length} of {surveys.length} surveys
-                </p>
-            </div>
+            <div class="border-t border-border pt-2 pb-4"></div>
+            <Pagination
+                {currentPage}
+                {totalPages}
+                {totalElements}
+                {pageSize}
+                onPageChange={(p) => { currentPage = p; loadData(); }}
+                onSizeChange={(s) => { pageSize = s; currentPage = 0; loadData(); }}
+            />
         </Card.Root>
     {/if}
 </div>

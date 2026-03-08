@@ -1,5 +1,7 @@
 package com.bracits.surveyengine.response.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.bracits.surveyengine.response.dto.ResponseSubmissionRequest;
 import com.bracits.surveyengine.response.dto.SurveyResponseResponse;
 
@@ -16,5 +18,5 @@ public interface ResponseService {
 
     SurveyResponseResponse getById(UUID id);
 
-    List<SurveyResponseResponse> getByCampaignId(UUID campaignId);
+    Page<SurveyResponseResponse> getByCampaignId(UUID campaignId, Pageable pageable);
 }

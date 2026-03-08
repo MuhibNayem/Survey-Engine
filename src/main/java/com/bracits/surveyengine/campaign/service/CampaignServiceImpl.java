@@ -26,6 +26,8 @@ import com.bracits.surveyengine.survey.service.SurveyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -87,10 +89,9 @@ public class CampaignServiceImpl implements CampaignService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CampaignResponse> getAllActive() {
-        return campaignRepository.findByActiveTrueAndTenantId(resolveTenantId()).stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<CampaignResponse> getAllActive(Pageable pageable) {
+        return campaignRepository.findByActiveTrueAndTenantId(resolveTenantId(), pageable)
+                .map(this::toResponse);
     }
 
     @Override

@@ -18,6 +18,57 @@ const api = axios.create({
     withCredentials: true
 });
 
+let csrfBootstrapPromise: Promise<void> | null = null;
+
+function hasXsrfCookie(): boolean {
+    if (typeof document === 'undefined') return true;
+    return document.cookie
+        .split(';')
+        .map((cookie) => cookie.trim())
+        .some((cookie) => cookie.startsWith('XSRF-TOKEN='));
+}
+
+async function ensureCsrfCookie() {
+    if (typeof window === 'undefined' || hasXsrfCookie()) return;
+
+    if (!csrfBootstrapPromise) {
+        csrfBootstrapPromise = axios
+            .get(`${BASE_URL}/admin/auth/csrf`, { withCredentials: true })
+            .then(() => undefined)
+            .finally(() => {
+                csrfBootstrapPromise = null;
+            });
+    }
+
+    await csrfBootstrapPromise;
+}
+
+function readXsrfCookie(): string | null {
+    if (typeof document === 'undefined') return null;
+    const pair = document.cookie
+        .split(';')
+        .map((cookie) => cookie.trim())
+        .find((cookie) => cookie.startsWith('XSRF-TOKEN='));
+    return pair ? decodeURIComponent(pair.substring('XSRF-TOKEN='.length)) : null;
+}
+
+api.interceptors.request.use(async (config) => {
+    const method = (config.method || 'get').toLowerCase();
+    const isMutation = method === 'post' || method === 'put' || method === 'patch' || method === 'delete';
+    const isAuthEndpoint = config.url?.includes('/admin/auth/');
+
+    if (isMutation && !isAuthEndpoint) {
+        await ensureCsrfCookie();
+        const token = readXsrfCookie();
+        if (token) {
+            config.headers = config.headers ?? {};
+            config.headers['X-XSRF-TOKEN'] = token;
+        }
+    }
+
+    return config;
+});
+
 // --- Response Interceptor: Auto-refresh on 401 ---
 let isRefreshing = false;
 let failedQueue: { resolve: () => void; reject: (err: unknown) => void }[] = [];

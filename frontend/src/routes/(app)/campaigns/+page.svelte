@@ -11,6 +11,7 @@
     import { Textarea } from "$lib/components/ui/textarea";
     import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
     import PageHeader from "$lib/components/layout/PageHeader.svelte";
+    import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
     import {
         Plus,
         Pencil,
@@ -26,6 +27,7 @@
         CampaignStatus,
         AuthMode,
         SurveyResponse,
+        PageResponse
     } from "$lib/types";
 
     // --- State ---
@@ -34,6 +36,12 @@
     let loading = $state(true);
     let searchQuery = $state("");
     let statusFilter = $state<CampaignStatus | "">("");
+
+    // Pagination specific state
+    let currentPage = $state(0);
+    let pageSize = $state(10);
+    let totalElements = $state(0);
+    let totalPages = $state(0);
 
     // Create/Edit Dialog
     let dialogOpen = $state(false);
@@ -98,13 +106,21 @@
         loading = true;
         try {
             const [cRes, sRes] = await Promise.all([
-                api.get<CampaignResponse[]>("/campaigns"),
-                api.get<SurveyResponse[]>("/surveys"),
+                api.get<PageResponse<CampaignResponse>>(`/campaigns?page=${currentPage}&size=${pageSize}`),
+                api.get<PageResponse<SurveyResponse>>("/surveys?size=1000"),
             ]);
-            campaigns = cRes.data;
-            surveys = sRes.data;
+            const cData = cRes.data as any;
+            campaigns = Array.isArray(cData) ? cData : (cData.content || []);
+            totalElements = cData.totalElements || (Array.isArray(cData) ? cData.length : 0);
+            totalPages = cData.totalPages || 1;
+            
+            const sData = sRes.data as any;
+            surveys = Array.isArray(sData) ? sData : (sData.content || []);
         } catch {
             campaigns = [];
+            totalElements = 0;
+            totalPages = 0;
+            surveys = [];
         } finally {
             loading = false;
         }
@@ -393,11 +409,15 @@
                     </tbody>
                 </table>
             </div>
-            <div class="border-t border-border px-4 py-3">
-                <p class="text-xs text-muted-foreground">
-                    {filteredCampaigns.length} of {campaigns.length} campaigns
-                </p>
-            </div>
+            <div class="border-t border-border pt-2 pb-4"></div>
+            <Pagination
+                {currentPage}
+                {totalPages}
+                {totalElements}
+                {pageSize}
+                onPageChange={(p) => { currentPage = p; loadData(); }}
+                onSizeChange={(s) => { pageSize = s; currentPage = 0; loadData(); }}
+            />
         </Card.Root>
     {/if}
 </div>

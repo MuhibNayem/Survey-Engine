@@ -966,9 +966,6 @@
 </div>
 
 <style>
-    .campaign-branding-shell {
-        /* Base styles if needed by dynamically injected elements */
-    }
 
     .campaign-branding-shell-header {
         border-bottom: 1px solid hsla(var(--border) / 0.3);

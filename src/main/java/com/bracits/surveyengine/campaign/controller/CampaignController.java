@@ -1,5 +1,7 @@
 package com.bracits.surveyengine.campaign.controller;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.bracits.surveyengine.campaign.dto.*;
 import com.bracits.surveyengine.campaign.service.CampaignService;
 import com.bracits.surveyengine.campaign.service.DistributionService;
@@ -31,8 +33,8 @@ public class CampaignController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CampaignResponse>> getAll() {
-        return ResponseEntity.ok(campaignService.getAllActive());
+    public ResponseEntity<Page<CampaignResponse>> getAll(Pageable pageable) {
+        return ResponseEntity.ok(campaignService.getAllActive(pageable));
     }
 
     @PutMapping("/{id}")

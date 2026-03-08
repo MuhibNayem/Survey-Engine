@@ -5,6 +5,9 @@ import com.bracits.surveyengine.campaign.dto.*;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 /**
  * Service contract for campaign CRUD and settings management.
  * SRS §4.5, §4.6
@@ -15,7 +18,7 @@ public interface CampaignService {
 
     CampaignResponse getById(UUID id);
 
-    List<CampaignResponse> getAllActive();
+    Page<CampaignResponse> getAllActive(Pageable pageable);
 
     CampaignResponse update(UUID id, CampaignRequest request);
 

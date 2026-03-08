@@ -6,6 +6,9 @@ import com.bracits.surveyengine.survey.entity.SurveySnapshot;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 /**
  * Service contract for survey CRUD, lifecycle management, and snapshot
  * creation.
@@ -17,7 +20,7 @@ public interface SurveyService {
 
     SurveyResponse getById(UUID id);
 
-    List<SurveyResponse> getAllActive();
+    Page<SurveyResponse> getAllActive(Pageable pageable);
 
     SurveyResponse update(UUID id, SurveyRequest request);
 
