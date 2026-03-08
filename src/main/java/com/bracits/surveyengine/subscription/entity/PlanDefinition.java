@@ -60,6 +60,30 @@ public class PlanDefinition extends AuditableEntity {
     @Column(name = "max_admin_users")
     private Integer maxAdminUsers;
 
+    @Column(name = "weight_profiles_enabled", nullable = false)
+    @Builder.Default
+    private boolean weightProfilesEnabled = false;
+
+    @Column(name = "signed_token_enabled", nullable = false)
+    @Builder.Default
+    private boolean signedTokenEnabled = false;
+
+    @Column(name = "sso_enabled", nullable = false)
+    @Builder.Default
+    private boolean ssoEnabled = false;
+
+    @Column(name = "custom_branding_enabled", nullable = false)
+    @Builder.Default
+    private boolean customBrandingEnabled = false;
+
+    @Column(name = "device_fingerprint_enabled", nullable = false)
+    @Builder.Default
+    private boolean deviceFingerprintEnabled = false;
+
+    @Column(name = "api_access_enabled", nullable = false)
+    @Builder.Default
+    private boolean apiAccessEnabled = false;
+
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;

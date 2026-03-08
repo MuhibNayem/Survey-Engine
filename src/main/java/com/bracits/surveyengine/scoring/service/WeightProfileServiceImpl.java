@@ -14,6 +14,7 @@ import com.bracits.surveyengine.scoring.repository.WeightProfileRepository;
 import com.bracits.surveyengine.survey.entity.SurveySnapshot;
 import com.bracits.surveyengine.survey.repository.SurveySnapshotRepository;
 import com.bracits.surveyengine.tenant.service.TenantService;
+import com.bracits.surveyengine.subscription.service.PlanQuotaService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -44,12 +45,14 @@ public class WeightProfileServiceImpl implements WeightProfileService {
     private final TenantService tenantService;
     private final SurveySnapshotRepository surveySnapshotRepository;
     private final ObjectMapper objectMapper;
+    private final PlanQuotaService planQuotaService;
 
     @Override
     @Transactional
     public WeightProfileResponse create(WeightProfileRequest request) {
         String tenantId = TenantSupport.currentTenantOrDefault();
         tenantService.ensureProvisioned(tenantId);
+        planQuotaService.enforceWeightProfileAccess(tenantId);
         campaignRepository.findByIdAndTenantId(request.getCampaignId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", request.getCampaignId()));
         WeightProfile profile = WeightProfile.builder()

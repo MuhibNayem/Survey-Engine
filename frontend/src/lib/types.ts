@@ -388,6 +388,12 @@ export interface PlanDefinitionResponse {
     maxCampaigns: number;
     maxResponsesPerCampaign: number;
     maxAdminUsers: number;
+    weightProfilesEnabled: boolean;
+    signedTokenEnabled: boolean;
+    ssoEnabled: boolean;
+    customBrandingEnabled: boolean;
+    deviceFingerprintEnabled: boolean;
+    apiAccessEnabled: boolean;
     active: boolean;
 }
 

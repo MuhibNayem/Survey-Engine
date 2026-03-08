@@ -52,6 +52,54 @@ public class PlanQuotaService {
         return resolvePlan(tenantId).getMaxResponsesPerCampaign();
     }
 
+    @Transactional(readOnly = true)
+    public void enforceWeightProfileAccess(String tenantId) {
+        if (!resolvePlan(tenantId).isWeightProfilesEnabled()) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED,
+                    "Weight profiles are not available on your current plan");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void enforceSignedTokenAccess(String tenantId) {
+        if (!resolvePlan(tenantId).isSignedTokenEnabled()) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED,
+                    "Signed launch tokens are not available on your current plan");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void enforceSsoAccess(String tenantId) {
+        if (!resolvePlan(tenantId).isSsoEnabled()) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED,
+                    "SSO integration is not available on your current plan");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void enforceCustomBrandingAccess(String tenantId) {
+        if (!resolvePlan(tenantId).isCustomBrandingEnabled()) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED,
+                    "Custom branding is not available on your current plan");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void enforceDeviceFingerprintAccess(String tenantId) {
+        if (!resolvePlan(tenantId).isDeviceFingerprintEnabled()) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED,
+                    "Device fingerprint deduplication is not available on your current plan");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void enforceApiAccess(String tenantId) {
+        if (!resolvePlan(tenantId).isApiAccessEnabled()) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED,
+                    "API access is not available on your current plan");
+        }
+    }
+
     private PlanDefinition resolvePlan(String tenantId) {
         Subscription subscription = subscriptionRepository.findByTenantId(tenantId).orElse(null);
         SubscriptionPlan planCode = subscription != null ? subscription.getPlan() : SubscriptionPlan.BASIC;

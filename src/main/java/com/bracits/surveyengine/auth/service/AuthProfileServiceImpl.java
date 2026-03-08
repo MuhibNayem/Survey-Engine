@@ -11,6 +11,7 @@ import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
 import com.bracits.surveyengine.common.tenant.TenantSupport;
+import com.bracits.surveyengine.subscription.service.PlanQuotaService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.bracits.surveyengine.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class AuthProfileServiceImpl implements AuthProfileService {
     private final AuthProviderTemplateService authProviderTemplateService;
     private final TokenValidationService tokenValidationService;
     private final OidcResponderAuthService oidcResponderAuthService;
+    private final PlanQuotaService planQuotaService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String DEFAULT_OIDC_SCOPES = "openid email profile";
@@ -51,7 +53,9 @@ public class AuthProfileServiceImpl implements AuthProfileService {
     public AuthProfileResponse create(AuthProfileRequest request) {
         String tenantId = resolveRequestTenant(request.getTenantId());
         tenantService.ensureProvisioned(tenantId);
-        List<AuthProfileRequest.ClaimMappingRequest> claimMappings = sanitizeAndValidateMappings(request.getClaimMappings());
+        List<AuthProfileRequest.ClaimMappingRequest> claimMappings = sanitizeAndValidateMappings(
+                request.getClaimMappings());
+        enforceAuthModeAccess(tenantId, request.getAuthMode());
         AuthProfile profile = AuthProfile.builder()
                 .tenantId(tenantId)
                 .authMode(request.getAuthMode())
@@ -96,6 +100,7 @@ public class AuthProfileServiceImpl implements AuthProfileService {
                 : null;
 
         profile.setAuthMode(request.getAuthMode());
+        enforceAuthModeAccess(profile.getTenantId(), request.getAuthMode());
         profile.setIssuer(request.getIssuer());
         profile.setAudience(request.getAudience());
         profile.setJwksEndpoint(request.getJwksEndpoint());
@@ -283,7 +288,8 @@ public class AuthProfileServiceImpl implements AuthProfileService {
             String afterJwksEndpoint,
             String beforeDiscoveryUrl,
             String afterDiscoveryUrl) {
-        // Evict both before/after keys so updates apply immediately even when endpoint values stay unchanged.
+        // Evict both before/after keys so updates apply immediately even when endpoint
+        // values stay unchanged.
         tokenValidationService.evictJwksCache(beforeJwksEndpoint);
         tokenValidationService.evictJwksCache(afterJwksEndpoint);
         oidcResponderAuthService.evictMetadataCache(beforeDiscoveryUrl);
@@ -359,6 +365,14 @@ public class AuthProfileServiceImpl implements AuthProfileService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void enforceAuthModeAccess(String tenantId, AuthenticationMode authMode) {
+        if (authMode == AuthenticationMode.SIGNED_LAUNCH_TOKEN) {
+            planQuotaService.enforceSignedTokenAccess(tenantId);
+        } else if (authMode == AuthenticationMode.EXTERNAL_SSO_TRUST) {
+            planQuotaService.enforceSsoAccess(tenantId);
+        }
     }
 
     private AuthProfileResponse toResponse(AuthProfile p) {

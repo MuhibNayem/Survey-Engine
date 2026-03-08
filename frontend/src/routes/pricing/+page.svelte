@@ -116,160 +116,199 @@
 
     const plans = $derived(buildPlans(apiPlans));
 
-    // Feature comparison table
-    const featureCategories = [
-        {
-            name: "Survey & Content",
-            features: [
-                {
-                    name: "Question Bank (CRUD + Versioning)",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Categories with Weighted Mappings",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Multi-Page Survey Builder",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Survey Snapshots on Publish",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Custom Branding & Themes",
-                    basic: false,
-                    pro: true,
-                    enterprise: true,
-                },
-            ],
-        },
-        {
-            name: "Campaigns & Distribution",
-            features: [
-                {
-                    name: "Public Campaigns",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Private Campaigns (Token Auth)",
-                    basic: false,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "6 Distribution Channels",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Response Quotas & IP Restrictions",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Device Fingerprint Dedup",
-                    basic: false,
-                    pro: true,
-                    enterprise: true,
-                },
-            ],
-        },
-        {
-            name: "Authentication",
-            features: [
-                {
-                    name: "Admin JWT Auth",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "OIDC / PKCE Respondent Auth",
-                    basic: false,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Custom SSO Integration",
-                    basic: false,
-                    pro: false,
-                    enterprise: true,
-                },
-                {
-                    name: "Auth Provider Templates (Okta, Auth0)",
-                    basic: false,
-                    pro: true,
-                    enterprise: true,
-                },
-            ],
-        },
-        {
-            name: "Analytics & Scoring",
-            features: [
-                {
-                    name: "Basic Campaign Analytics",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Weighted Scoring Engine",
-                    basic: false,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Response Locking & Reopen Audit",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-            ],
-        },
-        {
-            name: "Support",
-            features: [
-                {
-                    name: "Email Support",
-                    basic: true,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Priority Support",
-                    basic: false,
-                    pro: true,
-                    enterprise: true,
-                },
-                {
-                    name: "Dedicated Account Manager",
-                    basic: false,
-                    pro: false,
-                    enterprise: true,
-                },
-                {
-                    name: "SLA Guarantee",
-                    basic: false,
-                    pro: false,
-                    enterprise: true,
-                },
-            ],
-        },
-    ];
+    // Helper to look up a plan's toggle value by plan code
+    function planToggle(
+        code: string,
+        key: keyof PlanDefinitionResponse,
+    ): boolean {
+        const p = apiPlans.find((pl) => pl.planCode === code);
+        if (!p) return false;
+        return !!p[key];
+    }
+
+    // Feature comparison table — reads toggle values from API when available
+    const featureCategories = $derived.by(() => {
+        const hasApi = apiPlans.length > 0;
+        const b = (
+            key: keyof PlanDefinitionResponse,
+            fallback: { basic: boolean; pro: boolean; enterprise: boolean },
+        ) =>
+            hasApi
+                ? {
+                      basic: planToggle("BASIC", key),
+                      pro: planToggle("PRO", key),
+                      enterprise: planToggle("ENTERPRISE", key),
+                  }
+                : fallback;
+
+        return [
+            {
+                name: "Survey & Content",
+                features: [
+                    {
+                        name: "Question Bank (CRUD + Versioning)",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Categories with Weighted Mappings",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Multi-Page Survey Builder",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Survey Snapshots on Publish",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Custom Branding & Themes",
+                        ...b("customBrandingEnabled", {
+                            basic: false,
+                            pro: true,
+                            enterprise: true,
+                        }),
+                    },
+                ],
+            },
+            {
+                name: "Campaigns & Distribution",
+                features: [
+                    {
+                        name: "Public Campaigns",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Private Campaigns (Token Auth)",
+                        ...b("signedTokenEnabled", {
+                            basic: false,
+                            pro: true,
+                            enterprise: true,
+                        }),
+                    },
+                    {
+                        name: "6 Distribution Channels",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Response Quotas & IP Restrictions",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Device Fingerprint Dedup",
+                        ...b("deviceFingerprintEnabled", {
+                            basic: false,
+                            pro: true,
+                            enterprise: true,
+                        }),
+                    },
+                ],
+            },
+            {
+                name: "Authentication",
+                features: [
+                    {
+                        name: "Admin JWT Auth",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "OIDC / PKCE Respondent Auth",
+                        ...b("signedTokenEnabled", {
+                            basic: false,
+                            pro: true,
+                            enterprise: true,
+                        }),
+                    },
+                    {
+                        name: "Custom SSO Integration",
+                        ...b("ssoEnabled", {
+                            basic: false,
+                            pro: false,
+                            enterprise: true,
+                        }),
+                    },
+                    {
+                        name: "Auth Provider Templates (Okta, Auth0)",
+                        ...b("signedTokenEnabled", {
+                            basic: false,
+                            pro: true,
+                            enterprise: true,
+                        }),
+                    },
+                ],
+            },
+            {
+                name: "Analytics & Scoring",
+                features: [
+                    {
+                        name: "Basic Campaign Analytics",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Weighted Scoring Engine",
+                        ...b("weightProfilesEnabled", {
+                            basic: false,
+                            pro: true,
+                            enterprise: true,
+                        }),
+                    },
+                    {
+                        name: "Response Locking & Reopen Audit",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                ],
+            },
+            {
+                name: "Support",
+                features: [
+                    {
+                        name: "Email Support",
+                        basic: true,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Priority Support",
+                        basic: false,
+                        pro: true,
+                        enterprise: true,
+                    },
+                    {
+                        name: "Dedicated Account Manager",
+                        basic: false,
+                        pro: false,
+                        enterprise: true,
+                    },
+                    {
+                        name: "SLA Guarantee",
+                        basic: false,
+                        pro: false,
+                        enterprise: true,
+                    },
+                ],
+            },
+        ];
+    });
 </script>
 
 <svelte:head>

@@ -42,6 +42,12 @@ public class PlanCatalogService {
         plan.setMaxCampaigns(request.getMaxCampaigns());
         plan.setMaxResponsesPerCampaign(request.getMaxResponsesPerCampaign());
         plan.setMaxAdminUsers(request.getMaxAdminUsers());
+        plan.setWeightProfilesEnabled(request.isWeightProfilesEnabled());
+        plan.setSignedTokenEnabled(request.isSignedTokenEnabled());
+        plan.setSsoEnabled(request.isSsoEnabled());
+        plan.setCustomBrandingEnabled(request.isCustomBrandingEnabled());
+        plan.setDeviceFingerprintEnabled(request.isDeviceFingerprintEnabled());
+        plan.setApiAccessEnabled(request.isApiAccessEnabled());
         plan.setActive(request.isActive());
 
         return toResponse(planDefinitionRepository.save(plan));
@@ -59,6 +65,12 @@ public class PlanCatalogService {
                 .maxCampaigns(p.getMaxCampaigns())
                 .maxResponsesPerCampaign(p.getMaxResponsesPerCampaign())
                 .maxAdminUsers(p.getMaxAdminUsers())
+                .weightProfilesEnabled(p.isWeightProfilesEnabled())
+                .signedTokenEnabled(p.isSignedTokenEnabled())
+                .ssoEnabled(p.isSsoEnabled())
+                .customBrandingEnabled(p.isCustomBrandingEnabled())
+                .deviceFingerprintEnabled(p.isDeviceFingerprintEnabled())
+                .apiAccessEnabled(p.isApiAccessEnabled())
                 .active(p.isActive())
                 .build();
     }

@@ -1,6 +1,8 @@
 package com.bracits.surveyengine.subscription.dto;
 
 import com.bracits.surveyengine.subscription.entity.SubscriptionPlan;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -49,5 +51,30 @@ public class PlanDefinitionRequest {
     private Integer maxAdminUsers;
 
     @Builder.Default
+    @JsonSetter(nulls = Nulls.SKIP)
+    private boolean weightProfilesEnabled = false;
+
+    @Builder.Default
+    @JsonSetter(nulls = Nulls.SKIP)
+    private boolean signedTokenEnabled = false;
+
+    @Builder.Default
+    @JsonSetter(nulls = Nulls.SKIP)
+    private boolean ssoEnabled = false;
+
+    @Builder.Default
+    @JsonSetter(nulls = Nulls.SKIP)
+    private boolean customBrandingEnabled = false;
+
+    @Builder.Default
+    @JsonSetter(nulls = Nulls.SKIP)
+    private boolean deviceFingerprintEnabled = false;
+
+    @Builder.Default
+    @JsonSetter(nulls = Nulls.SKIP)
+    private boolean apiAccessEnabled = false;
+
+    @Builder.Default
+    @JsonSetter(nulls = Nulls.SKIP)
     private boolean active = true;
 }

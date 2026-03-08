@@ -26,5 +26,11 @@ public class PlanDefinitionResponse {
     private Integer maxCampaigns;
     private Integer maxResponsesPerCampaign;
     private Integer maxAdminUsers;
+    private boolean weightProfilesEnabled;
+    private boolean signedTokenEnabled;
+    private boolean ssoEnabled;
+    private boolean customBrandingEnabled;
+    private boolean deviceFingerprintEnabled;
+    private boolean apiAccessEnabled;
     private boolean active;
 }
