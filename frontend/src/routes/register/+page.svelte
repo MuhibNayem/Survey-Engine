@@ -5,7 +5,7 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import * as Card from "$lib/components/ui/card";
-    import { UserPlus } from "lucide-svelte";
+    import { UserPlus, ArrowLeft } from "lucide-svelte";
     import { z } from "zod";
 
     const registerSchema = z
@@ -110,9 +110,10 @@
         };
     }
 
-    function validateForm(
-        input: RegisterFormInput,
-    ): { data?: RegisterFormData; errors: FieldErrors } {
+    function validateForm(input: RegisterFormInput): {
+        data?: RegisterFormData;
+        errors: FieldErrors;
+    } {
         const parsed = registerSchema.safeParse(input);
         if (parsed.success) {
             return { data: parsed.data, errors: {} };
@@ -172,8 +173,21 @@
 </svelte:head>
 
 <div
-    class="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4"
+    class="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4 relative"
 >
+    <!-- Back Button -->
+    <div class="absolute left-4 top-4 md:left-8 md:top-8">
+        <Button
+            variant="ghost"
+            size="sm"
+            href="/"
+            class="text-muted-foreground hover:text-foreground"
+        >
+            <ArrowLeft class="mr-2 h-4 w-4" />
+            Back to Home
+        </Button>
+    </div>
+
     <div class="w-full max-w-md">
         <!-- Brand -->
         <div class="mb-8 text-center">
@@ -279,7 +293,8 @@
                                             ? "text-emerald-600"
                                             : "text-muted-foreground"}
                                     >
-                                        {rule.valid ? "✓" : "•"} {rule.label}
+                                        {rule.valid ? "✓" : "•"}
+                                        {rule.label}
                                     </li>
                                 {/each}
                             </ul>

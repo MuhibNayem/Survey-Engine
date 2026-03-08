@@ -5,7 +5,7 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import * as Card from "$lib/components/ui/card";
-    import { LogIn } from "lucide-svelte";
+    import { LogIn, ArrowLeft } from "lucide-svelte";
 
     let email = $state("");
     let password = $state("");
@@ -24,8 +24,21 @@
 </svelte:head>
 
 <div
-    class="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4"
+    class="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4 relative"
 >
+    <!-- Back Button -->
+    <div class="absolute left-4 top-4 md:left-8 md:top-8">
+        <Button
+            variant="ghost"
+            size="sm"
+            href="/"
+            class="text-muted-foreground hover:text-foreground"
+        >
+            <ArrowLeft class="mr-2 h-4 w-4" />
+            Back to Home
+        </Button>
+    </div>
+
     <div class="w-full max-w-md">
         <!-- Brand -->
         <div class="mb-8 text-center">

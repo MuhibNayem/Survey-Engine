@@ -61,6 +61,7 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 // Public — health checks
                                                 .requestMatchers("/actuator/**").permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/api/v1/admin/plans").permitAll()
                                                 .requestMatchers(HttpMethod.PUT, "/api/v1/admin/plans/**")
                                                 .hasRole("SUPER_ADMIN")
                                                 // Public — respondent-facing (external auth handled separately per
