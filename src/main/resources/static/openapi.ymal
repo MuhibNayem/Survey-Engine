@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Survey Engine MVP API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Comprehensive API contract for the Survey Engine MVP.
 
@@ -13,7 +13,9 @@ info:
 
     Security model summary:
     - Admin APIs accept engine-issued JWT via HttpOnly access_token cookie (primary) or Bearer header (fallback).
+    - Headless clients can use explicit token-mode auth endpoints under /api/v1/admin/auth/token/*.
     - Admin sessions are maintained with refresh-token cookie rotation.
+    - Browser cookie mode exposes CSRF bootstrap endpoint at /api/v1/admin/auth/csrf.
     - Responder submission endpoint is public at transport level, but private campaigns enforce tenant-scoped responder authentication in business logic.
 
 servers:
@@ -43,6 +45,10 @@ tags:
     description: Response submission, lock/reopen workflow, and campaign analytics endpoints.
   - name: Scoring
     description: Weight profile lifecycle and score calculation endpoints.
+  - name: Super Admin
+    description: Platform-level tenant administration, impersonation, and metrics endpoints.
+  - name: Audit Logs
+    description: Tenant-scoped and platform-scoped activity log retrieval endpoints.
 
 security:
   - bearerAuth: []
@@ -192,6 +198,147 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
+  /api/v1/admin/auth/csrf:
+    get:
+      tags: [Admin Authentication]
+      operationId: getCsrfToken
+      security: []
+      summary: Get CSRF token for browser cookie session mode
+      description: |
+        Why this endpoint is needed:
+        Browser-based admin sessions use HttpOnly auth cookies and require CSRF token submission for state-changing requests.
+
+        What this endpoint does:
+        It returns the current CSRF token value and ensures CSRF cookie state is initialized for the caller.
+
+        How this endpoint does it:
+        Spring Security creates/loads token via cookie token repository, controller returns it as a simple JSON payload.
+      responses:
+        '200':
+          description: CSRF token returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+
+  /api/v1/admin/auth/token/register:
+    post:
+      tags: [Admin Authentication]
+      operationId: registerAdminTokenMode
+      security: []
+      summary: Register admin in headless token mode
+      description: |
+        Why this endpoint is needed:
+        Headless/API clients cannot reliably consume browser cookie flows and need explicit token payloads.
+
+        What this endpoint does:
+        It performs the same registration flow as cookie mode but returns access/refresh tokens directly in response body.
+
+        How this endpoint does it:
+        Service runs standard tenant bootstrap/registration pipeline and controller returns AuthResponse without writing cookies.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Admin registered and token payload returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/v1/admin/auth/token/login:
+    post:
+      tags: [Admin Authentication]
+      operationId: loginAdminTokenMode
+      security: []
+      summary: Log in admin in headless token mode
+      description: |
+        Why this endpoint is needed:
+        API clients and external automation flows need explicit JWT credentials in response body.
+
+        What this endpoint does:
+        It authenticates admin credentials and returns fresh access/refresh tokens directly in payload.
+
+        How this endpoint does it:
+        Service validates credentials, rotates refresh-token state, and controller returns AuthResponse DTO.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful and token payload returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/admin/auth/token/refresh:
+    post:
+      tags: [Admin Authentication]
+      operationId: refreshAdminTokenMode
+      security: []
+      summary: Refresh session in headless token mode
+      description: |
+        Why this endpoint is needed:
+        Headless integrations need refresh-token rotation without cookie transport.
+
+        What this endpoint does:
+        It validates provided refresh token and returns a rotated access/refresh token pair.
+
+        How this endpoint does it:
+        Controller accepts RefreshTokenRequest payload and delegates to refresh-token rotation service.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token rotation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/admin/auth/revert-impersonation:
+    post:
+      tags: [Admin Authentication]
+      operationId: revertImpersonation
+      security: []
+      summary: Restore original super-admin cookies after impersonation
+      description: |
+        Why this endpoint is needed:
+        Super-admin support sessions must safely return from tenant impersonation to original privileged context.
+
+        What this endpoint does:
+        It restores stashed super-admin auth cookies and clears temporary impersonation cookies.
+
+        How this endpoint does it:
+        Cookie utility reads stashed `sa_*` cookies, rewrites primary auth cookies, and clears impersonation artifacts.
+      responses:
+        '200':
+          description: Impersonation context reverted
+
   /api/v1/admin/subscriptions/me:
     get:
       tags: [Subscription]
@@ -258,6 +405,7 @@ paths:
     get:
       tags: [Plan Catalog]
       operationId: listPlans
+      security: []
       summary: List active plan definitions
       description: |
         Why this endpoint is needed:
@@ -279,8 +427,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PlanDefinitionResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
     put:
       tags: [Plan Catalog]
       operationId: upsertPlan
@@ -315,6 +461,189 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/admin/superadmin/metrics:
+    get:
+      tags: [Super Admin]
+      operationId: getSuperAdminMetrics
+      summary: Retrieve platform-level metrics snapshot
+      description: |
+        Why this endpoint is needed:
+        Platform operators require fast, aggregate visibility into tenant and subscription health.
+
+        What this endpoint does:
+        It returns key platform counters such as total tenants, active subscriptions, and aggregate usage.
+
+        How this endpoint does it:
+        Super-admin service aggregates metrics from tenant/subscription/usage stores and maps them to response DTO.
+      responses:
+        '200':
+          description: Platform metrics returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuperAdminMetricsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/admin/superadmin/tenants:
+    get:
+      tags: [Super Admin]
+      operationId: listTenantsForSuperAdmin
+      summary: List tenants with subscription and status overview
+      description: |
+        Why this endpoint is needed:
+        Super-admin workflows require tenant inventory with billing and active-state context for support and governance.
+
+        What this endpoint does:
+        It returns paged tenant overview data including subscription plan and activity state.
+
+        How this endpoint does it:
+        Tenant-admin service queries tenant/subscription aggregates and returns Spring Data paged response structure.
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 20 }
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tenant page returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageTenantOverviewResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/admin/superadmin/tenants/metrics:
+    get:
+      tags: [Super Admin]
+      operationId: getTenantAdminMetrics
+      summary: Retrieve platform metrics via tenant-admin namespace
+      description: |
+        Why this endpoint is needed:
+        Some super-admin UI bundles consume tenant-admin namespace for platform metrics.
+
+        What this endpoint does:
+        It returns the same platform metrics payload as `/api/v1/admin/superadmin/metrics`.
+
+        How this endpoint does it:
+        Controller delegates to the same metrics service used by primary super-admin metrics endpoint.
+      responses:
+        '200':
+          description: Platform metrics returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuperAdminMetricsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/admin/superadmin/tenants/{tenantId}/suspend:
+    put:
+      tags: [Super Admin]
+      operationId: suspendTenant
+      summary: Suspend a tenant
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Tenant suspended
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/admin/superadmin/tenants/{tenantId}/activate:
+    put:
+      tags: [Super Admin]
+      operationId: activateTenant
+      summary: Activate a tenant
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Tenant activated
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/admin/superadmin/tenants/{tenantId}/impersonate:
+    post:
+      tags: [Super Admin]
+      operationId: impersonateTenant
+      summary: Impersonate a tenant admin context
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Impersonation session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/admin/superadmin/tenants/{tenantId}/subscriptions/override:
+    post:
+      tags: [Super Admin]
+      operationId: overrideTenantSubscription
+      summary: Override tenant subscription plan as super admin
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverrideSubscriptionRequest'
+      responses:
+        '204':
+          description: Subscription override applied
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
 
   /api/v1/questions:
     post:
@@ -1480,6 +1809,114 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenError'
 
+  /api/v1/audit-logs:
+    get:
+      tags: [Audit Logs]
+      operationId: getTenantAuditLogs
+      summary: Query tenant-scoped activity logs
+      description: |
+        Why this endpoint is needed:
+        Tenant operators need visibility into operational activity for troubleshooting and governance.
+
+        What this endpoint does:
+        It returns paged audit logs filtered to the current tenant context.
+
+        How this endpoint does it:
+        Controller derives tenant id from security context and applies optional filter parameters on audit-log repository.
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 20 }
+        - name: action
+          in: query
+          required: false
+          schema: { type: string }
+        - name: entityType
+          in: query
+          required: false
+          schema: { type: string }
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Tenant audit logs returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageAuditLogResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/admin/superadmin/audit-logs:
+    get:
+      tags: [Audit Logs]
+      operationId: getPlatformAuditLogs
+      summary: Query platform-wide audit logs (SUPER_ADMIN)
+      description: |
+        Why this endpoint is needed:
+        Super-admin operations require cross-tenant traceability for investigations and compliance.
+
+        What this endpoint does:
+        It returns paged audit logs across all tenants with optional filters for actor/action/entity/tenant.
+
+        How this endpoint does it:
+        Controller applies optional filter predicates and queries audit repository with descending timestamp ordering.
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 20 }
+        - name: action
+          in: query
+          required: false
+          schema: { type: string }
+        - name: entityType
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenantId
+          in: query
+          required: false
+          schema: { type: string }
+        - name: actor
+          in: query
+          required: false
+          schema: { type: string }
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Platform audit logs returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageAuditLogResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
   /api/v1/responses:
     post:
       tags: [Responses]
@@ -1974,12 +2411,17 @@ components:
   schemas:
     RegisterRequest:
       type: object
-      required: [fullName, email, password, tenantId]
+      required: [fullName, email, password, confirmPassword]
       properties:
-        fullName: { type: string }
-        email: { type: string, format: email }
-        password: { type: string, minLength: 8 }
-        tenantId: { type: string }
+        fullName: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 255 }
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$'
+        confirmPassword: { type: string, minLength: 1, maxLength: 64 }
+        tenantId: { type: string, maxLength: 63, nullable: true }
 
     LoginRequest:
       type: object
@@ -1987,6 +2429,12 @@ components:
       properties:
         email: { type: string, format: email }
         password: { type: string }
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
 
     AuthUserResponse:
       type: object
@@ -1996,6 +2444,49 @@ components:
         fullName: { type: string }
         tenantId: { type: string }
         role: { type: string, enum: [SUPER_ADMIN, ADMIN, EDITOR, VIEWER] }
+
+    AuthResponse:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        email: { type: string, format: email }
+        fullName: { type: string }
+        tenantId: { type: string }
+        role: { type: string, enum: [SUPER_ADMIN, ADMIN, EDITOR, VIEWER] }
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        tokenType: { type: string, example: Bearer }
+        expiresIn: { type: integer, format: int64 }
+
+    CsrfTokenResponse:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+
+    OverrideSubscriptionRequest:
+      type: object
+      required: [plan]
+      properties:
+        plan: { type: string, enum: [BASIC, PRO, ENTERPRISE] }
+
+    TenantOverviewResponse:
+      type: object
+      properties:
+        tenantId: { type: string }
+        name: { type: string }
+        primaryEmail: { type: string, format: email }
+        plan: { type: string, enum: [BASIC, PRO, ENTERPRISE] }
+        subscriptionStatus: { type: string, enum: [TRIAL, ACTIVE, CANCELED, EXPIRED] }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    SuperAdminMetricsResponse:
+      type: object
+      properties:
+        totalTenants: { type: integer, format: int64 }
+        activeSubscriptions: { type: integer, format: int64 }
+        totalPlatformUsage: { type: integer, format: int64 }
 
     SubscribeRequest:
       type: object
@@ -2586,6 +3077,79 @@ components:
               normalizedScore: { type: number }
               weightPercentage: { type: number }
               weightedScore: { type: number }
+
+    AuditLogResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        tenantId: { type: string }
+        entityType: { type: string }
+        entityId: { type: string }
+        action: { type: string }
+        actor: { type: string }
+        reason: { type: string }
+        beforeValue: { type: string }
+        afterValue: { type: string }
+        ipAddress: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    SortObject:
+      type: object
+      properties:
+        empty: { type: boolean }
+        sorted: { type: boolean }
+        unsorted: { type: boolean }
+
+    PageableObject:
+      type: object
+      properties:
+        offset: { type: integer, format: int64 }
+        pageNumber: { type: integer }
+        pageSize: { type: integer }
+        paged: { type: boolean }
+        unpaged: { type: boolean }
+        sort:
+          $ref: '#/components/schemas/SortObject'
+
+    PageTenantOverviewResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantOverviewResponse'
+        pageable:
+          $ref: '#/components/schemas/PageableObject'
+        sort:
+          $ref: '#/components/schemas/SortObject'
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+        number: { type: integer }
+        size: { type: integer }
+        numberOfElements: { type: integer }
+        first: { type: boolean }
+        last: { type: boolean }
+        empty: { type: boolean }
+
+    PageAuditLogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogResponse'
+        pageable:
+          $ref: '#/components/schemas/PageableObject'
+        sort:
+          $ref: '#/components/schemas/SortObject'
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+        number: { type: integer }
+        size: { type: integer }
+        numberOfElements: { type: integer }
+        first: { type: boolean }
+        last: { type: boolean }
+        empty: { type: boolean }
 
     ErrorResponse:
       type: object

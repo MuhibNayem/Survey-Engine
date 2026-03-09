@@ -5,8 +5,8 @@
 | Field | Value |
 | ----- | ----- |
 | Document Title | Survey Engine MVP SRS |
-| Version | 2.1 |
-| Date | March 4, 2026 |
+| Version | 2.2 |
+| Date | March 9, 2026 |
 | Prepared For | Product and Engineering |
 | Classification | Internal |
 | Status | Reflects implemented code and schema |
@@ -20,7 +20,9 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 ### **2.1 In Scope (Implemented)**
 
 * Multi-tenant data model with tenant isolation in service/repository layer and DB constraints.  
-* Engine-owned admin authentication (register/login/refresh tokens).  
+* Engine-owned admin authentication with dual delivery modes:
+  * browser session mode (HttpOnly cookie-based tokens)
+  * headless/API mode (explicit token response contract)  
 * Admin RBAC using JWT roles (`SUPER_ADMIN`, `ADMIN`, `EDITOR`, `VIEWER`).  
 * Question bank and category CRUD with live mutable bank definitions.  
 * Survey CRUD with draft-time pinning, lifecycle transitions, and immutable published snapshots.  
@@ -31,6 +33,8 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * Optional manual scoring profile APIs retained for advanced/administrative use (not part of default frontend flow).  
 * SaaS subscription domain (tenant subscription, plan catalog, mock payment success flow).  
 * Super-admin plan catalog management and tenant plan quota enforcement.
+* Super-admin tenant operations: tenant listing, suspend/activate, impersonation, and subscription override.
+* Tenant and platform audit log query APIs.
 
 ### **2.2 Out of Scope (Current Codebase)**
 
@@ -58,10 +62,29 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 
 ### **4.1 Admin Authentication and Authorization**
 
-* Engine issues admin JWT access tokens and refresh tokens.  
-* Supported admin auth endpoints: register, login, refresh.  
+* Engine issues admin JWT access tokens and refresh tokens.
+* Supported admin auth modes:
+  * Browser session mode:
+    * `POST /api/v1/admin/auth/register`
+    * `POST /api/v1/admin/auth/login`
+    * `POST /api/v1/admin/auth/refresh` (refresh token from HttpOnly cookie)
+    * `POST /api/v1/admin/auth/logout`
+    * `GET /api/v1/admin/auth/me`
+  * Headless token mode:
+    * `POST /api/v1/admin/auth/token/register`
+    * `POST /api/v1/admin/auth/token/login`
+    * `POST /api/v1/admin/auth/token/refresh`
 * JWT contains tenant and role claims and populates request tenant context.  
 * API authorization baseline requires authenticated admin JWT for protected admin APIs; plan update endpoint requires `SUPER_ADMIN`.
+
+#### **4.1.1 CSRF and Session Mode**
+
+* CSRF protection is enabled for browser session mode using cookie token repository.
+* CSRF token bootstrap endpoint: `GET /api/v1/admin/auth/csrf`.
+* CSRF checks are bypassed for:
+  * Bearer-token authenticated requests
+  * public/respondent endpoints
+  * admin auth bootstrap endpoints (`/api/v1/admin/auth/**`)
 
 ### **4.2 Multi-Tenancy and Data Isolation**
 
@@ -294,6 +317,24 @@ Production targets:
   * identity broker translation to OIDC/JWT.  
 * “Any provider” support is therefore defined as standards compatibility or adapter/broker compatibility, not native protocol implementation for every legacy identity system.
 
+### **4.13 Super-Admin Tenant Operations**
+
+* Super-admin tenant management endpoints are implemented under `/api/v1/admin/superadmin/tenants`.
+* Supported operations:
+  * list tenants (paged)
+  * suspend tenant
+  * activate tenant
+  * impersonate tenant admin
+  * override tenant subscription
+  * platform metrics retrieval
+* Impersonation supports restore flow via `POST /api/v1/admin/auth/revert-impersonation`.
+
+### **4.14 Audit Log Retrieval**
+
+* Tenant-scoped activity endpoint: `GET /api/v1/audit-logs`.
+* Platform-wide audit endpoint: `GET /api/v1/admin/superadmin/audit-logs`.
+* Query supports filtering by action/entity/date and paging/sorting.
+
 ## **5\. Data and Schema Requirements**
 
 ### **5.1 Core Tenant Model**
@@ -331,20 +372,25 @@ Production targets:
 ## **6\. API Surface (Implemented)**
 
 * Admin auth: `/api/v1/admin/auth/**`  
+  * Includes browser mode (`/register`, `/login`, `/refresh`, `/logout`, `/me`, `/csrf`) and token mode (`/token/**`).
 * Plan management: `/api/v1/admin/plans` (PUT requires `SUPER_ADMIN`)  
 * Subscription: `/api/v1/admin/subscriptions/me`, `/api/v1/admin/subscriptions/checkout`  
+* Super-admin tenant ops: `/api/v1/admin/superadmin/tenants/**`, `/api/v1/admin/superadmin/metrics`  
 * Question bank: `/api/v1/questions/**`, `/api/v1/categories/**`  
 * Surveys: `/api/v1/surveys/**`  
 * Campaigns: `/api/v1/campaigns/**`  
+* Public campaign preview: `/api/v1/public/campaigns/**`
 * Scoring: `/api/v1/scoring/**`  
   * Note: scoring APIs are implemented, but the default MVP frontend flow no longer exposes a dedicated `/scoring` route.
 * Auth profiles/validation: `/api/v1/auth/**`
   * Includes provider template endpoints for onboarding UI.
 * Responses: `/api/v1/responses/**` and public submit `/api/v1/responses`
+* Audit logs: `/api/v1/audit-logs`, `/api/v1/admin/superadmin/audit-logs`
 
 ## **7\. Non-Functional Requirements (Implemented Baseline)**
 
-* Stateless JWT-based admin auth.  
+* Stateless JWT-based admin auth with dual transport (HttpOnly cookie for browser sessions, bearer token for headless clients).  
+* CSRF protection enabled for browser session mode with explicit token bootstrap endpoint.  
 * Deterministic survey snapshot and scoring behavior.  
 * Auditing on key lifecycle/auth configuration actions.  
 * Tenant isolation enforced in both application access paths and DB constraints.  

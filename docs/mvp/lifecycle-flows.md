@@ -1,7 +1,7 @@
 # Survey Engine MVP Lifecycle Flows (Step-by-Step Guide)
 ## Product: Headless Multi-Tenant Survey Engine (MVP)
-## Version: 1.1
-## Date: March 4, 2026
+## Version: 1.2
+## Date: March 9, 2026
 
 ## Purpose
 This document explains each MVP flow in execution order with practical guidance:
@@ -29,6 +29,8 @@ This is intentionally operational and sequence-driven for product, onboarding, a
 11. End-to-End Recommended Build Order
 12. Explicit Tagging Chain (Question -> Category -> Survey -> Campaign)
 13. Out-of-MVP Lifecycle Items
+14. Super-Admin Tenant Operations Flow
+15. Audit Log Query Flow
 
 ---
 
@@ -39,25 +41,38 @@ Bring a new tenant from zero state to authenticated admin access.
 
 ### Step-by-step
 
-1. Create admin account (`POST /api/v1/admin/auth/register`).
+1. Create admin account (`POST /api/v1/admin/auth/register` for browser mode or `POST /api/v1/admin/auth/token/register` for headless mode).
 - Why: This creates the first trusted operator account.
 - How: Send full name, email, password, confirm password. Tenant ID is generated server-side.
-- Result: Tenant is provisioned, trial subscription is initialized, and token pair is returned.
+- Result:
+  - Browser mode: tenant is provisioned, trial subscription is initialized, auth cookies are set, and user profile payload is returned.
+  - Token mode: tenant is provisioned, trial subscription is initialized, and explicit token pair payload is returned.
 
-2. Store access and refresh tokens securely in admin session.
-- Why: Admin APIs require bearer authentication.
-- How: Keep access token for API calls, refresh token for renewal.
+2. Establish authenticated admin session.
+- Why: Protected admin APIs require authenticated context.
+- How:
+  - Browser mode: cookies carry tokens automatically.
+  - Headless mode: send bearer token from token-mode login/register response.
 - Result: Admin can call protected endpoints.
 
-3. Start normal login cycle (`POST /api/v1/admin/auth/login`).
+3. Start normal login cycle (`POST /api/v1/admin/auth/login` for browser mode or `POST /api/v1/admin/auth/token/login` for token mode).
 - Why: Ongoing operations should not rely on registration response tokens.
 - How: Login with email/password.
-- Result: Fresh access + refresh token pair.
+- Result:
+  - Browser mode: refreshed auth cookies + user payload.
+  - Token mode: fresh access + refresh token pair.
 
-4. Rotate session using refresh (`POST /api/v1/admin/auth/refresh`).
+4. Rotate session using refresh (`POST /api/v1/admin/auth/refresh` for browser mode or `POST /api/v1/admin/auth/token/refresh` for token mode).
 - Why: Access token is short-lived by design.
-- How: Send refresh token before/after access token expiry.
-- Result: New token pair, old refresh token revoked.
+- How:
+  - Browser mode: refresh token is read from cookie.
+  - Token mode: send refresh token in request payload.
+- Result: New token state is issued and old refresh token is revoked.
+
+5. (Browser mode) Bootstrap CSRF token (`GET /api/v1/admin/auth/csrf`) before state-changing admin calls.
+- Why: CSRF protection is enabled for cookie-authenticated browser requests.
+- How: Read `XSRF-TOKEN` cookie / csrf token endpoint and include token in mutation requests.
+- Result: POST/PUT/DELETE admin flows pass CSRF checks.
 
 ### Key implementation intent
 - Tenant context is carried in JWT claims and used throughout service authorization and data scoping.
@@ -73,7 +88,7 @@ Ensure tenant has active entitlement and system-enforced usage limits.
 
 1. Read current subscription (`GET /api/v1/admin/subscriptions/me`).
 - Why: Admin must know current plan and status before setup decisions.
-- How: Call endpoint with admin bearer token.
+- How: Call endpoint with authenticated admin session (browser cookies or bearer token).
 - Result: Current plan, status, and period details.
 
 2. Review available plans (`GET /api/v1/admin/plans`).
@@ -320,6 +335,11 @@ Create a live delivery instance from a published survey and control runtime beha
 - Why: Confirm survey binding, auth mode, and metadata.
 - How: Fetch campaign details.
 - Result: Campaign ready for settings update.
+
+2a. Retrieve responder-safe preview (`GET /api/v1/public/campaigns/{id}/preview`) when building public-facing form experience.
+- Why: Public responders should not depend on admin-protected campaign endpoints.
+- How: Call public preview endpoint by campaign id.
+- Result: Responder-facing survey/campaign preview payload.
 
 3. Configure runtime settings (`PUT /api/v1/campaigns/{id}/settings`).
 - Why: Set operational controls before launch.
@@ -583,7 +603,13 @@ Collect responses with proper runtime checks, auth checks, and post-submit integ
 
 10. Campaign analytics retrieval (`GET /api/v1/responses/analytics/{campaignId}`).
 - Why: Campaign-level completion and activity insights.
+- How: Optional `metadata.<key>=<value>` query params are supported for filtered analytics.
 - Result: Aggregated response metrics.
+
+11. Response listing with metadata filters (`GET /api/v1/responses/campaign/{campaignId}`).
+- Why: Operations teams often need segmented response views.
+- How: Pass query params as `metadata.<field>=<value>` plus pagination params.
+- Result: Paged response set filtered by metadata dimensions.
 
 ---
 
@@ -740,3 +766,61 @@ The following flows exist in broader documentation but are not part of implement
 3. Webhook delivery and retry dead-letter lifecycle.
 4. Setup-later onboarding state machine with bootstrap expiry controls.
 5. Full enterprise approval workflow states beyond current implemented lifecycle transitions.
+
+---
+
+## 14. Super-Admin Tenant Operations Flow
+
+### Goal
+Allow platform operators to manage tenant lifecycle and provide support operations.
+
+### Step-by-step
+
+1. List tenants (`GET /api/v1/admin/superadmin/tenants`).
+- Why: Platform operations need tenant visibility.
+- How: Query paged tenant overview.
+- Result: Tenant inventory with current operational state.
+
+2. Suspend or activate tenant (`PUT /api/v1/admin/superadmin/tenants/{tenantId}/suspend`, `PUT /api/v1/admin/superadmin/tenants/{tenantId}/activate`).
+- Why: Enforce platform governance and operational control.
+- How: Issue lifecycle command for target tenant id.
+- Result: Tenant access state changes.
+
+3. Override subscription (`POST /api/v1/admin/superadmin/tenants/{tenantId}/subscriptions/override`).
+- Why: Handle support, migration, or emergency commercial adjustments.
+- How: Submit override request payload.
+- Result: Tenant subscription state is updated.
+
+4. Impersonate tenant admin (`POST /api/v1/admin/superadmin/tenants/{tenantId}/impersonate`).
+- Why: Diagnose tenant-side issues in real context.
+- How: Start impersonation session.
+- Result: Super-admin receives tenant-scoped admin session.
+
+5. Revert impersonation (`POST /api/v1/admin/auth/revert-impersonation`).
+- Why: Return safely to original super-admin context.
+- How: Call revert endpoint.
+- Result: Original super-admin session is restored.
+
+6. View platform metrics (`GET /api/v1/admin/superadmin/metrics` or `GET /api/v1/admin/superadmin/tenants/metrics`).
+- Why: Track platform-level health and usage.
+- How: Call metrics endpoint from super-admin session.
+- Result: Aggregated platform metrics snapshot.
+
+---
+
+## 15. Audit Log Query Flow
+
+### Goal
+Provide traceability for tenant-level and platform-wide operational activity.
+
+### Step-by-step
+
+1. Query tenant activity logs (`GET /api/v1/audit-logs`).
+- Why: Tenant admins need their own operational audit trail.
+- How: Use optional filters (`action`, `entityType`, `from`, `to`) and paging.
+- Result: Tenant-scoped audit records ordered by latest activity.
+
+2. Query platform audit logs (`GET /api/v1/admin/superadmin/audit-logs`).
+- Why: Super-admin and support teams need cross-tenant visibility.
+- How: Use optional filters (`tenantId`, `actor`, `action`, `entityType`, `from`, `to`) and paging.
+- Result: Platform-wide audit records for governance and investigation.
