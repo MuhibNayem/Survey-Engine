@@ -376,6 +376,10 @@
                             <span class="text-muted-foreground block mb-1">Entity ID ({selectedLog.entityType})</span>
                             <span class="font-mono text-xs text-foreground bg-muted px-1.5 py-0.5 rounded">{selectedLog.entityId}</span>
                         </div>
+                        <div class="col-span-2 mt-2 pt-4 border-t border-border/50">
+                            <span class="text-muted-foreground block mb-1">Reason / Context</span>
+                            <span class="font-mono text-sm text-foreground break-words">{selectedLog.reason || "—"}</span>
+                        </div>
                     </div>
 
                     <!-- JSON Payloads -->
