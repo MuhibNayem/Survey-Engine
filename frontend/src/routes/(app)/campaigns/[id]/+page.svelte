@@ -11,6 +11,7 @@
     import { Switch } from "$lib/components/ui/switch";
     import { Textarea } from "$lib/components/ui/textarea";
     import { toast } from "svelte-sonner";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         ArrowLeft,
         Settings,
@@ -442,10 +443,37 @@
 </svelte:head>
 
 {#if loading}
-    <div class="flex items-center justify-center py-16">
-        <span
-            class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-        ></span>
+    <div class="space-y-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-center gap-3">
+                <Skeleton class="h-9 w-9" />
+                <div class="space-y-2">
+                    <Skeleton class="h-8 w-[250px]" />
+                    <Skeleton class="h-4 w-[180px]" />
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <Skeleton class="h-9 w-[100px]" />
+                <Skeleton class="h-9 w-[100px]" />
+            </div>
+        </div>
+        <div class="flex gap-1 border-b border-border">
+            {#each Array(3) as _}
+                <Skeleton class="h-10 w-[120px]" />
+            {/each}
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {#each Array(6) as _}
+                <Card.Root>
+                    <Card.Header class="pb-2">
+                        <Skeleton class="h-4 w-[100px]" />
+                    </Card.Header>
+                    <Card.Content>
+                        <Skeleton class="h-6 w-[80px]" />
+                    </Card.Content>
+                </Card.Root>
+            {/each}
+        </div>
     </div>
 {:else if campaign}
     <div class="space-y-6">

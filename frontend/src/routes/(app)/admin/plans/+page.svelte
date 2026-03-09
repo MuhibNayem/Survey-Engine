@@ -7,6 +7,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         ShieldAlert,
         Settings2,
@@ -123,10 +124,28 @@
             </Card.Content>
         </Card.Root>
     {:else if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {#each Array(3) as _}
+                <Card.Root>
+                    <Card.Header class="pb-3 border-b border-border/50">
+                        <div class="flex items-start justify-between">
+                            <div class="space-y-2">
+                                <Skeleton class="h-5 w-[120px]" />
+                                <Skeleton class="h-3 w-[60px]" />
+                            </div>
+                            <Skeleton class="h-8 w-8" />
+                        </div>
+                    </Card.Header>
+                    <Card.Content class="pt-4 space-y-4">
+                        {#each Array(6) as _}
+                            <div class="flex items-center justify-between">
+                                <Skeleton class="h-4 w-[80px]" />
+                                <Skeleton class="h-4 w-[60px]" />
+                            </div>
+                        {/each}
+                    </Card.Content>
+                </Card.Root>
+            {/each}
         </div>
     {:else}
         {#if error && !formOpen}

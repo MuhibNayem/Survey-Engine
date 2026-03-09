@@ -11,6 +11,7 @@
     import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
     import PageHeader from "$lib/components/layout/PageHeader.svelte";
     import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         Plus,
         Pencil,
@@ -765,11 +766,43 @@
 
     <!-- Table -->
     {#if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
-        </div>
+        <Card.Root>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border text-left text-muted-foreground">
+                            <th class="px-4 py-3 font-medium">Survey</th>
+                            <th class="px-4 py-3 font-medium">Status</th>
+                            <th class="px-4 py-3 font-medium">Pages</th>
+                            <th class="px-4 py-3 font-medium">Created</th>
+                            <th class="px-4 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each Array(10) as _}
+                            <tr class="border-b border-border/50">
+                                <td class="px-4 py-3">
+                                    <div class="space-y-2">
+                                        <Skeleton class="h-4 w-[250px]" />
+                                        <Skeleton class="h-3 w-[180px]" />
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3"><Skeleton class="h-6 w-[80px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[40px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[100px]" /></td>
+                                <td class="px-4 py-3 text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <Skeleton class="h-8 w-8" />
+                                        <Skeleton class="h-8 w-8" />
+                                        <Skeleton class="h-8 w-8" />
+                                    </div>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        </Card.Root>
     {:else if filteredSurveys.length === 0}
         <Card.Root
             class="flex flex-col items-center justify-center py-16 text-center"

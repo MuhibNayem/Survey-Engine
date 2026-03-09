@@ -8,6 +8,7 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import { ChevronLeft, ChevronRight, Play } from "lucide-svelte";
     import type { CampaignPreviewResponse, QuestionType } from "$lib/types";
 
@@ -529,11 +530,28 @@
 <div class="min-h-screen bg-gradient-to-b from-slate-50 to-white py-8">
     <div class="mx-auto w-full max-w-4xl px-4">
         {#if loading}
-            <div class="flex items-center justify-center py-16">
-                <span
-                    class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-                ></span>
-            </div>
+            <Card.Root class="mx-auto max-w-2xl">
+                <Card.Header>
+                    <div class="space-y-2">
+                        <Skeleton class="h-8 w-[250px]" />
+                        <Skeleton class="h-4 w-[350px]" />
+                    </div>
+                </Card.Header>
+                <Card.Content class="space-y-6">
+                    <div class="space-y-4">
+                        {#each Array(5) as _}
+                            <div class="space-y-2">
+                                <Skeleton class="h-4 w-[200px]" />
+                                <Skeleton class="h-10 w-full" />
+                            </div>
+                        {/each}
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <Skeleton class="h-10 w-[120px]" />
+                        <Skeleton class="h-10 w-[100px]" />
+                    </div>
+                </Card.Content>
+            </Card.Root>
         {:else if error || !campaign}
             <Card.Root class="mx-auto max-w-2xl">
                 <Card.Header>

@@ -10,6 +10,7 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         ArrowLeft,
         User,
@@ -211,10 +212,37 @@
     </div>
 
     {#if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
+        <div class="grid gap-6 md:grid-cols-3">
+            <div class="space-y-6 md:col-span-1">
+                <Card.Root>
+                    <Card.Header>
+                        <Skeleton class="h-6 w-[100px]" />
+                    </Card.Header>
+                    <Card.Content class="space-y-4">
+                        {#each Array(4) as _}
+                            <div class="flex justify-between">
+                                <Skeleton class="h-4 w-[80px]" />
+                                <Skeleton class="h-4 w-[100px]" />
+                            </div>
+                        {/each}
+                    </Card.Content>
+                </Card.Root>
+            </div>
+            <div class="md:col-span-2 space-y-6">
+                <Card.Root>
+                    <Card.Header>
+                        <Skeleton class="h-6 w-[150px]" />
+                    </Card.Header>
+                    <Card.Content class="space-y-4">
+                        {#each Array(5) as _}
+                            <div class="space-y-2">
+                                <Skeleton class="h-4 w-[200px]" />
+                                <Skeleton class="h-10 w-full" />
+                            </div>
+                        {/each}
+                    </Card.Content>
+                </Card.Root>
+            </div>
         </div>
     {:else if responseObj}
         <div class="grid gap-6 md:grid-cols-3">

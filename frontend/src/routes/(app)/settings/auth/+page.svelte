@@ -10,6 +10,7 @@
     import * as Select from "$lib/components/ui/select";
     import { Switch } from "$lib/components/ui/switch";
     import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         ArrowLeft,
         ShieldCheck,
@@ -240,11 +241,24 @@
     {/if}
 
     {#if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"
-            ></span>
-        </div>
+        <Card.Root class="border-indigo-500/30 shadow-md">
+            <Card.Header class="border-b bg-indigo-500/5 pb-4">
+                <div class="space-y-2">
+                    <Skeleton class="h-6 w-[250px]" />
+                    <Skeleton class="h-4 w-[400px]" />
+                </div>
+            </Card.Header>
+            <Card.Content class="pt-6">
+                <div class="space-y-8">
+                    {#each Array(5) as _}
+                        <div class="space-y-2">
+                            <Skeleton class="h-4 w-[120px]" />
+                            <Skeleton class="h-10 w-full" />
+                        </div>
+                    {/each}
+                </div>
+            </Card.Content>
+        </Card.Root>
     {:else if !profile || isEditing}
         <Card.Root class="border-indigo-500/30 shadow-md">
             <Card.Header class="border-b bg-indigo-500/5 pb-4">

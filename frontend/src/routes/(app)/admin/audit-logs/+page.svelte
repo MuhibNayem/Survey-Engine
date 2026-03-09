@@ -6,6 +6,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { Badge } from "$lib/components/ui/badge";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         Activity,
         Search,
@@ -161,11 +162,36 @@
     </div>
 
     {#if loading && !logsData}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
-        </div>
+        <Card.Root>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border text-left text-muted-foreground bg-muted/50">
+                            <th class="px-4 py-3 font-medium">Timestamp</th>
+                            <th class="px-4 py-3 font-medium">Tenant</th>
+                            <th class="px-4 py-3 font-medium">Actor</th>
+                            <th class="px-4 py-3 font-medium">Action</th>
+                            <th class="px-4 py-3 font-medium">Entity</th>
+                            <th class="px-4 py-3 font-medium">Reason/Details</th>
+                            <th class="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border/50">
+                        {#each Array(10) as _}
+                            <tr class="border-b transition-colors hover:bg-muted/30">
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[120px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[80px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[100px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[120px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[140px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[150px]" /></td>
+                                <td class="px-4 py-3 text-right"><Skeleton class="h-6 w-[60px] ml-auto" /></td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        </Card.Root>
     {:else if error}
         <Card.Root class="border-destructive/50 bg-destructive/5">
             <Card.Content class="py-6 text-center text-destructive">

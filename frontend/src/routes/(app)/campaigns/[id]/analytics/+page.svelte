@@ -9,6 +9,7 @@
     import { Input } from "$lib/components/ui/input";
     import * as Select from "$lib/components/ui/select";
     import { ProgressBar } from "$lib/components/ui/progress-bar";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         ArrowLeft,
         BarChart3,
@@ -328,10 +329,50 @@
     {/if}
 
     {#if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
+        <div class="space-y-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-3">
+                    <Skeleton class="h-9 w-9" />
+                    <div class="space-y-2">
+                        <Skeleton class="h-8 w-[250px]" />
+                        <Skeleton class="h-4 w-[150px]" />
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <Skeleton class="h-9 w-[120px]" />
+                    <Skeleton class="h-9 w-[140px]" />
+                </div>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {#each Array(4) as _}
+                    <Card.Root>
+                        <Card.Content class="pt-6">
+                            <div class="flex items-center justify-between">
+                                <div class="space-y-2">
+                                    <Skeleton class="h-4 w-[100px]" />
+                                    <Skeleton class="h-8 w-[60px]" />
+                                </div>
+                                <Skeleton class="h-12 w-12 rounded-xl" />
+                            </div>
+                        </Card.Content>
+                    </Card.Root>
+                {/each}
+            </div>
+            <div class="grid gap-6 lg:grid-cols-2">
+                {#each Array(2) as _}
+                    <Card.Root>
+                        <Card.Header>
+                            <div class="space-y-2">
+                                <Skeleton class="h-6 w-[150px]" />
+                                <Skeleton class="h-4 w-[200px]" />
+                            </div>
+                        </Card.Header>
+                        <Card.Content>
+                            <Skeleton class="h-[200px] w-full" />
+                        </Card.Content>
+                    </Card.Root>
+                {/each}
+            </div>
         </div>
     {:else if error}
         <Card.Root class="border-destructive/30 bg-destructive/10">

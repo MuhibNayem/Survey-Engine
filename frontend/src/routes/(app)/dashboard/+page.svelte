@@ -7,6 +7,7 @@
     import { Badge } from "$lib/components/ui/badge";
     import { Button } from "$lib/components/ui/button";
     import { ProgressBar } from "$lib/components/ui/progress-bar";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         HelpCircle,
         FolderKanban,
@@ -228,37 +229,55 @@
     {/if}
 
     <!-- Stat Cards -->
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {#each statCards as card}
-            <a href={card.href} class="group">
-                <Card.Root
-                    class="transition-all duration-200 hover:shadow-md hover:border-primary/30 group-hover:-translate-y-0.5"
-                >
+    {#if loadingCampaigns}
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {#each Array(5) as _}
+                <Card.Root>
                     <Card.Content class="pt-6">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p
-                                    class="text-sm font-medium text-muted-foreground"
-                                >
-                                    {card.label}
-                                </p>
-                                <p
-                                    class="mt-1 text-3xl font-bold text-foreground"
-                                >
-                                    {card.value}
-                                </p>
+                            <div class="space-y-2">
+                                <Skeleton class="h-4 w-[80px]" />
+                                <Skeleton class="h-8 w-[60px]" />
                             </div>
-                            <div
-                                class="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50"
-                            >
-                                <card.icon class="h-6 w-6 {card.color}" />
-                            </div>
+                            <Skeleton class="h-12 w-12 rounded-xl" />
                         </div>
                     </Card.Content>
                 </Card.Root>
-            </a>
-        {/each}
-    </div>
+            {/each}
+        </div>
+    {:else}
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {#each statCards as card}
+                <a href={card.href} class="group">
+                    <Card.Root
+                        class="transition-all duration-200 hover:shadow-md hover:border-primary/30 group-hover:-translate-y-0.5"
+                    >
+                        <Card.Content class="pt-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p
+                                        class="text-sm font-medium text-muted-foreground"
+                                    >
+                                        {card.label}
+                                    </p>
+                                    <p
+                                        class="mt-1 text-3xl font-bold text-foreground"
+                                    >
+                                        {card.value}
+                                    </p>
+                                </div>
+                                <div
+                                    class="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50"
+                                >
+                                    <card.icon class="h-6 w-6 {card.color}" />
+                                </div>
+                            </div>
+                        </Card.Content>
+                    </Card.Root>
+                </a>
+            {/each}
+        </div>
+    {/if}
 
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <!-- Quick Actions -->
@@ -338,10 +357,24 @@
             </div>
 
             {#if loadingCampaigns}
-                <Card.Root class="flex h-[380px] items-center justify-center">
-                    <span
-                        class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-                    ></span>
+                <Card.Root>
+                    <div class="divide-y divide-border">
+                        {#each Array(5) as _}
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4">
+                                <div class="min-w-0 flex-1 space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <Skeleton class="h-5 w-[180px]" />
+                                        <Skeleton class="h-4 w-[50px]" />
+                                    </div>
+                                    <Skeleton class="h-4 w-[250px]" />
+                                </div>
+                                <div class="flex items-center gap-6 sm:w-1/2 justify-end">
+                                    <Skeleton class="h-8 w-24" />
+                                    <Skeleton class="h-8 w-8" />
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
                 </Card.Root>
             {:else if recentCampaigns.length === 0}
                 <Card.Root

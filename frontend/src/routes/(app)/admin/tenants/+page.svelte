@@ -4,6 +4,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
     import { Input } from "$lib/components/ui/input";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         Search,
         MoreHorizontal,
@@ -254,19 +255,34 @@
                 </thead>
                 <tbody class="[&_tr:last-child]:border-0">
                     {#if loading}
-                        <tr
-                            class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                        >
-                            <td
-                                colspan={6}
-                                class="p-4 align-middle h-32 text-center text-muted-foreground"
-                            >
-                                <span
-                                    class="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2 align-middle"
-                                ></span>
-                                Loading tenants data...
-                            </td>
-                        </tr>
+                        {#each Array(8) as _}
+                            <tr class="border-b transition-colors hover:bg-muted/50">
+                                <td class="p-4 align-middle">
+                                    <div class="space-y-2">
+                                        <Skeleton class="h-4 w-[150px]" />
+                                        <Skeleton class="h-3 w-[100px]" />
+                                    </div>
+                                </td>
+                                <td class="p-4 align-middle">
+                                    <Skeleton class="h-4 w-[120px]" />
+                                </td>
+                                <td class="p-4 align-middle">
+                                    <div class="space-y-2">
+                                        <Skeleton class="h-5 w-[70px]" />
+                                        <Skeleton class="h-3 w-[80px]" />
+                                    </div>
+                                </td>
+                                <td class="p-4 align-middle">
+                                    <Skeleton class="h-6 w-[60px]" />
+                                </td>
+                                <td class="p-4 align-middle">
+                                    <Skeleton class="h-4 w-[100px]" />
+                                </td>
+                                <td class="p-4 align-middle text-right">
+                                    <Skeleton class="h-8 w-8 ml-auto" />
+                                </td>
+                            </tr>
+                        {/each}
                     {:else if tenants.length === 0}
                         <tr
                             class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"

@@ -8,6 +8,7 @@
     import { Input } from "$lib/components/ui/input";
     import { Badge } from "$lib/components/ui/badge";
     import * as Select from "$lib/components/ui/select";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         ArrowLeft,
         Search,
@@ -289,11 +290,34 @@
 
     <!-- Table -->
     {#if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
-        </div>
+        <Card.Root>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border text-left text-muted-foreground">
+                            <th class="px-4 py-3 font-medium">Respondent</th>
+                            <th class="px-4 py-3 font-medium">Status</th>
+                            <th class="px-4 py-3 font-medium">Started</th>
+                            <th class="px-4 py-3 font-medium">Finalized</th>
+                            <th class="px-4 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each Array(10) as _}
+                            <tr class="border-b border-border/50">
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[150px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-6 w-[80px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[100px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[100px]" /></td>
+                                <td class="px-4 py-3 text-right">
+                                    <Skeleton class="h-8 w-8 ml-auto" />
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        </Card.Root>
     {:else if filteredResponses.length === 0}
         <Card.Root
             class="flex flex-col items-center justify-center py-16 text-center"

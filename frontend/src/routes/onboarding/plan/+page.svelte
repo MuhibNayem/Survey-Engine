@@ -6,6 +6,7 @@
     import * as Card from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import { CheckCircle2, CreditCard, Sparkles } from "lucide-svelte";
     import type {
         PlanDefinitionResponse,
@@ -104,10 +105,26 @@
         {/if}
 
         {#if loading}
-            <div class="flex items-center justify-center py-16">
-                <span
-                    class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-                ></span>
+            <div class="grid gap-4 md:grid-cols-3">
+                {#each Array(3) as _}
+                    <Card.Root>
+                        <Card.Header>
+                            <div class="space-y-2">
+                                <Skeleton class="h-6 w-[120px]" />
+                                <Skeleton class="h-4 w-[80px]" />
+                            </div>
+                        </Card.Header>
+                        <Card.Content class="space-y-4">
+                            {#each Array(3) as _}
+                                <div class="flex items-start gap-2">
+                                    <Skeleton class="h-4 w-4 rounded-full mt-0.5" />
+                                    <Skeleton class="h-4 w-[150px]" />
+                                </div>
+                            {/each}
+                            <Skeleton class="h-10 w-full" />
+                        </Card.Content>
+                    </Card.Root>
+                {/each}
             </div>
         {:else}
             <div class="grid gap-4 md:grid-cols-3">

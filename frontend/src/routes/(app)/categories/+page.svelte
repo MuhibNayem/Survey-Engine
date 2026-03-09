@@ -11,6 +11,7 @@
     import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
     import PageHeader from "$lib/components/layout/PageHeader.svelte";
     import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         Plus,
         Pencil,
@@ -228,11 +229,37 @@
 
     <!-- Table -->
     {#if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
-        </div>
+        <Card.Root>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border text-left text-muted-foreground">
+                            <th class="px-4 py-3 font-medium">Name</th>
+                            <th class="px-4 py-3 font-medium">Description</th>
+                            <th class="px-4 py-3 font-medium text-center">Questions</th>
+                            <th class="px-4 py-3 font-medium">Created</th>
+                            <th class="px-4 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each Array(10) as _}
+                            <tr class="border-b border-border/50">
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[180px]" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[200px]" /></td>
+                                <td class="px-4 py-3 text-center"><Skeleton class="h-6 w-[40px] mx-auto" /></td>
+                                <td class="px-4 py-3"><Skeleton class="h-4 w-[100px]" /></td>
+                                <td class="px-4 py-3 text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <Skeleton class="h-8 w-8" />
+                                        <Skeleton class="h-8 w-8" />
+                                    </div>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        </Card.Root>
     {:else if filteredCategories.length === 0}
         <Card.Root
             class="flex flex-col items-center justify-center py-16 text-center"

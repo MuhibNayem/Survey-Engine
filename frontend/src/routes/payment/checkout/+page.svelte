@@ -8,6 +8,7 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Badge } from "$lib/components/ui/badge";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         CreditCard,
         ShieldCheck,
@@ -166,11 +167,40 @@
         {/if}
 
         {#if loading}
-            <Card.Root class="border-border/70">
-                <Card.Content class="flex items-center justify-center py-20">
-                    <span class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></span>
-                </Card.Content>
-            </Card.Root>
+            <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+                <Card.Root class="order-2 lg:order-1 border-border/70">
+                    <Card.Header class="border-b border-border/60 pb-4">
+                        <div class="space-y-2">
+                            <Skeleton class="h-6 w-[180px]" />
+                            <Skeleton class="h-4 w-[300px]" />
+                        </div>
+                    </Card.Header>
+                    <Card.Content class="space-y-5 pt-5">
+                        {#each Array(4) as _}
+                            <div class="space-y-2">
+                                <Skeleton class="h-4 w-[120px]" />
+                                <Skeleton class="h-10 w-full" />
+                            </div>
+                        {/each}
+                    </Card.Content>
+                </Card.Root>
+                <Card.Root class="order-1 lg:order-2 border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+                    <Card.Header class="border-b border-border/60 pb-4">
+                        <div class="space-y-2">
+                            <Skeleton class="h-6 w-[150px]" />
+                            <Skeleton class="h-4 w-[250px]" />
+                        </div>
+                    </Card.Header>
+                    <Card.Content class="space-y-4 pt-5">
+                        {#each Array(5) as _}
+                            <div class="flex items-center justify-between">
+                                <Skeleton class="h-4 w-[100px]" />
+                                <Skeleton class="h-4 w-[60px]" />
+                            </div>
+                        {/each}
+                    </Card.Content>
+                </Card.Root>
+            </div>
         {:else if plan}
             <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
                 <Card.Root class="order-2 lg:order-1 border-border/70">

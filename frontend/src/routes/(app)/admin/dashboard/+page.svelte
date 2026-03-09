@@ -5,6 +5,7 @@
     import * as Card from "$lib/components/ui/card";
     import { Badge } from "$lib/components/ui/badge";
     import { Button } from "$lib/components/ui/button";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         Users,
         Activity,
@@ -131,34 +132,53 @@
     </div>
 
     <!-- Metrics Grid -->
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {#each metrics as metric}
-            <Card.Root
-                class="transition-all duration-200 hover:shadow-md border-border/50 bg-gradient-to-br from-background to-muted/20"
-            >
-                <Card.Content class="p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <p class="text-sm font-medium text-muted-foreground">
-                            {metric.label}
-                        </p>
-                        <div
-                            class="flex h-10 w-10 items-center justify-center rounded-xl {metric.bg}"
-                        >
-                            <metric.icon class="h-5 w-5 {metric.color}" />
+    {#if !liveMetrics}
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {#each Array(4) as _}
+                <Card.Root>
+                    <Card.Content class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <Skeleton class="h-4 w-[100px]" />
+                            <Skeleton class="h-10 w-10 rounded-xl" />
                         </div>
-                    </div>
-                    <div>
-                        <p class="text-3xl font-bold text-foreground">
-                            {metric.value}
-                        </p>
-                        <p class="mt-1 text-xs text-muted-foreground">
-                            {metric.trend}
-                        </p>
-                    </div>
-                </Card.Content>
-            </Card.Root>
-        {/each}
-    </div>
+                        <div class="space-y-2">
+                            <Skeleton class="h-8 w-[80px]" />
+                            <Skeleton class="h-3 w-[120px]" />
+                        </div>
+                    </Card.Content>
+                </Card.Root>
+            {/each}
+        </div>
+    {:else}
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {#each metrics as metric}
+                <Card.Root
+                    class="transition-all duration-200 hover:shadow-md border-border/50 bg-gradient-to-br from-background to-muted/20"
+                >
+                    <Card.Content class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="text-sm font-medium text-muted-foreground">
+                                {metric.label}
+                            </p>
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl {metric.bg}"
+                            >
+                                <metric.icon class="h-5 w-5 {metric.color}" />
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-3xl font-bold text-foreground">
+                                {metric.value}
+                            </p>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                {metric.trend}
+                            </p>
+                        </div>
+                    </Card.Content>
+                </Card.Root>
+            {/each}
+        </div>
+    {/if}
 
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <!-- Quick Actions -->
@@ -219,7 +239,21 @@
                     >
                 </Card.Header>
                 <Card.Content>
-                    {#if recentActivity.length === 0}
+                    {#if !liveMetrics}
+                        <div class="space-y-3">
+                            {#each Array(5) as _}
+                                <div class="rounded-lg border border-border/60 bg-muted/20 p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="space-y-2 flex-1">
+                                            <Skeleton class="h-4 w-[150px]" />
+                                            <Skeleton class="h-3 w-[200px]" />
+                                        </div>
+                                        <Skeleton class="h-3 w-[80px]" />
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    {:else if recentActivity.length === 0}
                         <div
                             class="flex flex-col items-center justify-center py-10 text-center"
                         >

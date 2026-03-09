@@ -7,6 +7,7 @@
     import type { PlanDefinitionResponse } from "$lib/types";
     import { onMount } from "svelte";
     import logo from "$lib/assets/logo.png";
+    import { Skeleton } from "$lib/components/ui/skeleton";
 
     let apiPlans = $state<PlanDefinitionResponse[]>([]);
     let loading = $state(true);
@@ -304,10 +305,37 @@
     <!-- Plan Cards -->
     <section class="max-w-5xl mx-auto px-6 py-12">
         {#if loading}
-            <div class="flex justify-center py-16">
-                <div
-                    class="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-                ></div>
+            <div
+                class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto"
+            >
+                {#each Array(3) as _}
+                    <div class="group relative flex flex-col rounded-3xl border bg-card/50 backdrop-blur-xl">
+                        <div class="p-8 pb-10 flex-1 flex flex-col">
+                            <div class="mb-8">
+                                <div class="space-y-2">
+                                    <Skeleton class="h-6 w-[100px]" />
+                                    <Skeleton class="h-4 w-[200px]" />
+                                </div>
+                            </div>
+                            <div class="mb-8">
+                                <div class="flex items-baseline gap-1.5 border-b border-border/40 pb-6">
+                                    <Skeleton class="h-12 w-[100px]" />
+                                </div>
+                                <Skeleton class="h-4 w-[120px] mt-4" />
+                            </div>
+                            <Skeleton class="h-12 w-full rounded-xl mb-8" />
+                            <div class="space-y-4 text-sm mt-auto">
+                                <Skeleton class="h-4 w-[100px]" />
+                                {#each Array(3) as _}
+                                    <div class="flex justify-between items-center">
+                                        <Skeleton class="h-4 w-[120px]" />
+                                        <Skeleton class="h-4 w-[40px]" />
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                    </div>
+                {/each}
             </div>
         {:else}
             <div

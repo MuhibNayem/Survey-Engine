@@ -6,6 +6,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
     import { ProgressBar } from "$lib/components/ui/progress-bar";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         ArrowLeft,
         CreditCard,
@@ -168,10 +169,44 @@
     {/if}
 
     {#if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
+        <div class="space-y-6">
+            <div class="grid gap-6 md:grid-cols-2">
+                {#each Array(2) as _}
+                    <Card.Root>
+                        <Card.Header>
+                            <div class="space-y-2">
+                                <Skeleton class="h-6 w-[180px]" />
+                                <Skeleton class="h-4 w-[120px]" />
+                            </div>
+                        </Card.Header>
+                        <Card.Content class="space-y-4">
+                            {#each Array(5) as _}
+                                <div class="flex items-center justify-between">
+                                    <Skeleton class="h-4 w-[100px]" />
+                                    <Skeleton class="h-4 w-[60px]" />
+                                </div>
+                            {/each}
+                        </Card.Content>
+                    </Card.Root>
+                {/each}
+            </div>
+            <div class="grid gap-4 md:grid-cols-3">
+                {#each Array(3) as _}
+                    <Card.Root>
+                        <Card.Header>
+                            <div class="space-y-2">
+                                <Skeleton class="h-5 w-[120px]" />
+                                <Skeleton class="h-4 w-[80px]" />
+                            </div>
+                        </Card.Header>
+                        <Card.Content class="space-y-3">
+                            {#each Array(4) as _}
+                                <Skeleton class="h-4 w-full" />
+                            {/each}
+                        </Card.Content>
+                    </Card.Root>
+                {/each}
+            </div>
         </div>
     {:else}
         {#if subscription}

@@ -8,6 +8,7 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Badge } from "$lib/components/ui/badge";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import { ArrowLeft, RefreshCw, Play, ChevronLeft, ChevronRight } from "lucide-svelte";
     import type {
         CampaignPreviewResponse,
@@ -307,9 +308,28 @@
 </svelte:head>
 
 {#if loading}
-    <div class="flex items-center justify-center py-16">
-        <span class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></span>
-    </div>
+    <Card.Root class="max-w-3xl mx-auto mt-8">
+        <Card.Header>
+            <div class="space-y-2">
+                <Skeleton class="h-8 w-[200px]" />
+                <Skeleton class="h-4 w-[300px]" />
+            </div>
+        </Card.Header>
+        <Card.Content class="space-y-6">
+            <div class="space-y-4">
+                {#each Array(4) as _}
+                    <div class="space-y-2">
+                        <Skeleton class="h-4 w-[180px]" />
+                        <Skeleton class="h-10 w-full" />
+                    </div>
+                {/each}
+            </div>
+            <div class="flex justify-end gap-2">
+                <Skeleton class="h-10 w-[100px]" />
+                <Skeleton class="h-10 w-[80px]" />
+            </div>
+        </Card.Content>
+    </Card.Root>
 {:else if error || !campaign}
     <Card.Root class="max-w-3xl mx-auto mt-8">
         <Card.Header>

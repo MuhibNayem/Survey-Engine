@@ -4,6 +4,7 @@
     import { goto } from "$app/navigation";
     import * as Card from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import { MessageSquareText, Megaphone, ArrowRight } from "lucide-svelte";
     import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
     import type { CampaignResponse, PageResponse } from "$lib/types";
@@ -56,10 +57,20 @@
     </div>
 
     {#if loading}
-        <div class="flex items-center justify-center py-16">
-            <span
-                class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            ></span>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {#each Array(9) as _}
+                <Card.Root>
+                    <Card.Header>
+                        <div class="space-y-2">
+                            <Skeleton class="h-5 w-[180px]" />
+                            <Skeleton class="h-4 w-[120px]" />
+                        </div>
+                    </Card.Header>
+                    <Card.Content class="flex justify-end pb-4 pt-1">
+                        <Skeleton class="h-9 w-[120px]" />
+                    </Card.Content>
+                </Card.Root>
+            {/each}
         </div>
     {:else if campaigns.length === 0}
         <Card.Root class="py-16 text-center">
