@@ -96,11 +96,15 @@
         <Button
           variant="outline"
           class="rounded-full h-11 px-8 font-bold shadow-sm"
+          href="/docs/api"
           >View API Spec</Button
         >
         <Button
           variant="ghost"
           class="rounded-full h-11 px-8 font-bold group text-muted-foreground hover:text-primary"
+          href="https://github.com/MuhibNayem/Survey-Engine"
+          target="_blank"
+          rel="noreferrer"
         >
           GitHub Repos
           <ChevronRight
@@ -166,7 +170,7 @@
             </div>
           </div>
           {#if activeTab === "typescript"}
-            <div class="space-y-6">
+            <div class="flex flex-col gap-6">
               <SimpleCodeBlock
                 language="bash"
                 code={`npm install @survey-engine/sdk --save`}
@@ -183,7 +187,7 @@ const client = new ApiClient(config);`}
               />
             </div>
           {:else if activeTab === "java"}
-            <div class="space-y-6">
+            <div class="flex flex-col gap-6">
               <SimpleCodeBlock
                 language="bash"
                 code={`<!-- Maven -->
@@ -1540,40 +1544,41 @@ api.submit_response(response_submission_request=ResponseSubmissionRequest(
       </div>
     </section>
 
-    <!-- Management & Locking Section -->
-    <section id="management" class="space-y-12 pt-16 border-t border-border/20">
+    <!-- Response Operations Section -->
+    <section id="response-ops" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
-          <Lock class="w-10 h-10" />
+          <ListOrdered class="w-10 h-10" />
           <h2 class="text-4xl font-bold tracking-tight">
-            Management & Locking
+            Response Operations
           </h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Maintain operational control over captured data. The Management
-          service provides administrative overrides for response sessions,
-          enabling granular locking, reopening, and deletion of research assets.
+          Operational control over individual response assets. Monitor lifecycle
+          transitions, perform administrative overrides, and query participation
+          metadata for operational excellence.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
         <div class="space-y-12">
           <div class="space-y-4">
             <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
-              1. Session Governance
+              1. Search & Retrieval
             </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Lock specific response IDs once they have passed quality control.
-              Locked responses are protected from mutation and marked as
-              "immutable" for downstream audits.
+              Locate specific response records by campaign or identifier. Fetch
+              full answer details including respondent IPs, browser metadata,
+              and category-level scoring breakdowns.
             </p>
           </div>
           <div class="space-y-4 pt-12">
             <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
-              2. Data Erasure
+              2. Governance Toggles
             </h3>
-            <p class="text-muted-foreground leading-relaxed italic">
-              Complies with global data protection regulations. Soft-deletion
-              and permanent purging mechanisms are available per tenant.
+            <p class="text-muted-foreground leading-relaxed">
+              Protect or reopen data assets. Locked responses are immutable for
+              audits, while reopening allows for corrections with a mandatory
+              reason trail.
             </p>
           </div>
         </div>
@@ -1585,7 +1590,7 @@ api.submit_response(response_submission_request=ResponseSubmissionRequest(
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
-              >{activeTab} Management API</span
+              >{activeTab} Response Ops API</span
             >
           </div>
           {#if activeTab === "typescript"}
@@ -1594,14 +1599,20 @@ api.submit_response(response_submission_request=ResponseSubmissionRequest(
                 language="typescript"
                 code={`import { ResponsesApi } from '@survey-engine/sdk';
 
-const mgmtApi = new ResponsesApi(config);
+const respApi = new ResponsesApi(config);
 
-// Locking
-await mgmtApi.lockResponse({ id: "RES_001" });
-await mgmtApi.reopenResponse({ id: "RES_001" });
+// 1. List & Get
+const list = await respApi.listResponsesByCampaign({ 
+  campaignId: "CAMP-UUID" 
+});
+const detail = await respApi.getResponse({ id: list[0].id });
 
-// Removal
-await mgmtApi.deleteResponse({ id: "RES_999" });`}
+// 2. Lifecycle Control
+await respApi.lockResponse({ id: detail.id });
+await respApi.reopenResponse({ 
+  id: detail.id, 
+  reopenRequest: { reason: "Data correction required" } 
+});`}
               />
             </div>
           {:else if activeTab === "java"}
@@ -1609,26 +1620,37 @@ await mgmtApi.deleteResponse({ id: "RES_999" });`}
               <SimpleCodeBlock
                 language="java"
                 code={`import org.openapitools.client.api.ResponsesApi;
+import org.openapitools.client.model.SurveyResponseResponse;
+import org.openapitools.client.model.ReopenRequest;
 import java.util.UUID;
+import java.util.List;
 
 ResponsesApi api = new ResponsesApi(client);
 
-// Locking
-api.lockResponse(UUID.fromString("..."));
+// 1. List
+List<SurveyResponseResponse> list = api.listResponsesByCampaign(UUID.fromString("..."));
 
-// Removal
-api.deleteResponse(UUID.fromString("..."));`}
+// 2. Control
+api.lockResponse(list.get(0).getId());
+api.reopenResponse(list.get(0).getId(), new ReopenRequest().reason("Audit fix"));`}
               />
             </div>
           {:else if activeTab === "go"}
             <div class="space-y-6">
               <SimpleCodeBlock
                 language="go"
-                code={`// Locking
-client.ResponsesAPI.LockResponse(ctx, "RES_ID").Execute()
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
 
-// Removal
-client.ResponsesAPI.DeleteResponse(ctx, "RES_ID").Execute()`}
+// 1. List
+resps, _, _ := client.ResponsesAPI.ListResponsesByCampaign(ctx, "CAMP-ID").Execute()
+
+// 2. Lock
+client.ResponsesAPI.LockResponse(ctx, resps[0].Id).Execute()
+
+// 3. Reopen
+req := sdk.ReopenRequest{Reason: "Operational correction"}
+client.ResponsesAPI.ReopenResponse(ctx, resps[0].Id).
+    ReopenRequest(req).Execute()`}
               />
             </div>
           {:else if activeTab === "python"}
@@ -1636,14 +1658,16 @@ client.ResponsesAPI.DeleteResponse(ctx, "RES_ID").Execute()`}
               <SimpleCodeBlock
                 language="python"
                 code={`from openapi_client.api.responses_api import ResponsesApi
+from openapi_client.models.reopen_request import ReopenRequest
 
 api = ResponsesApi(client)
 
-# Locking
-api.lock_response(id="RES_ID")
+# 1. Search
+resps = api.list_responses_by_campaign(campaign_id="...")
 
-# Removal
-api.delete_response(id="RES_ID")`}
+# 2. Mutate
+api.lock_response(id=resps[0].id)
+api.reopen_response(id=resps[0].id, reopen_request=ReopenRequest(reason="..."))`}
               />
             </div>
           {/if}
@@ -1931,39 +1955,39 @@ report = api.get_full_report(campaign_id="CAMP-UUID")`}
       </div>
     </section>
 
-    <!-- System Governance Section -->
-    <section id="governance" class="space-y-12 pt-16 border-t border-border/20">
+    <!-- Compliance Auditing Section -->
+    <section id="compliance" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
-          <ShieldAlert class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">System Governance</h2>
+          <History class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">Compliance Auditing</h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          The Governance & Audit services provide enterprise-level visibility.
-          Platform operators and tenant admins can monitor security events,
-          manage technical debt via deactivations, and oversee tenant isolation.
+          Access high-fidelity audit trails for regulatory compliance and
+          forensics. The Audit service tracks every administrative mutation,
+          security event, and data access pattern with full actor traceability.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
         <div class="space-y-12">
           <div class="space-y-4">
             <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
-              1. Security Auditing
+              1. Tenant Activity Logs
             </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Access high-fidelity audit trails. Track administrative actions,
-              user creation, plan modifications, and data access for compliance
-              forensics.
+              Query actions performed within the current tenant scope. Filter by
+              actor, date range, or action type (e.g., SURVEY_PUBLISHED, 
+              AUTH_PROFILE_ROTATED) to maintain a transparent record of change.
             </p>
           </div>
           <div class="space-y-4 pt-12">
             <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
-              2. Administrative Operations
+              2. Platform-Wide Forensics
             </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Manage platform-wide health. Admins can perform tenant suspension,
-              audit log exports, and global configuration governed by the
-              `SuperAdmin` policy.
+              Super-admin level access to cross-tenant event streams. Vital for
+              cross-platform investigations and global security monitoring
+              sessions.
             </p>
           </div>
         </div>
@@ -1975,23 +1999,27 @@ report = api.get_full_report(campaign_id="CAMP-UUID")`}
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
-              >{activeTab} Governance API</span
+              >{activeTab} Compliance API</span
             >
           </div>
           {#if activeTab === "typescript"}
             <div class="space-y-6">
               <SimpleCodeBlock
                 language="typescript"
-                code={`import { AuditLogsApi, SuperAdminApi } from '@survey-engine/sdk';
+                code={`import { AuditLogsApi } from '@survey-engine/sdk';
 
 const auditApi = new AuditLogsApi(config);
-const superApi = new SuperAdminApi(config);
 
-// Audit Logs
-const logs = await auditApi.getTenantAuditLogs({ page: 0 });
+// Current Tenant Logs
+const logs = await auditApi.getTenantAuditLogs({ 
+  page: 0, 
+  size: 50 
+});
 
-// Super Admin Mutation
-await superApi.suspendTenant({ id: "..." });`}
+// Platform Logs (Super Admin)
+const platformLogs = await auditApi.getPlatformAuditLogs({ 
+  action: "TENANT_SUSPENDED" 
+});`}
               />
             </div>
           {:else if activeTab === "java"}
@@ -1999,27 +2027,30 @@ await superApi.suspendTenant({ id: "..." });`}
               <SimpleCodeBlock
                 language="java"
                 code={`import org.openapitools.client.api.AuditLogsApi;
-import org.openapitools.client.api.SuperAdminApi;
+import org.openapitools.client.model.PageAuditLogResponse;
 
-AuditLogsApi audit = new AuditLogsApi(client);
-SuperAdminApi admin = new SuperAdminApi(client);
+AuditLogsApi api = new AuditLogsApi(client);
 
-// Audit Logs
-audit.getTenantAuditLogs(0, 100, "CREATED_AT:DESC");
+// Tenant logs
+PageAuditLogResponse logs = api.getTenantAuditLogs(0, 50, "CREATED_AT:DESC");
 
-// Super Admin
-admin.suspendTenant("TENANT-X");`}
+// Platform logs
+api.getPlatformAuditLogs(0, 10, "LOGIN", null, "TENANT_ID", null, null, null);`}
               />
             </div>
           {:else if activeTab === "go"}
             <div class="space-y-6">
               <SimpleCodeBlock
                 language="go"
-                code={`// Audit Logs
-logs, _, _ := client.AuditLogsAPI.GetTenantAuditLogs(ctx).Execute()
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
 
-// Super Admin
-client.SuperAdminAPI.SuspendTenant(ctx, "TENANT_ID").Execute()`}
+// Tenant logs
+logs, _, _ := client.AuditLogsAPI.GetTenantAuditLogs(ctx).
+    Page(0).Size(50).Execute()
+
+// Platform logs
+platform, _, _ := client.AuditLogsAPI.GetPlatformAuditLogs(ctx).
+    Action("USER_LOGIN").Execute()`}
               />
             </div>
           {:else if activeTab === "python"}
@@ -2027,16 +2058,137 @@ client.SuperAdminAPI.SuspendTenant(ctx, "TENANT_ID").Execute()`}
               <SimpleCodeBlock
                 language="python"
                 code={`from openapi_client.api.audit_logs_api import AuditLogsApi
-from openapi_client.api.super_admin_api import SuperAdminApi
 
-audit = AuditLogsApi(client)
-admin = SuperAdminApi(client)
+api = AuditLogsApi(client)
 
-# Audit logs
-logs = audit.get_tenant_audit_logs(page=0)
+# Queries
+logs = api.get_tenant_audit_logs(page=0, size=20)
+platform = api.get_platform_audit_logs(action="DELETE")`}
+              />
+            </div>
+          {/if}
+        </div>
+      </div>
+    </section>
 
-# Operations
-admin.suspend_tenant(id="T-001")`}
+    <!-- Platform Governance Section -->
+    <section id="platform-admin" class="space-y-12 pt-16 border-t border-border/20">
+      <div class="space-y-4">
+        <div class="flex items-center gap-3 text-primary">
+          <ShieldAlert class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">Platform Governance</h2>
+        </div>
+        <p class="text-muted-foreground text-lg leading-relaxed">
+          Platform-level orchestration for Super Administrators. Manage the
+          full multi-tenant ecosystem, monitor global health metrics, and
+          oversee commercial entitlements.
+        </p>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-12">
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Tenant Lifecycle (SA)
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Suspend or reactivate tenants based on commercial state or policy
+              violations. Impersonate tenant admin contexts for white-glove
+              support and troubleshooting.
+            </p>
+          </div>
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Commercial Overrides
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Modify subscription boundaries manually. Grant custom trial periods
+              or override plan features for specific high-value tenants.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} SuperAdmin API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { SuperAdminApi } from '@survey-engine/sdk';
+
+const superApi = new SuperAdminApi(config);
+
+// 1. Control
+await superApi.suspendTenant({ id: "TENANT_UUID" });
+
+// 2. Impersonate
+const context = await superApi.impersonateTenant({ id: "TENANT_UUID" });
+
+// 3. Entitlement Override
+await superApi.overrideTenantSubscription({
+  tenantId: "TENANT_UUID",
+  overrideSubscriptionRequest: { planCode: "ENTERPRISE_CUSTOM" }
+});`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.SuperAdminApi;
+import org.openapitools.client.model.OverrideSubscriptionRequest;
+
+SuperAdminApi api = new SuperAdminApi(client);
+
+// 1. Suspension
+api.suspendTenant("T-UUID");
+
+// 2. Subscription Override
+api.overrideTenantSubscription("T-UUID", new OverrideSubscriptionRequest()
+    .planCode("CUSTOM_VIP"));`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// 1. Lifecycle
+client.SuperAdminAPI.SuspendTenant(ctx, "T1").Execute()
+
+// 2. Impersonate
+admin, _, _ := client.SuperAdminAPI.ImpersonateTenant(ctx, "T1").Execute()
+
+// 3. Override
+ovr := sdk.OverrideSubscriptionRequest{PlanCode: "PRO_MAX"}
+client.SuperAdminAPI.OverrideTenantSubscription(ctx, "T1").
+    OverrideSubscriptionRequest(ovr).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.super_admin_api import SuperAdminApi
+from openapi_client.models.override_subscription_request import OverrideSubscriptionRequest
+
+api = SuperAdminApi(client)
+
+# Orchestration
+api.suspend_tenant(id="T1")
+api.impersonate_tenant(id="T1")
+api.override_tenant_subscription(
+    tenant_id="T1", 
+    override_subscription_request=OverrideSubscriptionRequest(plan_code="...")
+)`}
               />
             </div>
           {/if}
