@@ -18,9 +18,27 @@
 	let copied = $state(false);
 
 	function copyCode() {
-		navigator.clipboard.writeText(code);
-		copied = true;
-		setTimeout(() => (copied = false), 2000);
+		if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+			navigator.clipboard.writeText(code).then(() => {
+				copied = true;
+				setTimeout(() => (copied = false), 2000);
+			});
+			return;
+		}
+
+		if (typeof document !== 'undefined') {
+			const textarea = document.createElement('textarea');
+			textarea.value = code;
+			textarea.setAttribute('readonly', '');
+			textarea.style.position = 'absolute';
+			textarea.style.left = '-9999px';
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+			copied = true;
+			setTimeout(() => (copied = false), 2000);
+		}
 	}
 </script>
 

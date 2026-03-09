@@ -55,9 +55,30 @@
 	};
 
 	function copyEndpoint() {
-		navigator.clipboard.writeText(`${method} ${endpoint}`);
-		copied = true;
-		setTimeout(() => (copied = false), 2000);
+		const text = `${method} ${endpoint}`;
+
+		// Clipboard API is not available in some browsers/contexts.
+		if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+			navigator.clipboard.writeText(text).then(() => {
+				copied = true;
+				setTimeout(() => (copied = false), 2000);
+			});
+			return;
+		}
+
+		if (typeof document !== 'undefined') {
+			const textarea = document.createElement('textarea');
+			textarea.value = text;
+			textarea.setAttribute('readonly', '');
+			textarea.style.position = 'absolute';
+			textarea.style.left = '-9999px';
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+			copied = true;
+			setTimeout(() => (copied = false), 2000);
+		}
 	}
 
 	function toggleExpand() {
