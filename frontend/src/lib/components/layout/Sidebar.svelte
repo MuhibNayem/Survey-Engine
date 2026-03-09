@@ -18,6 +18,8 @@
     import * as Tooltip from "$lib/components/ui/tooltip";
     import { auth } from "$lib/stores/auth.svelte";
 
+    import logo from "$lib/assets/logo.png";
+
     interface Props {
         collapsed?: boolean;
     }
@@ -59,20 +61,14 @@
         <div class="flex h-16 items-center border-b border-sidebar-border px-4">
             {#if !collapsed}
                 <div class="flex items-center gap-2">
-                    <div
-                        class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold"
-                    >
-                        SE
-                    </div>
+                    <img src={logo} alt="Survey Engine Logo" class="h-8 w-8 object-contain" />
                     <span class="text-lg font-semibold text-sidebar-foreground"
                         >Survey Engine</span
-                    >
+                     >
                 </div>
             {:else}
-                <div
-                    class="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold"
-                >
-                    SE
+                <div class="mx-auto">
+                    <img src={logo} alt="SE" class="h-8 w-8 object-contain" />
                 </div>
             {/if}
         </div>

@@ -6,6 +6,7 @@
     import api from "$lib/api";
     import type { PlanDefinitionResponse } from "$lib/types";
     import { onMount } from "svelte";
+    import logo from "$lib/assets/logo.png";
 
     let apiPlans = $state<PlanDefinitionResponse[]>([]);
     let loading = $state(true);
@@ -235,11 +236,7 @@
                     <ArrowLeft class="h-5 w-5" />
                 </Button>
                 <a href="/" class="flex items-center gap-3 group">
-                    <div
-                        class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-600 shadow-lg shadow-primary/20 text-primary-foreground text-sm font-bold transition-transform group-hover:scale-105 duration-300"
-                    >
-                        SE
-                    </div>
+                    <img src={logo} alt="SE" class="h-9 w-9 object-contain group-hover:scale-105 transition-transform duration-300" />
                     <span
                         class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 hidden sm:block tracking-tight"
                         >Survey Engine</span

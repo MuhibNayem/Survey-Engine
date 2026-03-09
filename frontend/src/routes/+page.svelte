@@ -19,6 +19,8 @@
         ChevronRight,
     } from "lucide-svelte";
 
+    import logo from "$lib/assets/logo.png";
+
     onMount(() => {
         if (auth.isAuthenticated) {
             if (auth.user?.role === "SUPER_ADMIN") {
@@ -156,11 +158,7 @@
         class="relative z-10 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto lg:px-8"
     >
         <div class="flex items-center gap-2">
-            <div
-                class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold"
-            >
-                SE
-            </div>
+            <img src={logo} alt="SE" class="h-9 w-9 object-contain" />
             <span class="text-xl font-bold text-foreground">Survey Engine</span>
         </div>
         <div class="flex items-center gap-3">
@@ -353,11 +351,7 @@
             class="flex flex-col md:flex-row items-center justify-between gap-4"
         >
             <div class="flex items-center gap-2">
-                <div
-                    class="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold"
-                >
-                    SE
-                </div>
+                <img src={logo} alt="SE" class="h-7 w-7 object-contain" />
                 <span class="font-semibold text-foreground">Survey Engine</span>
             </div>
             <div class="flex items-center gap-6 text-sm text-muted-foreground">

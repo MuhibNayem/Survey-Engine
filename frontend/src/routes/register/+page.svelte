@@ -6,6 +6,7 @@
     import { Label } from "$lib/components/ui/label";
     import * as Card from "$lib/components/ui/card";
     import { UserPlus, ArrowLeft } from "lucide-svelte";
+    import logo from "$lib/assets/logo.png";
     import { z } from "zod";
 
     const registerSchema = z
@@ -191,10 +192,8 @@
     <div class="w-full max-w-md">
         <!-- Brand -->
         <div class="mb-8 text-center">
-            <div
-                class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-xl font-bold shadow-lg"
-            >
-                SE
+            <div class="mx-auto mb-4">
+                <img src={logo} alt="SE" class="mx-auto h-14 w-14 object-contain shadow-lg rounded-2xl" />
             </div>
             <h1 class="text-2xl font-bold text-foreground">
                 Create your account
