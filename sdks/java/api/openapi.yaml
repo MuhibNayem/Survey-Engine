@@ -1,0 +1,4967 @@
+openapi: 3.1.0
+info:
+  description: |
+    Comprehensive API contract for the Survey Engine MVP.
+
+    This specification is written for product, implementation, and integration teams.
+    Every endpoint description intentionally includes:
+    1) why the endpoint is needed,
+    2) what the endpoint does,
+    3) how the endpoint works inside the platform lifecycle.
+
+    Security model summary:
+    - Admin APIs accept engine-issued JWT via HttpOnly access_token cookie (primary) or Bearer header (fallback).
+    - Headless clients can use explicit token-mode auth endpoints under /api/v1/admin/auth/token/*.
+    - Admin sessions are maintained with refresh-token cookie rotation.
+    - Browser cookie mode exposes CSRF bootstrap endpoint at /api/v1/admin/auth/csrf.
+    - Responder submission endpoint is public at transport level, but private campaigns enforce tenant-scoped responder authentication in business logic.
+  title: Survey Engine MVP API
+  version: 1.1.0
+servers:
+- description: Same-origin deployment
+  url: /
+security:
+- bearerAuth: []
+tags:
+- description: "Register, login, and refresh token operations for tenant administrators."
+  name: Admin Authentication
+- description: Tenant subscription visibility and checkout operations.
+  name: Subscription
+- description: Plan listing and super-admin plan governance endpoints.
+  name: Plan Catalog
+- description: Question bank lifecycle endpoints.
+  name: Questions
+- description: Category lifecycle endpoints and question grouping.
+  name: Categories
+- description: Survey authoring and lifecycle transition endpoints.
+  name: Surveys
+- description: "Campaign setup, settings, activation, and distribution endpoints."
+  name: Campaigns
+- description: Tenant responder-auth configuration and diagnostics endpoints.
+  name: Auth Profiles
+- description: Private responder OIDC start and callback endpoints.
+  name: OIDC Respondent Flow
+- description: "Response submission, lock/reopen workflow, and campaign analytics\
+    \ endpoints."
+  name: Responses
+- description: Weight profile lifecycle and score calculation endpoints.
+  name: Scoring
+- description: "Platform-level tenant administration, impersonation, and metrics endpoints."
+  name: Super Admin
+- description: Tenant-scoped and platform-scoped activity log retrieval endpoints.
+  name: Audit Logs
+paths:
+  /api/v1/admin/auth/register:
+    post:
+      description: |
+        Why this endpoint is needed:
+        A brand-new subscriber needs a secure, first-class admin identity to operate the platform. Without this endpoint,
+        onboarding would require manual platform-team intervention and would break self-service SaaS adoption.
+
+        What this endpoint does:
+        It creates the first admin user for a tenant, ensures tenant provisioning exists, ensures a trial subscription exists,
+        sets access/refresh tokens as HttpOnly cookies, and returns safe user context in response body.
+
+        How this endpoint does it:
+        The service validates uniqueness of email, provisions tenant records when necessary, enforces admin-user quota policy,
+        stores password hash securely, issues an engine-signed JWT access token, creates a refresh token row, and controller
+        writes both tokens into secure cookies before returning AuthUserResponse.
+      operationId: registerAdmin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+          description: Admin account created and authenticated session returned
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+      security: []
+      summary: Register a tenant admin account and bootstrap tenant access
+      tags:
+      - Admin Authentication
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/login:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Admin operators need a secure login path to start authenticated management sessions for tenant resources.
+
+        What this endpoint does:
+        It authenticates the admin using email/password, revokes prior refresh tokens for session hygiene, and issues
+        a fresh access token plus a new refresh token as HttpOnly cookies.
+
+        How this endpoint does it:
+        The service verifies account status and password hash, rotates refresh-token state to avoid stale session reuse,
+        and controller writes cookies while returning safe user context payload.
+      operationId: loginAdmin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+          description: Login successful and new auth cookies issued
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Log in an existing admin and issue fresh auth cookies
+      tags:
+      - Admin Authentication
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/refresh:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Access tokens are intentionally short-lived. A secure refresh mechanism is required to keep admins signed in
+        without repeatedly collecting credentials.
+
+        What this endpoint does:
+        It reads refresh token from HttpOnly cookie, validates it, rotates token state, and sets fresh access/refresh cookies.
+
+        How this endpoint does it:
+        Controller extracts refresh_token cookie, service validates persistence state (including expiry/revocation),
+        applies one-time-use rotation semantics, and controller rewrites secure cookies.
+      operationId: refreshAdminToken
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+          description: Cookie rotation successful
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Rotate refresh cookie and issue a new admin session
+      tags:
+      - Admin Authentication
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/logout:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Sessions must support explicit and secure sign-out to prevent lingering browser-side authentication state.
+
+        What this endpoint does:
+        It clears access_token and refresh_token cookies.
+
+        How this endpoint does it:
+        Controller writes both token cookies with maxAge=0, path=/, HttpOnly/Secure attributes.
+      operationId: logoutAdmin
+      responses:
+        "204":
+          description: Logout completed and cookies cleared
+      security: []
+      summary: Clear admin auth cookies
+      tags:
+      - Admin Authentication
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/me:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Frontend needs a lightweight session-hydration endpoint after reload to confirm authentication and tenant context.
+
+        What this endpoint does:
+        It returns current authenticated user's profile details (no tokens).
+
+        How this endpoint does it:
+        JWT filter populates security/tenant context from cookie or bearer token, and controller maps context to response DTO.
+      operationId: getCurrentAdmin
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+          description: Current admin profile returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Retrieve current authenticated admin profile
+      tags:
+      - Admin Authentication
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/csrf:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Browser-based admin sessions use HttpOnly auth cookies and require CSRF token submission for state-changing requests.
+
+        What this endpoint does:
+        It returns the current CSRF token value and ensures CSRF cookie state is initialized for the caller.
+
+        How this endpoint does it:
+        Spring Security creates/loads token via cookie token repository, controller returns it as a simple JSON payload.
+      operationId: getCsrfToken
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfTokenResponse"
+          description: CSRF token returned
+      security: []
+      summary: Get CSRF token for browser cookie session mode
+      tags:
+      - Admin Authentication
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/token/register:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Headless/API clients cannot reliably consume browser cookie flows and need explicit token payloads.
+
+        What this endpoint does:
+        It performs the same registration flow as cookie mode but returns access/refresh tokens directly in response body.
+
+        How this endpoint does it:
+        Service runs standard tenant bootstrap/registration pipeline and controller returns AuthResponse without writing cookies.
+      operationId: registerAdminTokenMode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          description: Admin registered and token payload returned
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+      security: []
+      summary: Register admin in headless token mode
+      tags:
+      - Admin Authentication
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/token/login:
+    post:
+      description: |
+        Why this endpoint is needed:
+        API clients and external automation flows need explicit JWT credentials in response body.
+
+        What this endpoint does:
+        It authenticates admin credentials and returns fresh access/refresh tokens directly in payload.
+
+        How this endpoint does it:
+        Service validates credentials, rotates refresh-token state, and controller returns AuthResponse DTO.
+      operationId: loginAdminTokenMode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          description: Login successful and token payload returned
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Log in admin in headless token mode
+      tags:
+      - Admin Authentication
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/token/refresh:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Headless integrations need refresh-token rotation without cookie transport.
+
+        What this endpoint does:
+        It validates provided refresh token and returns a rotated access/refresh token pair.
+
+        How this endpoint does it:
+        Controller accepts RefreshTokenRequest payload and delegates to refresh-token rotation service.
+      operationId: refreshAdminTokenMode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          description: Token rotation successful
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      security: []
+      summary: Refresh session in headless token mode
+      tags:
+      - Admin Authentication
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/admin/auth/revert-impersonation:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Super-admin support sessions must safely return from tenant impersonation to original privileged context.
+
+        What this endpoint does:
+        It restores stashed super-admin auth cookies and clears temporary impersonation cookies.
+
+        How this endpoint does it:
+        Cookie utility reads stashed `sa_*` cookies, rewrites primary auth cookies, and clears impersonation artifacts.
+      operationId: revertImpersonation
+      responses:
+        "200":
+          description: Impersonation context reverted
+      security: []
+      summary: Restore original super-admin cookies after impersonation
+      tags:
+      - Admin Authentication
+      x-accepts:
+      - application/json
+  /api/v1/admin/subscriptions/me:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Tenant operators must understand their active entitlement before launching campaigns or scaling usage.
+
+        What this endpoint does:
+        It returns the authenticated tenant's current subscription record, including plan, status, billing period,
+        quota limits, and latest payment reference.
+
+        How this endpoint does it:
+        Tenant context is extracted from admin JWT claims, then subscription and plan metadata are joined and mapped into
+        a SubscriptionResponse object for a single, dashboard-friendly read.
+      operationId: getMySubscription
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionResponse"
+          description: Subscription details returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "402":
+          $ref: "#/components/responses/PaymentRequiredError"
+      summary: Get current tenant subscription details
+      tags:
+      - Subscription
+      x-accepts:
+      - application/json
+  /api/v1/admin/subscriptions/checkout:
+    post:
+      description: |
+        Why this endpoint is needed:
+        SaaS tenants need a direct API path to activate or upgrade plans without out-of-band support workflows.
+
+        What this endpoint does:
+        It takes the requested plan, executes the checkout flow (mock success in MVP), updates subscription status,
+        records payment transaction metadata, and returns updated subscription state.
+
+        How this endpoint does it:
+        The service uses authenticated tenant context, validates requested plan existence, executes payment gateway abstraction,
+        persists subscription changes and payment reference details, and returns normalized quota-aware response fields.
+      operationId: checkoutSubscription
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscribeRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionResponse"
+          description: Subscription activated or updated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Start or change tenant subscription plan
+      tags:
+      - Subscription
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/admin/plans:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Tenants and platform operators both need a canonical list of active plans with limits and pricing attributes.
+
+        What this endpoint does:
+        It returns all active plan definitions including quota constraints such as maximum campaigns,
+        max responses per campaign, and max admin users.
+
+        How this endpoint does it:
+        The plan catalog service reads persistent plan definition rows, filters active plans, maps entities to API DTOs,
+        and returns a list suitable for onboarding forms and pricing pages.
+      operationId: listPlans
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/PlanDefinitionResponse"
+                type: array
+          description: Active plans returned
+      security: []
+      summary: List active plan definitions
+      tags:
+      - Plan Catalog
+      x-accepts:
+      - application/json
+    put:
+      description: |
+        Why this endpoint is needed:
+        Plan governance must evolve over time as business strategy changes. A controlled mutation endpoint is needed
+        for super administrators to adjust commercial limits safely.
+
+        What this endpoint does:
+        It inserts or updates a plan definition, including display metadata, billing-cycle metadata, and quota parameters.
+
+        How this endpoint does it:
+        The endpoint is protected by super-admin role checks, validates request constraints,
+        persists the plan catalog mutation, and returns the resulting plan definition used by runtime quota enforcement.
+      operationId: upsertPlan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanDefinitionRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanDefinitionResponse"
+          description: Plan upsert completed
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+      summary: Create or update a plan definition (SUPER_ADMIN)
+      tags:
+      - Plan Catalog
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/admin/superadmin/metrics:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Platform operators require fast, aggregate visibility into tenant and subscription health.
+
+        What this endpoint does:
+        It returns key platform counters such as total tenants, active subscriptions, and aggregate usage.
+
+        How this endpoint does it:
+        Super-admin service aggregates metrics from tenant/subscription/usage stores and maps them to response DTO.
+      operationId: getSuperAdminMetrics
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuperAdminMetricsResponse"
+          description: Platform metrics returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+      summary: Retrieve platform-level metrics snapshot
+      tags:
+      - Super Admin
+      x-accepts:
+      - application/json
+  /api/v1/admin/superadmin/tenants:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Super-admin workflows require tenant inventory with billing and active-state context for support and governance.
+
+        What this endpoint does:
+        It returns paged tenant overview data including subscription plan and activity state.
+
+        How this endpoint does it:
+        Tenant-admin service queries tenant/subscription aggregates and returns Spring Data paged response structure.
+      operationId: listTenantsForSuperAdmin
+      parameters:
+      - explode: true
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: size
+        required: false
+        schema:
+          default: 20
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageTenantOverviewResponse"
+          description: Tenant page returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+      summary: List tenants with subscription and status overview
+      tags:
+      - Super Admin
+      x-accepts:
+      - application/json
+  /api/v1/admin/superadmin/tenants/metrics:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Some super-admin UI bundles consume tenant-admin namespace for platform metrics.
+
+        What this endpoint does:
+        It returns the same platform metrics payload as `/api/v1/admin/superadmin/metrics`.
+
+        How this endpoint does it:
+        Controller delegates to the same metrics service used by primary super-admin metrics endpoint.
+      operationId: getTenantAdminMetrics
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuperAdminMetricsResponse"
+          description: Platform metrics returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+      summary: Retrieve platform metrics via tenant-admin namespace
+      tags:
+      - Super Admin
+      x-accepts:
+      - application/json
+  /api/v1/admin/superadmin/tenants/{tenantId}/suspend:
+    put:
+      operationId: suspendTenant
+      parameters:
+      - explode: false
+        in: path
+        name: tenantId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Tenant suspended
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Suspend a tenant
+      tags:
+      - Super Admin
+      x-accepts:
+      - application/json
+  /api/v1/admin/superadmin/tenants/{tenantId}/activate:
+    put:
+      operationId: activateTenant
+      parameters:
+      - explode: false
+        in: path
+        name: tenantId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Tenant activated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Activate a tenant
+      tags:
+      - Super Admin
+      x-accepts:
+      - application/json
+  /api/v1/admin/superadmin/tenants/{tenantId}/impersonate:
+    post:
+      operationId: impersonateTenant
+      parameters:
+      - explode: false
+        in: path
+        name: tenantId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+          description: Impersonation session created
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Impersonate a tenant admin context
+      tags:
+      - Super Admin
+      x-accepts:
+      - application/json
+  /api/v1/admin/superadmin/tenants/{tenantId}/subscriptions/override:
+    post:
+      operationId: overrideTenantSubscription
+      parameters:
+      - explode: false
+        in: path
+        name: tenantId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OverrideSubscriptionRequest"
+        required: true
+      responses:
+        "204":
+          description: Subscription override applied
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Override tenant subscription plan as super admin
+      tags:
+      - Super Admin
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/questions:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Authoring UIs require fast retrieval of available question inventory during survey design.
+
+        What this endpoint does:
+        It returns active, tenant-scoped question records currently available for composition.
+
+        How this endpoint does it:
+        The question service uses tenant-aware repository filtering and maps entity rows into response DTOs for list rendering.
+      operationId: listQuestions
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/QuestionResponse"
+                type: array
+          description: Active questions returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: List active questions for current tenant
+      tags:
+      - Questions
+      x-accepts:
+      - application/json
+    post:
+      description: |
+        Why this endpoint is needed:
+        The question bank is the foundation of reusable survey content. Teams need a way to add standardized question assets
+        once and reuse them across many surveys.
+
+        What this endpoint does:
+        It creates a question with text, type, and scoring metadata and stores version context used by downstream snapshots.
+
+        How this endpoint does it:
+        The service validates required fields and max score constraints, applies tenant scoping from auth context,
+        persists the question entity, and returns a QuestionResponse containing metadata and version pointers.
+      operationId: createQuestion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionResponse"
+          description: Question created
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Create a reusable question
+      tags:
+      - Questions
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/questions/{id}:
+    delete:
+      description: |
+        Why this endpoint is needed:
+        Historical integrity is important, so hard-deletes are avoided while obsolete questions must be removed from active authoring lists.
+
+        What this endpoint does:
+        It marks the target question as inactive.
+
+        How this endpoint does it:
+        The service resolves the question by tenant context, updates active status, and returns no-content on success.
+      operationId: deactivateQuestion
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "204":
+          description: Question deactivated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Deactivate a question
+      tags:
+      - Questions
+      x-accepts:
+      - application/json
+    get:
+      description: |
+        Why this endpoint is needed:
+        Detailed question retrieval is required for edit forms, review pages, and diagnostics.
+
+        What this endpoint does:
+        It returns one question record by identifier under tenant access control.
+
+        How this endpoint does it:
+        The service resolves the record by ID with tenant-scoped checks and maps the result to a QuestionResponse DTO.
+      operationId: getQuestion
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionResponse"
+          description: Question returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get one question by id
+      tags:
+      - Questions
+      x-accepts:
+      - application/json
+    put:
+      description: |
+        Why this endpoint is needed:
+        Content quality evolves over time and questions require controlled updates.
+
+        What this endpoint does:
+        It updates question fields and maintains version continuity used by snapshot-based references.
+
+        How this endpoint does it:
+        The service validates payload constraints, checks tenant ownership, persists changes, and returns updated question data.
+      operationId: updateQuestion
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionResponse"
+          description: Question updated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Update an existing question
+      tags:
+      - Questions
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/categories:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Authoring screens need category inventory for survey composition and weighting strategy.
+
+        What this endpoint does:
+        It returns active categories available in the authenticated tenant workspace.
+
+        How this endpoint does it:
+        The category service applies tenant filters and active-state filters, then maps entity results to response DTOs.
+      operationId: listCategories
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/CategoryResponse"
+                type: array
+          description: Categories returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: List active categories
+      tags:
+      - Categories
+      x-accepts:
+      - application/json
+    post:
+      description: |
+        Why this endpoint is needed:
+        Categories group question assets into business dimensions that support structure, analytics, and scoring design.
+
+        What this endpoint does:
+        It creates a category with optional question mappings and stores category metadata under tenant ownership.
+
+        How this endpoint does it:
+        The service validates category payloads, checks referenced question constraints where needed,
+        persists category + mappings, and returns CategoryResponse with mapping summaries.
+      operationId: createCategory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+          description: Category created
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Create a category grouping for questions
+      tags:
+      - Categories
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/categories/{id}:
+    delete:
+      description: |
+        Why this endpoint is needed:
+        Teams need to retire categories without deleting historical campaign and scoring references.
+
+        What this endpoint does:
+        It marks the category as inactive for future authoring while retaining historical records.
+
+        How this endpoint does it:
+        The service enforces tenant ownership, flips active status, and returns no content.
+      operationId: deactivateCategory
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "204":
+          description: Category deactivated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Deactivate a category
+      tags:
+      - Categories
+      x-accepts:
+      - application/json
+    get:
+      description: |
+        Why this endpoint is needed:
+        Category detail pages and editor forms need full mapping visibility.
+
+        What this endpoint does:
+        It returns a single category record including mapped-question metadata.
+
+        How this endpoint does it:
+        The service loads category and mapping state under tenant scope and returns a DTO optimized for UI consumption.
+      operationId: getCategory
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+          description: Category returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get one category by id
+      tags:
+      - Categories
+      x-accepts:
+      - application/json
+    put:
+      description: |
+        Why this endpoint is needed:
+        Category definitions and ordering can change as survey programs mature.
+
+        What this endpoint does:
+        It updates category metadata and mapped-question configuration.
+
+        How this endpoint does it:
+        Validation and tenant checks run first, then mapping set updates are persisted and reflected in the response DTO.
+      operationId: updateCategory
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+          description: Category updated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Update category and mappings
+      tags:
+      - Categories
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/surveys:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Admin dashboards require an overview of reusable survey assets and lifecycle states.
+
+        What this endpoint does:
+        It returns active surveys under current tenant scope.
+
+        How this endpoint does it:
+        Survey repository filters by tenant and active state, then maps records to response DTOs.
+      operationId: listSurveys
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/SurveyResponse"
+                type: array
+          description: Surveys returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: List active surveys
+      tags:
+      - Surveys
+      x-accepts:
+      - application/json
+    post:
+      description: |
+        Why this endpoint is needed:
+        Survey lifecycle begins with a draft container where structure can be assembled before publication.
+
+        What this endpoint does:
+        It creates a tenant-scoped survey draft with title, description, and page/question structure.
+
+        How this endpoint does it:
+        The service validates schema, persists draft state, and returns the survey representation including lifecycle status.
+      operationId: createSurvey
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponse"
+          description: Survey draft created
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Create a survey draft
+      tags:
+      - Surveys
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/surveys/{id}:
+    delete:
+      description: |
+        Why this endpoint is needed:
+        Organizations need to retire obsolete surveys without physically deleting historical references.
+
+        What this endpoint does:
+        It marks the survey inactive.
+
+        How this endpoint does it:
+        Tenant ownership is validated and active flag is disabled; endpoint returns no-content on success.
+      operationId: deactivateSurvey
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "204":
+          description: Survey deactivated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Deactivate a survey
+      tags:
+      - Surveys
+      x-accepts:
+      - application/json
+    get:
+      description: |
+        Why this endpoint is needed:
+        Teams need detailed survey context for editing, publishing decisions, and audits.
+
+        What this endpoint does:
+        It returns one survey including pages/questions and lifecycle metadata.
+
+        How this endpoint does it:
+        The service resolves survey by id and tenant, then maps nested structures into SurveyResponse.
+      operationId: getSurvey
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponse"
+          description: Survey returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get one survey by id
+      tags:
+      - Surveys
+      x-accepts:
+      - application/json
+    put:
+      description: |
+        Why this endpoint is needed:
+        Draft surveys evolve before publication and require iterative edits.
+
+        What this endpoint does:
+        It updates survey details and structure when lifecycle rules allow modification.
+
+        How this endpoint does it:
+        The service validates immutability/lifecycle constraints, persists updates, and returns the updated survey.
+      operationId: updateSurvey
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponse"
+          description: Survey updated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+      summary: Update survey draft content
+      tags:
+      - Surveys
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/surveys/{id}/lifecycle:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Lifecycle transitions are a governance gate that prevents unsafe operations (for example activating campaigns from unpublished surveys).
+
+        What this endpoint does:
+        It applies a requested lifecycle transition (such as Draft->Published or Closed->Published with reason).
+
+        How this endpoint does it:
+        The service checks allowed transition matrix, validates transition requirements, updates lifecycle state,
+        and returns the updated survey representation.
+      operationId: transitionSurveyLifecycle
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LifecycleTransitionRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponse"
+          description: Lifecycle transition applied
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+      summary: Transition survey lifecycle state
+      tags:
+      - Surveys
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/campaigns:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Campaign operations teams need a dashboard view of active and manageable campaigns.
+
+        What this endpoint does:
+        It returns campaigns under authenticated tenant scope.
+
+        How this endpoint does it:
+        Campaign service executes tenant-scoped retrieval and response mapping.
+      operationId: listCampaigns
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/CampaignResponse"
+                type: array
+          description: Campaign list returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: List active campaigns
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+    post:
+      description: |
+        Why this endpoint is needed:
+        Campaigns are the executable delivery unit for collecting responses from a specific survey snapshot and runtime policy set.
+
+        What this endpoint does:
+        It creates a tenant-scoped campaign with name, survey binding, description, and access mode (PUBLIC/PRIVATE).
+
+        How this endpoint does it:
+        The service validates survey reference and tenant scope, normalizes deprecated auth mode values, persists campaign state,
+        and returns CampaignResponse.
+      operationId: createCampaign
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignResponse"
+          description: Campaign created
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Create a campaign from a survey
+      tags:
+      - Campaigns
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/campaigns/{id}:
+    delete:
+      description: |
+        Why this endpoint is needed:
+        Retiring campaign availability should not erase historical response evidence.
+
+        What this endpoint does:
+        It marks campaign inactive.
+
+        How this endpoint does it:
+        Tenant-scoped campaign lookup is followed by status/active-state mutation and no-content completion.
+      operationId: deactivateCampaign
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "204":
+          description: Campaign deactivated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Deactivate campaign
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+    get:
+      description: |
+        Why this endpoint is needed:
+        Campaign detail retrieval is required for settings updates, monitoring, and support troubleshooting.
+
+        What this endpoint does:
+        It returns one campaign record with current status and metadata.
+
+        How this endpoint does it:
+        The service resolves campaign by tenant and id and returns mapped DTO fields.
+      operationId: getCampaign
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignResponse"
+          description: Campaign returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get campaign by id
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+    put:
+      description: |
+        Why this endpoint is needed:
+        Campaigns require controlled edits to operational metadata and associations.
+
+        What this endpoint does:
+        It updates campaign request fields while preserving lifecycle constraints.
+
+        How this endpoint does it:
+        Service validates ownership and allowed update semantics, then persists and returns updated campaign data.
+      operationId: updateCampaign
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignResponse"
+          description: Campaign updated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Update campaign metadata
+      tags:
+      - Campaigns
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/campaigns/{id}/preview:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Campaign owners need a pre-launch visual/data validation endpoint to verify header/footer/questions and responder UX flags.
+
+        What this endpoint does:
+        It assembles campaign, survey, and settings into a responder-facing preview model for admin users.
+
+        How this endpoint does it:
+        Campaign service resolves campaign/settings/survey in tenant scope, maps each page/question with pinned version context,
+        and returns CampaignPreviewResponse.
+      operationId: getCampaignPreview
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignPreviewResponse"
+          description: Campaign preview returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get admin preview payload for a campaign
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+  /api/v1/campaigns/{id}/settings:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Operations and UI flows require a read endpoint for persisted runtime controls before edit/save cycles.
+
+        What this endpoint does:
+        It returns the current campaign settings object.
+
+        How this endpoint does it:
+        Campaign service validates tenant-scoped campaign visibility and returns mapped CampaignSettingsResponse.
+      operationId: getCampaignSettings
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignSettingsResponse"
+          description: Campaign settings returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get campaign runtime settings
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+    put:
+      description: |
+        Why this endpoint is needed:
+        Campaign runtime behavior (quota, timeout, restrictions, UI toggles, metadata capture) must be adjustable
+        independently from core campaign identity.
+
+        What this endpoint does:
+        It stores runtime policy controls that are enforced when responders submit answers.
+        If closeDate is set to now/past, open responses are auto-locked immediately.
+
+        How this endpoint does it:
+        The service loads target campaign by tenant, merges settings payload, persists state,
+        and returns updated campaign context.
+      operationId: updateCampaignSettings
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignSettingsRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignResponse"
+          description: Campaign settings updated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Update campaign runtime settings
+      tags:
+      - Campaigns
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/campaigns/{id}/activate:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Activation is a controlled launch gate. It prevents collecting responses from improperly prepared campaigns.
+
+        What this endpoint does:
+        It transitions a campaign into active state when preconditions pass, links latest survey snapshot,
+        and upserts campaign default weight profile from pinned category weights.
+
+        How this endpoint does it:
+        The service verifies linked survey lifecycle requirements (must be PUBLISHED), loads latest snapshot,
+        upserts default weight profile, updates campaign status to ACTIVE, and returns campaign response.
+      operationId: activateCampaign
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignResponse"
+          description: Campaign activated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+      summary: Activate campaign to accept responses
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+  /api/v1/campaigns/{id}/distribute:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Operations teams need standardized distribution artifacts (links and embed formats) to launch outreach quickly.
+
+        What this endpoint does:
+        It generates and stores channel records such as public/private links and embed snippets.
+
+        How this endpoint does it:
+        Distribution service builds channel values from campaign context, persists channel rows, and returns generated list.
+      operationId: generateCampaignChannels
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/DistributionChannelResponse"
+                type: array
+          description: Channels generated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Generate distribution channels for a campaign
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+  /api/v1/campaigns/{id}/channels:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Teams often need to re-fetch channel assets after initial generation for reminders and omnichannel delivery.
+
+        What this endpoint does:
+        It returns all persisted distribution channels for the campaign.
+
+        How this endpoint does it:
+        Distribution service reads campaign channel rows under tenant scope and maps to response DTOs.
+      operationId: listCampaignChannels
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/DistributionChannelResponse"
+                type: array
+          description: Channel list returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: List generated channels for a campaign
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+  /api/v1/public/campaigns/{id}/preview:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Responder runtime needs a non-admin endpoint to load campaign form structure for public/private submission flows.
+
+        What this endpoint does:
+        It returns preview payload for campaigns currently active.
+
+        How this endpoint does it:
+        Service resolves campaign/settings/survey and returns CampaignPreviewResponse when campaign is active; access
+        mode enforcement for private campaigns happens on submit/auth endpoints.
+      operationId: getPublicCampaignPreview
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignPreviewResponse"
+          description: Public preview returned
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Get responder-facing preview payload (public endpoint)
+      tags:
+      - Campaigns
+      x-accepts:
+      - application/json
+  /api/v1/auth/profiles:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Private campaign authentication must be configured once per tenant so every campaign can reuse a consistent trust policy.
+
+        What this endpoint does:
+        It creates a tenant auth profile containing auth mode, trust metadata, claim mappings, fallback policy,
+        and OIDC/signing settings.
+
+        How this endpoint does it:
+        The service validates tenant scope, enforces mapping rules (including required respondentId mapping),
+        applies defaults (such as OIDC scope defaults), persists profile + mappings, and writes audit events.
+      operationId: createAuthProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthProfileRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthProfileResponse"
+          description: Auth profile created
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+      summary: Create tenant responder-auth profile
+      tags:
+      - Auth Profiles
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/auth/profiles/{id}:
+    put:
+      description: |
+        Why this endpoint is needed:
+        Identity provider details and claim models change over time; profile updates must be supported without rebuilding tenants.
+
+        What this endpoint does:
+        It updates auth profile trust settings, claim mappings, scope behavior, and fallback policies.
+
+        How this endpoint does it:
+        The service validates tenant access and mapping constraints, applies secure defaults where required,
+        persists profile changes, and records before/after snapshots in auth audit.
+      operationId: updateAuthProfile
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthProfileRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthProfileResponse"
+          description: Auth profile updated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Update tenant responder-auth profile
+      tags:
+      - Auth Profiles
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/auth/profiles/tenant/{tenantId}:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Operators need an easy way to verify effective auth configuration before launching or troubleshooting private campaigns.
+
+        What this endpoint does:
+        It returns the tenant's auth profile and claim mapping configuration.
+
+        How this endpoint does it:
+        Tenant access checks are performed, then profile data is loaded and mapped to response DTO.
+      operationId: getAuthProfileByTenant
+      parameters:
+      - explode: false
+        in: path
+        name: tenantId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthProfileResponse"
+          description: Auth profile returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get auth profile for a tenant
+      tags:
+      - Auth Profiles
+      x-accepts:
+      - application/json
+  /api/v1/auth/profiles/{id}/rotate-key:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Signing key version rotation is required for security hygiene and incident response readiness.
+
+        What this endpoint does:
+        It increments the active key version for a tenant auth profile.
+
+        How this endpoint does it:
+        The service updates active key version, persists change, and creates an audit record describing the rotation action.
+      operationId: rotateAuthProfileKey
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthProfileResponse"
+          description: Key version rotated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Rotate auth profile key version
+      tags:
+      - Auth Profiles
+      x-accepts:
+      - application/json
+  /api/v1/auth/profiles/{id}/audit:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Security-sensitive configuration changes require traceability for compliance and troubleshooting.
+
+        What this endpoint does:
+        It returns ordered audit entries for an auth profile including actor and before/after values.
+
+        How this endpoint does it:
+        The repository queries audit rows by auth_profile_id in descending timestamp order and returns serialized audit objects.
+      operationId: getAuthProfileAudit
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/AuthConfigAudit"
+                type: array
+          description: Audit entries returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+      summary: Get auth profile audit history
+      tags:
+      - Auth Profiles
+      x-accepts:
+      - application/json
+  /api/v1/auth/providers/templates:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Tenant onboarding is faster and less error-prone when common IdP providers have pre-defined setup templates.
+
+        What this endpoint does:
+        It returns template metadata for supported providers, including default scopes, required config fields,
+        and default claim mapping suggestions.
+
+        How this endpoint does it:
+        A template service returns static curated provider definitions consumed by UI and SDK onboarding flows.
+      operationId: listProviderTemplates
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/ProviderTemplateResponse"
+                type: array
+          description: Provider templates returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: List built-in provider setup templates
+      tags:
+      - Auth Profiles
+      x-accepts:
+      - application/json
+  /api/v1/auth/providers/templates/{providerCode}:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Setup forms often require provider-specific field guidance and defaults rather than a full template catalog.
+
+        What this endpoint does:
+        It returns one template by provider code (for example OKTA, AUTH0, AZURE_AD, KEYCLOAK).
+
+        How this endpoint does it:
+        The service validates provider code input, resolves the template from in-memory catalog, and returns structured metadata.
+      operationId: getProviderTemplate
+      parameters:
+      - explode: false
+        in: path
+        name: providerCode
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderTemplateResponse"
+          description: Provider template returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get one provider setup template
+      tags:
+      - Auth Profiles
+      x-accepts:
+      - application/json
+  /api/v1/auth/validate/{tenantId}:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Integrations and runtime checks require an explicit token-validation endpoint that applies tenant-specific trust policy.
+
+        What this endpoint does:
+        It validates responder token input according to configured auth mode and claim-mapping rules,
+        then returns standardized success/failure payload.
+
+        How this endpoint does it:
+        Service loads tenant auth profile, routes validation by mode (public/signed/OIDC external trust),
+        applies cryptographic and claim checks, and returns TokenValidationResult.
+      operationId: validateResponderToken
+      parameters:
+      - explode: false
+        in: path
+        name: tenantId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenValidationResult"
+          description: Token validation result returned
+      security: []
+      summary: Validate responder token against tenant auth policy
+      tags:
+      - Auth Profiles
+      x-content-type: text/plain
+      x-accepts:
+      - application/json
+  /api/v1/auth/respondent/oidc/start:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Private campaigns need a secure and tenant-aware way to initiate responder SSO without exposing platform-internal logic.
+
+        What this endpoint does:
+        It validates campaign + tenant eligibility for OIDC flow, creates one-time state/nonce context,
+        and returns IdP authorization URL details.
+
+        How this endpoint does it:
+        The OIDC service checks campaign auth mode and tenant auth profile mode, fetches OIDC metadata,
+        stores state with expiry, composes authorization URL with scopes/state/nonce, and returns OidcStartResponse.
+      operationId: startRespondentOidc
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OidcStartRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OidcStartResponse"
+          description: OIDC authorization URL generated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Start private responder OIDC flow
+      tags:
+      - OIDC Respondent Flow
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/auth/respondent/oidc/callback:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Authorization-code OIDC requires callback handling to exchange code, verify trust, and convert external auth into
+        internal responder access state.
+
+        What this endpoint does:
+        It validates callback state/code, exchanges token at IdP, validates token claims, and issues one-time responder access code.
+
+        How this endpoint does it:
+        OIDC state record is checked for expiry and one-time use, token exchange is executed via configured metadata,
+        token validation service verifies claims/mappings, responder access code row is persisted, and either JSON response
+        or redirect response is returned.
+      operationId: completeRespondentOidc
+      parameters:
+      - explode: true
+        in: query
+        name: state
+        required: true
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: code
+        required: true
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OidcCallbackResponse"
+          description: Callback processed and access code returned
+        "302":
+          description: Redirect response emitted when returnPath was provided
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+      security: []
+      summary: Complete OIDC callback and issue one-time responder access code
+      tags:
+      - OIDC Respondent Flow
+      x-accepts:
+      - application/json
+  /api/v1/audit-logs:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Tenant operators need visibility into operational activity for troubleshooting and governance.
+
+        What this endpoint does:
+        It returns paged audit logs filtered to the current tenant context.
+
+        How this endpoint does it:
+        Controller derives tenant id from security context and applies optional filter parameters on audit-log repository.
+      operationId: getTenantAuditLogs
+      parameters:
+      - explode: true
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: size
+        required: false
+        schema:
+          default: 20
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: action
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: entityType
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: from
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: to
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageAuditLogResponse"
+          description: Tenant audit logs returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Query tenant-scoped activity logs
+      tags:
+      - Audit Logs
+      x-accepts:
+      - application/json
+  /api/v1/admin/superadmin/audit-logs:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Super-admin operations require cross-tenant traceability for investigations and compliance.
+
+        What this endpoint does:
+        It returns paged audit logs across all tenants with optional filters for actor/action/entity/tenant.
+
+        How this endpoint does it:
+        Controller applies optional filter predicates and queries audit repository with descending timestamp ordering.
+      operationId: getPlatformAuditLogs
+      parameters:
+      - explode: true
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: size
+        required: false
+        schema:
+          default: 20
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: action
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: entityType
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: tenantId
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: actor
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: from
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: to
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageAuditLogResponse"
+          description: Platform audit logs returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+      summary: Query platform-wide audit logs (SUPER_ADMIN)
+      tags:
+      - Audit Logs
+      x-accepts:
+      - application/json
+  /api/v1/responses:
+    post:
+      description: |
+        Why this endpoint is needed:
+        This is the central data-ingestion endpoint where responder participation is captured.
+
+        What this endpoint does:
+        It accepts answer payload for a campaign, enforces campaign status and runtime controls,
+        enforces private-auth requirements where applicable, validates against pinned snapshot versions,
+        auto-calculates weighted score when default profile exists, stores response and answers, then auto-locks response.
+
+        How this endpoint does it:
+        The service performs campaign lookup, access-mode enforcement (public or private), credential validation
+        (responderToken or responderAccessCode for private), settings checks (quota/restrictions/timeouts), snapshot-based
+        answer validation/scoring, persistence, and status transition to LOCKED before returning SurveyResponseResponse.
+      operationId: submitResponse
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResponseSubmissionRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponseResponse"
+          description: Response accepted and locked
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "429":
+          $ref: "#/components/responses/TooManyRequestsError"
+      security: []
+      summary: Submit survey response (public and private campaign entry)
+      tags:
+      - Responses
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/responses/{id}:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Support and operational teams need direct access to a specific response record for verification and exception handling.
+
+        What this endpoint does:
+        It returns one response and its answer details.
+
+        How this endpoint does it:
+        Response service resolves response by id under tenant context and maps nested answer records to DTO.
+      operationId: getResponse
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponseResponse"
+          description: Response returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get one response by id
+      tags:
+      - Responses
+      x-accepts:
+      - application/json
+  /api/v1/responses/campaign/{campaignId}:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Campaign managers need a scoped list view of responses for review, quality checks, and manual workflows.
+
+        What this endpoint does:
+        It returns campaign-scoped response list under tenant ownership checks.
+
+        How this endpoint does it:
+        The service validates campaign accessibility under tenant context and fetches mapped response rows by campaign id.
+      operationId: listResponsesByCampaign
+      parameters:
+      - explode: false
+        in: path
+        name: campaignId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/SurveyResponseResponse"
+                type: array
+          description: Campaign responses returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: List responses for a campaign
+      tags:
+      - Responses
+      x-accepts:
+      - application/json
+  /api/v1/responses/{id}/lock:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Although responses auto-lock on submit, operations teams may need explicit lock controls for exceptional workflows.
+
+        What this endpoint does:
+        It changes response state to locked and records lock timestamp.
+
+        How this endpoint does it:
+        Locking service validates current state and tenant ownership, applies status mutation, and returns updated response.
+      operationId: lockResponse
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponseResponse"
+          description: Response locked
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+      summary: Lock a response manually
+      tags:
+      - Responses
+      x-accepts:
+      - application/json
+  /api/v1/responses/{id}/reopen:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Real operations require a controlled exception path for corrections after lock.
+
+        What this endpoint does:
+        It reopens a previously locked response and captures reason/window metadata.
+
+        How this endpoint does it:
+        Locking service validates state transitions and reason constraints, updates response status,
+        and returns reopened response record. If campaign close date has passed, close-time lock enforcement may lock it again.
+      operationId: reopenResponse
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReopenRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponseResponse"
+          description: Response reopened
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Reopen a locked response with reason
+      tags:
+      - Responses
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/responses/analytics/{campaignId}:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Campaign operators need near-real-time aggregate visibility without reading raw response payloads.
+
+        What this endpoint does:
+        It returns aggregate counts and completion rate metrics for a campaign.
+
+        How this endpoint does it:
+        Analytics service runs campaign-scoped aggregate queries under tenant context and returns CampaignAnalytics DTO.
+      operationId: getCampaignAnalytics
+      parameters:
+      - explode: false
+        in: path
+        name: campaignId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignAnalytics"
+          description: Campaign analytics returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get aggregated analytics for a campaign
+      tags:
+      - Responses
+      x-accepts:
+      - application/json
+  /api/v1/analytics/campaigns/{campaignId}/full-report:
+    get:
+      description: |
+        Why this endpoint is needed:
+        The dashboard needs an aggregated snapshot of campaign performance, score curves, and individual question breakdowns.
+
+        What this endpoint does:
+        Returns all analytics metrics for a single segment (or the entire campaign).
+      operationId: getFullReport
+      parameters:
+      - explode: false
+        in: path
+        name: campaignId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullCampaignAnalyticsResponse"
+          description: Full campaign analytics payload returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get full analytics report with metadata filters
+      tags:
+      - Responses
+      x-accepts:
+      - application/json
+  /api/v1/analytics/campaigns/{campaignId}/compare:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Platform users need side-by-side comparative analytics of demographic segments.
+
+        What this endpoint does:
+        Multiplexes the /full-report generation across up to 5 concurrent demographic segments.
+      operationId: compareSegments
+      parameters:
+      - explode: false
+        in: path
+        name: campaignId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComparisonRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComparisonAnalyticsResponse"
+          description: Multi-segment comparison matrix returned
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Compare multiple analytics segments
+      tags:
+      - Responses
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/scoring/profiles:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Score computation requires explicit category weighting definitions linked to campaign context.
+
+        What this endpoint does:
+        It creates a weight profile that defines how raw category scores contribute to total score.
+
+        How this endpoint does it:
+        Service validates campaign scope and category-weight payload, persists profile and nested weights,
+        and returns profile representation.
+      operationId: createWeightProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WeightProfileRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeightProfileResponse"
+          description: Weight profile created
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Create scoring weight profile
+      tags:
+      - Scoring
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/scoring/profiles/{id}:
+    delete:
+      description: |
+        Why this endpoint is needed:
+        Obsolete profiles must be retired while preserving historical result integrity.
+
+        What this endpoint does:
+        It marks profile inactive.
+
+        How this endpoint does it:
+        Tenant-scoped lookup followed by active-state mutation and no-content response.
+      operationId: deactivateWeightProfile
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "204":
+          description: Weight profile deactivated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Deactivate scoring profile
+      tags:
+      - Scoring
+      x-accepts:
+      - application/json
+    get:
+      description: |
+        Why this endpoint is needed:
+        Teams need profile-level visibility for verification and lifecycle updates.
+
+        What this endpoint does:
+        It returns one weight profile including category weights.
+
+        How this endpoint does it:
+        Service loads profile by id under tenant context and maps to DTO.
+      operationId: getWeightProfile
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeightProfileResponse"
+          description: Weight profile returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Get one scoring profile by id
+      tags:
+      - Scoring
+      x-accepts:
+      - application/json
+    put:
+      description: |
+        Why this endpoint is needed:
+        Scoring rubrics evolve and profiles require controlled updates.
+
+        What this endpoint does:
+        It updates profile metadata and category-weight assignments.
+
+        How this endpoint does it:
+        Service validates payload and tenant ownership, persists new values, and returns updated profile DTO.
+      operationId: updateWeightProfile
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WeightProfileRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeightProfileResponse"
+          description: Weight profile updated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Update scoring profile
+      tags:
+      - Scoring
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /api/v1/scoring/profiles/{id}/validate:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Invalid weighting definitions can produce misleading score outputs; explicit pre-check endpoint reduces operational mistakes.
+
+        What this endpoint does:
+        It validates profile constraints (including total weight sum rule).
+
+        How this endpoint does it:
+        Service computes profile totals and throws deterministic business error when constraints are violated.
+      operationId: validateWeightProfile
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Profile is valid
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Validate category weight sum for a profile
+      tags:
+      - Scoring
+      x-accepts:
+      - application/json
+  /api/v1/scoring/profiles/campaign/{campaignId}:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Campaign-level scoring operations need discoverability of attached profiles.
+
+        What this endpoint does:
+        It returns all active/in-scope profiles linked to the specified campaign.
+
+        How this endpoint does it:
+        Service validates campaign access by tenant and fetches profile rows filtered by campaign id.
+      operationId: listWeightProfilesByCampaign
+      parameters:
+      - explode: false
+        in: path
+        name: campaignId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/WeightProfileResponse"
+                type: array
+          description: Profiles returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: List scoring profiles for campaign
+      tags:
+      - Scoring
+      x-accepts:
+      - application/json
+  /api/v1/scoring/calculate/{profileId}:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Consumers need deterministic score output from raw category data and configured business weighting policy.
+
+        What this endpoint does:
+        It computes normalized category contributions and returns a total weighted score breakdown.
+
+        How this endpoint does it:
+        Scoring engine loads profile weights, validates inputs, computes per-category normalized and weighted values,
+        and returns ScoreResult with category details.
+      operationId: calculateWeightedScore
+      parameters:
+      - explode: false
+        in: path
+        name: profileId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            example:
+              "0f2069da-4f19-4f4a-a8f7-f2d067e1a5d0": 82.5
+              "12a6a2f0-69da-4f19-9c80-c84b6df67464": 71.0
+            schema:
+              additionalProperties:
+                format: double
+                type: number
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreResult"
+          description: Score calculated
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      summary: Calculate weighted score from raw category scores
+      tags:
+      - Scoring
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+components:
+  parameters:
+    IdPath:
+      explode: false
+      in: path
+      name: id
+      required: true
+      schema:
+        format: uuid
+        type: string
+      style: simple
+  responses:
+    ValidationError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: Request validation failed or business rule validation failed
+    UnauthorizedError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: Authentication missing or invalid
+    ForbiddenError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: Authenticated but not allowed by tenant/role/security policy
+    NotFoundError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: Referenced resource does not exist or is not visible in tenant
+        scope
+    ConflictError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: Requested action conflicts with current resource state
+    PaymentRequiredError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: Active subscription is required for this operation
+    TooManyRequestsError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: Quota or throttling rule prevented execution
+  schemas:
+    RegisterRequest:
+      example:
+        password: password
+        tenantId: tenantId
+        fullName: fullName
+        confirmPassword: confirmPassword
+        email: email
+      properties:
+        fullName:
+          maxLength: 120
+          minLength: 2
+          type: string
+        email:
+          format: email
+          maxLength: 255
+          type: string
+        password:
+          maxLength: 64
+          minLength: 8
+          pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d]).+$"
+          type: string
+        confirmPassword:
+          maxLength: 64
+          minLength: 1
+          type: string
+        tenantId:
+          maxLength: 63
+          type: string
+          nullable: true
+      required:
+      - confirmPassword
+      - email
+      - fullName
+      - password
+    LoginRequest:
+      example:
+        password: password
+        email: email
+      properties:
+        email:
+          format: email
+          type: string
+        password:
+          type: string
+      required:
+      - email
+      - password
+    RefreshTokenRequest:
+      example:
+        refreshToken: refreshToken
+      properties:
+        refreshToken:
+          type: string
+      required:
+      - refreshToken
+    AuthUserResponse:
+      example:
+        role: SUPER_ADMIN
+        tenantId: tenantId
+        fullName: fullName
+        userId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        email: email
+      properties:
+        userId:
+          format: uuid
+          type: string
+        email:
+          format: email
+          type: string
+        fullName:
+          type: string
+        tenantId:
+          type: string
+        role:
+          enum:
+          - SUPER_ADMIN
+          - ADMIN
+          - EDITOR
+          - VIEWER
+          type: string
+    AuthResponse:
+      example:
+        expiresIn: 0
+        role: SUPER_ADMIN
+        tenantId: tenantId
+        fullName: fullName
+        accessToken: accessToken
+        tokenType: Bearer
+        userId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        email: email
+        refreshToken: refreshToken
+      properties:
+        userId:
+          format: uuid
+          type: string
+        email:
+          format: email
+          type: string
+        fullName:
+          type: string
+        tenantId:
+          type: string
+        role:
+          enum:
+          - SUPER_ADMIN
+          - ADMIN
+          - EDITOR
+          - VIEWER
+          type: string
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          example: Bearer
+          type: string
+        expiresIn:
+          format: int64
+          type: integer
+    CsrfTokenResponse:
+      example:
+        token: token
+      properties:
+        token:
+          type: string
+      required:
+      - token
+    OverrideSubscriptionRequest:
+      example:
+        plan: BASIC
+      properties:
+        plan:
+          enum:
+          - BASIC
+          - PRO
+          - ENTERPRISE
+          type: string
+      required:
+      - plan
+    TenantOverviewResponse:
+      example:
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        tenantId: tenantId
+        name: name
+        subscriptionStatus: TRIAL
+        active: true
+        plan: BASIC
+        primaryEmail: primaryEmail
+      properties:
+        tenantId:
+          type: string
+        name:
+          type: string
+        primaryEmail:
+          format: email
+          type: string
+        plan:
+          enum:
+          - BASIC
+          - PRO
+          - ENTERPRISE
+          type: string
+        subscriptionStatus:
+          enum:
+          - TRIAL
+          - ACTIVE
+          - CANCELED
+          - EXPIRED
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          format: date-time
+          type: string
+    SuperAdminMetricsResponse:
+      example:
+        totalTenants: 0
+        totalPlatformUsage: 1
+        activeSubscriptions: 6
+      properties:
+        totalTenants:
+          format: int64
+          type: integer
+        activeSubscriptions:
+          format: int64
+          type: integer
+        totalPlatformUsage:
+          format: int64
+          type: integer
+    SubscribeRequest:
+      example:
+        plan: BASIC
+      properties:
+        plan:
+          enum:
+          - BASIC
+          - PRO
+          - ENTERPRISE
+          type: string
+      required:
+      - plan
+    SubscriptionResponse:
+      example:
+        currentPeriodStart: 2000-01-23T04:56:07.000+00:00
+        maxResponsesPerCampaign: 1
+        currentPeriodEnd: 2000-01-23T04:56:07.000+00:00
+        tenantId: tenantId
+        maxAdminUsers: 5
+        currency: currency
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        lastPaymentGatewayReference: lastPaymentGatewayReference
+        plan: BASIC
+        planPrice: 0.8008281904610115
+        maxCampaigns: 6
+        status: TRIAL
+      properties:
+        id:
+          format: uuid
+          type: string
+        tenantId:
+          type: string
+        plan:
+          enum:
+          - BASIC
+          - PRO
+          - ENTERPRISE
+          type: string
+        status:
+          enum:
+          - TRIAL
+          - ACTIVE
+          - CANCELED
+          - EXPIRED
+          type: string
+        currentPeriodStart:
+          format: date-time
+          type: string
+        currentPeriodEnd:
+          format: date-time
+          type: string
+        lastPaymentGatewayReference:
+          type: string
+        planPrice:
+          type: number
+        currency:
+          type: string
+        maxCampaigns:
+          type: integer
+        maxResponsesPerCampaign:
+          type: integer
+        maxAdminUsers:
+          type: integer
+    PlanDefinitionRequest:
+      example:
+        trialDays: 0
+        billingCycleDays: 1
+        maxResponsesPerCampaign: 1
+        displayName: displayName
+        price: 0.8008281904610115
+        maxAdminUsers: 1
+        active: true
+        currency: currency
+        planCode: BASIC
+        maxCampaigns: 1
+      properties:
+        planCode:
+          enum:
+          - BASIC
+          - PRO
+          - ENTERPRISE
+          type: string
+        displayName:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        billingCycleDays:
+          minimum: 1
+          type: integer
+        trialDays:
+          minimum: 0
+          type: integer
+        maxCampaigns:
+          minimum: 1
+          type: integer
+        maxResponsesPerCampaign:
+          minimum: 1
+          type: integer
+        maxAdminUsers:
+          minimum: 1
+          type: integer
+        active:
+          default: true
+          type: boolean
+      required:
+      - billingCycleDays
+      - currency
+      - displayName
+      - planCode
+      - price
+      - trialDays
+    PlanDefinitionResponse:
+      allOf:
+      - $ref: "#/components/schemas/PlanDefinitionRequest"
+      - properties:
+          id:
+            format: uuid
+            type: string
+      example:
+        trialDays: 0
+        billingCycleDays: 1
+        maxResponsesPerCampaign: 1
+        displayName: displayName
+        price: 0.8008281904610115
+        maxAdminUsers: 1
+        active: true
+        currency: currency
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        planCode: BASIC
+        maxCampaigns: 1
+    QuestionRequest:
+      example:
+        optionConfig: optionConfig
+        text: text
+        type: RANK
+        maxScore: 0.09008281904610115
+      properties:
+        text:
+          type: string
+        type:
+          enum:
+          - RANK
+          - RATING_SCALE
+          - SINGLE_CHOICE
+          - MULTIPLE_CHOICE
+          type: string
+        maxScore:
+          minimum: 0.01
+          type: number
+        optionConfig:
+          description: JSON string containing question-level options/configuration.
+          type: string
+      required:
+      - maxScore
+      - text
+      - type
+    QuestionResponse:
+      example:
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        updatedBy: updatedBy
+        optionConfig: optionConfig
+        createdBy: createdBy
+        active: true
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        text: text
+        type: RANK
+        maxScore: 0.8008281904610115
+        currentVersion: 6
+        updatedAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        text:
+          type: string
+        type:
+          enum:
+          - RANK
+          - RATING_SCALE
+          - SINGLE_CHOICE
+          - MULTIPLE_CHOICE
+          type: string
+        maxScore:
+          type: number
+        optionConfig:
+          type: string
+        currentVersion:
+          type: integer
+        active:
+          type: boolean
+        createdBy:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+    CategoryQuestionMappingRequest:
+      example:
+        questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        sortOrder: 0
+        weight: 6.027456183070403
+      properties:
+        questionId:
+          format: uuid
+          type: string
+        sortOrder:
+          type: integer
+        weight:
+          type: number
+      required:
+      - questionId
+      - sortOrder
+    CategoryRequest:
+      example:
+        name: name
+        description: description
+        questionMappings:
+        - questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 0
+          weight: 6.027456183070403
+        - questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 0
+          weight: 6.027456183070403
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        questionMappings:
+          items:
+            $ref: "#/components/schemas/CategoryQuestionMappingRequest"
+          type: array
+      required:
+      - name
+    CategoryResponse:
+      example:
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        updatedBy: updatedBy
+        createdBy: createdBy
+        name: name
+        description: description
+        active: true
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        currentVersion: 0
+        questionMappings:
+        - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 6
+          weight: 1.4658129805029452
+          questionText: questionText
+        - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 6
+          weight: 1.4658129805029452
+          questionText: questionText
+        updatedAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        currentVersion:
+          type: integer
+        active:
+          type: boolean
+        questionMappings:
+          items:
+            $ref: "#/components/schemas/CategoryResponse_questionMappings_inner"
+          type: array
+        createdBy:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+    SurveyQuestionRequest:
+      example:
+        pinnedQuestionText: pinnedQuestionText
+        pinnedCategoryName: pinnedCategoryName
+        questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        categoryWeightPercentage: 6.027456183070403
+        answerConfig: answerConfig
+        pinnedCategoryDescription: pinnedCategoryDescription
+        sortOrder: 1
+        pinnedQuestionMaxScore: 5.962133916683182
+        pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+        mandatory: true
+        categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        questionId:
+          format: uuid
+          type: string
+        categoryId:
+          format: uuid
+          type: string
+        categoryWeightPercentage:
+          type: number
+        sortOrder:
+          type: integer
+        mandatory:
+          type: boolean
+        answerConfig:
+          type: string
+        pinnedQuestionText:
+          type: string
+        pinnedQuestionMaxScore:
+          type: number
+        pinnedQuestionOptionConfig:
+          type: string
+        pinnedCategoryName:
+          type: string
+        pinnedCategoryDescription:
+          type: string
+      required:
+      - questionId
+      - sortOrder
+    SurveyPageRequest:
+      example:
+        sortOrder: 0
+        questions:
+        - pinnedQuestionText: pinnedQuestionText
+          pinnedCategoryName: pinnedCategoryName
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryWeightPercentage: 6.027456183070403
+          answerConfig: answerConfig
+          pinnedCategoryDescription: pinnedCategoryDescription
+          sortOrder: 1
+          pinnedQuestionMaxScore: 5.962133916683182
+          pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+          mandatory: true
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        - pinnedQuestionText: pinnedQuestionText
+          pinnedCategoryName: pinnedCategoryName
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryWeightPercentage: 6.027456183070403
+          answerConfig: answerConfig
+          pinnedCategoryDescription: pinnedCategoryDescription
+          sortOrder: 1
+          pinnedQuestionMaxScore: 5.962133916683182
+          pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+          mandatory: true
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        title: title
+      properties:
+        title:
+          type: string
+        sortOrder:
+          type: integer
+        questions:
+          items:
+            $ref: "#/components/schemas/SurveyQuestionRequest"
+          type: array
+      required:
+      - sortOrder
+    SurveyRequest:
+      example:
+        pages:
+        - sortOrder: 0
+          questions:
+          - pinnedQuestionText: pinnedQuestionText
+            pinnedCategoryName: pinnedCategoryName
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 6.027456183070403
+            answerConfig: answerConfig
+            pinnedCategoryDescription: pinnedCategoryDescription
+            sortOrder: 1
+            pinnedQuestionMaxScore: 5.962133916683182
+            pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+            mandatory: true
+            categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          - pinnedQuestionText: pinnedQuestionText
+            pinnedCategoryName: pinnedCategoryName
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 6.027456183070403
+            answerConfig: answerConfig
+            pinnedCategoryDescription: pinnedCategoryDescription
+            sortOrder: 1
+            pinnedQuestionMaxScore: 5.962133916683182
+            pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+            mandatory: true
+            categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          title: title
+        - sortOrder: 0
+          questions:
+          - pinnedQuestionText: pinnedQuestionText
+            pinnedCategoryName: pinnedCategoryName
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 6.027456183070403
+            answerConfig: answerConfig
+            pinnedCategoryDescription: pinnedCategoryDescription
+            sortOrder: 1
+            pinnedQuestionMaxScore: 5.962133916683182
+            pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+            mandatory: true
+            categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          - pinnedQuestionText: pinnedQuestionText
+            pinnedCategoryName: pinnedCategoryName
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 6.027456183070403
+            answerConfig: answerConfig
+            pinnedCategoryDescription: pinnedCategoryDescription
+            sortOrder: 1
+            pinnedQuestionMaxScore: 5.962133916683182
+            pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+            mandatory: true
+            categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          title: title
+        description: description
+        title: title
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        pages:
+          items:
+            $ref: "#/components/schemas/SurveyPageRequest"
+          type: array
+      required:
+      - title
+    SurveyResponse:
+      example:
+        lifecycleState: DRAFT
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        pages:
+        - sortOrder: 6
+          questions:
+          - pinnedQuestionText: pinnedQuestionText
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 1.4658129805029452
+            answerConfig: answerConfig
+            pinnedCategoryDescription: pinnedCategoryDescription
+            mandatory: true
+            questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            pinnedCategoryName: pinnedCategoryName
+            pinnedQuestionType: RANK
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 5
+            pinnedQuestionMaxScore: 5.637376656633329
+            pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          - pinnedQuestionText: pinnedQuestionText
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 1.4658129805029452
+            answerConfig: answerConfig
+            pinnedCategoryDescription: pinnedCategoryDescription
+            mandatory: true
+            questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            pinnedCategoryName: pinnedCategoryName
+            pinnedQuestionType: RANK
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 5
+            pinnedQuestionMaxScore: 5.637376656633329
+            pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          title: title
+        - sortOrder: 6
+          questions:
+          - pinnedQuestionText: pinnedQuestionText
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 1.4658129805029452
+            answerConfig: answerConfig
+            pinnedCategoryDescription: pinnedCategoryDescription
+            mandatory: true
+            questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            pinnedCategoryName: pinnedCategoryName
+            pinnedQuestionType: RANK
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 5
+            pinnedQuestionMaxScore: 5.637376656633329
+            pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          - pinnedQuestionText: pinnedQuestionText
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 1.4658129805029452
+            answerConfig: answerConfig
+            pinnedCategoryDescription: pinnedCategoryDescription
+            mandatory: true
+            questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            pinnedCategoryName: pinnedCategoryName
+            pinnedQuestionType: RANK
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 5
+            pinnedQuestionMaxScore: 5.637376656633329
+            pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          title: title
+        updatedBy: updatedBy
+        createdBy: createdBy
+        description: description
+        active: true
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        title: title
+        currentVersion: 0
+        updatedAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        lifecycleState:
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - CLOSED
+          - RESULTS_PUBLISHED
+          - ARCHIVED
+          type: string
+        currentVersion:
+          type: integer
+        active:
+          type: boolean
+        pages:
+          items:
+            $ref: "#/components/schemas/SurveyResponse_pages_inner"
+          type: array
+        createdBy:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+    LifecycleTransitionRequest:
+      example:
+        reason: reason
+        targetState: targetState
+      properties:
+        targetState:
+          type: string
+        reason:
+          type: string
+      required:
+      - targetState
+    CampaignRequest:
+      example:
+        authMode: PUBLIC
+        surveyId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        name: name
+        description: description
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        surveyId:
+          format: uuid
+          type: string
+        authMode:
+          enum:
+          - PUBLIC
+          - PRIVATE
+          - SIGNED_TOKEN
+          - SSO
+          type: string
+      required:
+      - name
+      - surveyId
+    CampaignResponse:
+      example:
+        surveyId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        updatedBy: updatedBy
+        defaultWeightProfileId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        description: description
+        active: true
+        surveySnapshotId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        authMode: PUBLIC
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        createdBy: createdBy
+        name: name
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        status: DRAFT
+        updatedAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        surveyId:
+          format: uuid
+          type: string
+        surveySnapshotId:
+          format: uuid
+          type: string
+        defaultWeightProfileId:
+          format: uuid
+          type: string
+        authMode:
+          enum:
+          - PUBLIC
+          - PRIVATE
+          - SIGNED_TOKEN
+          - SSO
+          type: string
+        status:
+          enum:
+          - DRAFT
+          - ACTIVE
+          - PAUSED
+          - COMPLETED
+          - ARCHIVED
+          type: string
+        active:
+          type: boolean
+        createdBy:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+    CampaignSettingsRequest:
+      example:
+        footerHtml: footerHtml
+        headerHtml: headerHtml
+        collectAddress: true
+        startMessage: startMessage
+        emailRestrictionEnabled: true
+        oneResponsePerDevice: true
+        finishMessage: finishMessage
+        collectPhone: true
+        allowBackButton: true
+        collectName: true
+        closeDate: 2000-01-23T04:56:07.000+00:00
+        password: password
+        showQuestionNumbers: true
+        captchaEnabled: true
+        collectEmail: true
+        ipRestrictionEnabled: true
+        responseQuota: 0
+        sessionTimeoutMinutes: 6
+        showProgressIndicator: true
+      properties:
+        password:
+          type: string
+        captchaEnabled:
+          type: boolean
+        oneResponsePerDevice:
+          type: boolean
+        ipRestrictionEnabled:
+          type: boolean
+        emailRestrictionEnabled:
+          type: boolean
+        responseQuota:
+          type: integer
+        closeDate:
+          format: date-time
+          type: string
+        sessionTimeoutMinutes:
+          type: integer
+        showQuestionNumbers:
+          type: boolean
+        showProgressIndicator:
+          type: boolean
+        allowBackButton:
+          type: boolean
+        startMessage:
+          type: string
+        finishMessage:
+          type: string
+        headerHtml:
+          type: string
+        footerHtml:
+          type: string
+        collectName:
+          type: boolean
+        collectEmail:
+          type: boolean
+        collectPhone:
+          type: boolean
+        collectAddress:
+          type: boolean
+    CampaignSettingsResponse:
+      example:
+        footerHtml: footerHtml
+        headerHtml: headerHtml
+        collectAddress: true
+        startMessage: startMessage
+        emailRestrictionEnabled: true
+        oneResponsePerDevice: true
+        finishMessage: finishMessage
+        collectPhone: true
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        allowBackButton: true
+        collectName: true
+        closeDate: 2000-01-23T04:56:07.000+00:00
+        password: password
+        showQuestionNumbers: true
+        captchaEnabled: true
+        collectEmail: true
+        ipRestrictionEnabled: true
+        responseQuota: 0
+        sessionTimeoutMinutes: 6
+        showProgressIndicator: true
+      properties:
+        campaignId:
+          format: uuid
+          type: string
+        password:
+          type: string
+        captchaEnabled:
+          type: boolean
+        oneResponsePerDevice:
+          type: boolean
+        ipRestrictionEnabled:
+          type: boolean
+        emailRestrictionEnabled:
+          type: boolean
+        responseQuota:
+          type: integer
+        closeDate:
+          format: date-time
+          type: string
+        sessionTimeoutMinutes:
+          type: integer
+        showQuestionNumbers:
+          type: boolean
+        showProgressIndicator:
+          type: boolean
+        allowBackButton:
+          type: boolean
+        startMessage:
+          type: string
+        finishMessage:
+          type: string
+        headerHtml:
+          type: string
+        footerHtml:
+          type: string
+        collectName:
+          type: boolean
+        collectEmail:
+          type: boolean
+        collectPhone:
+          type: boolean
+        collectAddress:
+          type: boolean
+    CampaignPreviewResponse:
+      example:
+        footerHtml: footerHtml
+        headerHtml: headerHtml
+        collectAddress: true
+        surveyId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        startMessage: startMessage
+        finishMessage: finishMessage
+        collectPhone: true
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        allowBackButton: true
+        collectName: true
+        surveyTitle: surveyTitle
+        authMode: PUBLIC
+        surveyDescription: surveyDescription
+        showQuestionNumbers: true
+        pages:
+        - sortOrder: 0
+          questions:
+          - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            answerConfig: answerConfig
+            optionConfig: optionConfig
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 1
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            text: text
+            type: RANK
+            maxScore: 6.027456183070403
+            mandatory: true
+          - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            answerConfig: answerConfig
+            optionConfig: optionConfig
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 1
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            text: text
+            type: RANK
+            maxScore: 6.027456183070403
+            mandatory: true
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          title: title
+        - sortOrder: 0
+          questions:
+          - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            answerConfig: answerConfig
+            optionConfig: optionConfig
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 1
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            text: text
+            type: RANK
+            maxScore: 6.027456183070403
+            mandatory: true
+          - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            answerConfig: answerConfig
+            optionConfig: optionConfig
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 1
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            text: text
+            type: RANK
+            maxScore: 6.027456183070403
+            mandatory: true
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          title: title
+        tenantId: tenantId
+        campaignStatus: DRAFT
+        collectEmail: true
+        campaignName: campaignName
+        showProgressIndicator: true
+      properties:
+        campaignId:
+          format: uuid
+          type: string
+        tenantId:
+          type: string
+        campaignName:
+          type: string
+        campaignStatus:
+          enum:
+          - DRAFT
+          - ACTIVE
+          - PAUSED
+          - COMPLETED
+          - ARCHIVED
+          type: string
+        authMode:
+          enum:
+          - PUBLIC
+          - PRIVATE
+          - SIGNED_TOKEN
+          - SSO
+          type: string
+        surveyId:
+          format: uuid
+          type: string
+        surveyTitle:
+          type: string
+        surveyDescription:
+          type: string
+        showQuestionNumbers:
+          type: boolean
+        showProgressIndicator:
+          type: boolean
+        allowBackButton:
+          type: boolean
+        startMessage:
+          type: string
+        finishMessage:
+          type: string
+        headerHtml:
+          type: string
+        footerHtml:
+          type: string
+        collectName:
+          type: boolean
+        collectEmail:
+          type: boolean
+        collectPhone:
+          type: boolean
+        collectAddress:
+          type: boolean
+        pages:
+          items:
+            $ref: "#/components/schemas/CampaignPreviewResponse_pages_inner"
+          type: array
+    DistributionChannelResponse:
+      example:
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        channelType: PUBLIC_LINK
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        channelValue: channelValue
+      properties:
+        id:
+          format: uuid
+          type: string
+        campaignId:
+          format: uuid
+          type: string
+        channelType:
+          enum:
+          - PUBLIC_LINK
+          - PRIVATE_LINK
+          - HTML_EMBED
+          - WORDPRESS_EMBED
+          - JS_EMBED
+          - EMAIL
+          type: string
+        channelValue:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+    ClaimMappingRequest:
+      example:
+        internalField: internalField
+        externalClaim: externalClaim
+        required: true
+      properties:
+        externalClaim:
+          type: string
+        internalField:
+          type: string
+        required:
+          type: boolean
+    AuthProfileRequest:
+      example:
+        oidcDiscoveryUrl: oidcDiscoveryUrl
+        oidcRedirectUri: oidcRedirectUri
+        audience: audience
+        jwksEndpoint: jwksEndpoint
+        oidcClientId: oidcClientId
+        oidcScopes: oidcScopes
+        fallbackPolicy: SSO_REQUIRED
+        oidcClientSecret: oidcClientSecret
+        issuer: issuer
+        authMode: PUBLIC_ANONYMOUS
+        signingSecret: signingSecret
+        tenantId: tenantId
+        claimMappings:
+        - internalField: internalField
+          externalClaim: externalClaim
+          required: true
+        - internalField: internalField
+          externalClaim: externalClaim
+          required: true
+        tokenTtlSeconds: 6
+        clockSkewSeconds: 0
+      properties:
+        tenantId:
+          type: string
+        authMode:
+          enum:
+          - PUBLIC_ANONYMOUS
+          - SIGNED_LAUNCH_TOKEN
+          - EXTERNAL_SSO_TRUST
+          type: string
+        issuer:
+          type: string
+        audience:
+          type: string
+        jwksEndpoint:
+          type: string
+        oidcDiscoveryUrl:
+          type: string
+        oidcClientId:
+          type: string
+        oidcClientSecret:
+          type: string
+        oidcRedirectUri:
+          type: string
+        oidcScopes:
+          type: string
+        clockSkewSeconds:
+          type: integer
+        tokenTtlSeconds:
+          type: integer
+        signingSecret:
+          type: string
+        fallbackPolicy:
+          enum:
+          - SSO_REQUIRED
+          - ANONYMOUS_FALLBACK
+          - DISABLE_ON_FAILURE
+          type: string
+        claimMappings:
+          items:
+            $ref: "#/components/schemas/ClaimMappingRequest"
+          type: array
+      required:
+      - authMode
+      - tenantId
+    AuthProfileResponse:
+      example:
+        oidcDiscoveryUrl: oidcDiscoveryUrl
+        oidcRedirectUri: oidcRedirectUri
+        audience: audience
+        jwksEndpoint: jwksEndpoint
+        oidcClientId: oidcClientId
+        activeKeyVersion: 1
+        oidcScopes: oidcScopes
+        fallbackPolicy: SSO_REQUIRED
+        issuer: issuer
+        authMode: PUBLIC_ANONYMOUS
+        tenantId: tenantId
+        claimMappings:
+        - internalField: internalField
+          externalClaim: externalClaim
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          required: true
+        - internalField: internalField
+          externalClaim: externalClaim
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          required: true
+        tokenTtlSeconds: 6
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        clockSkewSeconds: 0
+      properties:
+        id:
+          format: uuid
+          type: string
+        tenantId:
+          type: string
+        authMode:
+          enum:
+          - PUBLIC_ANONYMOUS
+          - SIGNED_LAUNCH_TOKEN
+          - EXTERNAL_SSO_TRUST
+          type: string
+        issuer:
+          type: string
+        audience:
+          type: string
+        jwksEndpoint:
+          type: string
+        oidcDiscoveryUrl:
+          type: string
+        oidcClientId:
+          type: string
+        oidcRedirectUri:
+          type: string
+        oidcScopes:
+          type: string
+        clockSkewSeconds:
+          type: integer
+        tokenTtlSeconds:
+          type: integer
+        activeKeyVersion:
+          type: integer
+        fallbackPolicy:
+          enum:
+          - SSO_REQUIRED
+          - ANONYMOUS_FALLBACK
+          - DISABLE_ON_FAILURE
+          type: string
+        claimMappings:
+          items:
+            $ref: "#/components/schemas/AuthProfileResponse_claimMappings_inner"
+          type: array
+    TokenValidationResult:
+      example:
+        valid: true
+        errorMessage: errorMessage
+        errorCode: errorCode
+        respondentId: respondentId
+        mappedClaims:
+          key: mappedClaims
+        email: email
+      properties:
+        valid:
+          type: boolean
+        respondentId:
+          type: string
+        email:
+          type: string
+        mappedClaims:
+          additionalProperties:
+            type: string
+        errorCode:
+          type: string
+        errorMessage:
+          type: string
+    AuthConfigAudit:
+      example:
+        afterValue: afterValue
+        beforeValue: beforeValue
+        changedBy: changedBy
+        action: action
+        changedAt: 2000-01-23T04:56:07.000+00:00
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        authProfileId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        id:
+          format: uuid
+          type: string
+        authProfileId:
+          format: uuid
+          type: string
+        action:
+          type: string
+        changedBy:
+          type: string
+        beforeValue:
+          type: string
+        afterValue:
+          type: string
+        changedAt:
+          format: date-time
+          type: string
+    ProviderTemplateResponse:
+      example:
+        defaultClaimMappings:
+        - internalField: internalField
+          externalClaim: externalClaim
+          required: true
+        - internalField: internalField
+          externalClaim: externalClaim
+          required: true
+        requiredConfigFields:
+        - requiredConfigFields
+        - requiredConfigFields
+        providerCode: providerCode
+        displayName: displayName
+        description: description
+        defaultScopes:
+        - defaultScopes
+        - defaultScopes
+      properties:
+        providerCode:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        defaultScopes:
+          items:
+            type: string
+          type: array
+        defaultClaimMappings:
+          items:
+            $ref: "#/components/schemas/ClaimMappingRequest"
+          type: array
+        requiredConfigFields:
+          items:
+            type: string
+          type: array
+    OidcStartRequest:
+      example:
+        returnPath: returnPath
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        tenantId: tenantId
+      properties:
+        tenantId:
+          type: string
+        campaignId:
+          format: uuid
+          type: string
+        returnPath:
+          type: string
+      required:
+      - campaignId
+      - tenantId
+    OidcStartResponse:
+      example:
+        authorizationUrl: authorizationUrl
+        state: state
+        expiresAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        authorizationUrl:
+          type: string
+        state:
+          type: string
+        expiresAt:
+          format: date-time
+          type: string
+    OidcCallbackResponse:
+      example:
+        redirectUrl: redirectUrl
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        accessCode: accessCode
+        tenantId: tenantId
+        respondentId: respondentId
+        email: email
+        expiresAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        accessCode:
+          type: string
+        tenantId:
+          type: string
+        campaignId:
+          format: uuid
+          type: string
+        respondentId:
+          type: string
+        email:
+          type: string
+        expiresAt:
+          format: date-time
+          type: string
+        redirectUrl:
+          type: string
+    ResponseSubmissionRequest:
+      example:
+        respondentIdentifier: respondentIdentifier
+        respondentDeviceFingerprint: respondentDeviceFingerprint
+        responderToken: responderToken
+        respondentIp: respondentIp
+        responderAccessCode: responderAccessCode
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        answers:
+        - score: 0.8008281904610115
+          questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          value: value
+        - score: 0.8008281904610115
+          questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          value: value
+      properties:
+        campaignId:
+          format: uuid
+          type: string
+        respondentIdentifier:
+          type: string
+        respondentIp:
+          type: string
+        respondentDeviceFingerprint:
+          type: string
+        responderToken:
+          type: string
+        responderAccessCode:
+          type: string
+        answers:
+          items:
+            $ref: "#/components/schemas/ResponseSubmissionRequest_answers_inner"
+          type: array
+      required:
+      - campaignId
+    SurveyResponseResponse:
+      example:
+        respondentIdentifier: respondentIdentifier
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        weightProfileId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        lockedAt: 2000-01-23T04:56:07.000+00:00
+        answers:
+        - score: 6.027456183070403
+          questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          value: value
+        - score: 6.027456183070403
+          questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          value: value
+        startedAt: 2000-01-23T04:56:07.000+00:00
+        scoredAt: 2000-01-23T04:56:07.000+00:00
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        submittedAt: 2000-01-23T04:56:07.000+00:00
+        surveySnapshotId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        weightedTotalScore: 0.8008281904610115
+        status: IN_PROGRESS
+      properties:
+        id:
+          format: uuid
+          type: string
+        campaignId:
+          format: uuid
+          type: string
+        surveySnapshotId:
+          format: uuid
+          type: string
+        respondentIdentifier:
+          type: string
+        status:
+          enum:
+          - IN_PROGRESS
+          - SUBMITTED
+          - LOCKED
+          - REOPENED
+          type: string
+        startedAt:
+          format: date-time
+          type: string
+        submittedAt:
+          format: date-time
+          type: string
+        lockedAt:
+          format: date-time
+          type: string
+        weightProfileId:
+          format: uuid
+          type: string
+        weightedTotalScore:
+          type: number
+        scoredAt:
+          format: date-time
+          type: string
+        answers:
+          items:
+            $ref: "#/components/schemas/SurveyResponseResponse_answers_inner"
+          type: array
+    ReopenRequest:
+      example:
+        reason: reason
+        reopenWindowMinutes: 0
+      properties:
+        reason:
+          type: string
+        reopenWindowMinutes:
+          type: integer
+      required:
+      - reason
+    CampaignAnalytics:
+      example:
+        inProgressCount: 1
+        totalResponses: 0
+        lockedCount: 5
+        submittedCount: 6
+        completionRate: 5.637376656633329
+      properties:
+        totalResponses:
+          format: int64
+          type: integer
+        submittedCount:
+          format: int64
+          type: integer
+        inProgressCount:
+          format: int64
+          type: integer
+        lockedCount:
+          format: int64
+          type: integer
+        completionRate:
+          type: number
+    WeightProfileRequest:
+      example:
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        categoryWeights:
+        - weightPercentage: 0.8008281904610115
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        - weightPercentage: 0.8008281904610115
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        name: name
+      properties:
+        name:
+          type: string
+        campaignId:
+          format: uuid
+          type: string
+        categoryWeights:
+          items:
+            $ref: "#/components/schemas/CategoryWeightRequest"
+          type: array
+      required:
+      - campaignId
+      - name
+    CategoryWeightRequest:
+      example:
+        weightPercentage: 0.8008281904610115
+        categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        categoryId:
+          format: uuid
+          type: string
+        weightPercentage:
+          type: number
+      required:
+      - categoryId
+      - weightPercentage
+    WeightProfileResponse:
+      example:
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        createdBy: createdBy
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        categoryWeights:
+        - weightPercentage: 0.8008281904610115
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        - weightPercentage: 0.8008281904610115
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        name: name
+        active: true
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        campaignId:
+          format: uuid
+          type: string
+        active:
+          type: boolean
+        categoryWeights:
+          items:
+            $ref: "#/components/schemas/WeightProfileResponse_categoryWeights_inner"
+          type: array
+        createdBy:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+    ScoreResult:
+      example:
+        categoryScores:
+        - normalizedScore: 5.962133916683182
+          weightPercentage: 5.637376656633329
+          rawScore: 6.027456183070403
+          maxScore: 1.4658129805029452
+          weightedScore: 2.3021358869347655
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        - normalizedScore: 5.962133916683182
+          weightPercentage: 5.637376656633329
+          rawScore: 6.027456183070403
+          maxScore: 1.4658129805029452
+          weightedScore: 2.3021358869347655
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        weightProfileId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        totalScore: 0.8008281904610115
+      properties:
+        campaignId:
+          format: uuid
+          type: string
+        weightProfileId:
+          format: uuid
+          type: string
+        totalScore:
+          type: number
+        categoryScores:
+          items:
+            $ref: "#/components/schemas/ScoreResult_categoryScores_inner"
+          type: array
+    AuditLogResponse:
+      example:
+        actor: actor
+        reason: reason
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        afterValue: afterValue
+        beforeValue: beforeValue
+        entityType: entityType
+        tenantId: tenantId
+        ipAddress: ipAddress
+        action: action
+        entityId: entityId
+        id: 0
+      properties:
+        id:
+          format: int64
+          type: integer
+        tenantId:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+        action:
+          type: string
+        actor:
+          type: string
+        reason:
+          type: string
+        beforeValue:
+          type: string
+        afterValue:
+          type: string
+        ipAddress:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+    SortObject:
+      example:
+        unsorted: true
+        sorted: true
+        empty: true
+      properties:
+        empty:
+          type: boolean
+        sorted:
+          type: boolean
+        unsorted:
+          type: boolean
+    PageableObject:
+      example:
+        paged: true
+        pageNumber: 6
+        offset: 0
+        pageSize: 1
+        unpaged: true
+        sort:
+          unsorted: true
+          sorted: true
+          empty: true
+      properties:
+        offset:
+          format: int64
+          type: integer
+        pageNumber:
+          type: integer
+        pageSize:
+          type: integer
+        paged:
+          type: boolean
+        unpaged:
+          type: boolean
+        sort:
+          $ref: "#/components/schemas/SortObject"
+    PageTenantOverviewResponse:
+      example:
+        number: 2
+        size: 7
+        numberOfElements: 9
+        last: true
+        totalPages: 5
+        pageable:
+          paged: true
+          pageNumber: 6
+          offset: 0
+          pageSize: 1
+          unpaged: true
+          sort:
+            unsorted: true
+            sorted: true
+            empty: true
+        sort:
+          unsorted: true
+          sorted: true
+          empty: true
+        content:
+        - createdAt: 2000-01-23T04:56:07.000+00:00
+          tenantId: tenantId
+          name: name
+          subscriptionStatus: TRIAL
+          active: true
+          plan: BASIC
+          primaryEmail: primaryEmail
+        - createdAt: 2000-01-23T04:56:07.000+00:00
+          tenantId: tenantId
+          name: name
+          subscriptionStatus: TRIAL
+          active: true
+          plan: BASIC
+          primaryEmail: primaryEmail
+        first: true
+        totalElements: 5
+        empty: true
+      properties:
+        content:
+          items:
+            $ref: "#/components/schemas/TenantOverviewResponse"
+          type: array
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        sort:
+          $ref: "#/components/schemas/SortObject"
+        totalElements:
+          format: int64
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+        size:
+          type: integer
+        numberOfElements:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+        empty:
+          type: boolean
+    PageAuditLogResponse:
+      example:
+        number: 5
+        size: 5
+        numberOfElements: 2
+        last: true
+        totalPages: 1
+        pageable:
+          paged: true
+          pageNumber: 6
+          offset: 0
+          pageSize: 1
+          unpaged: true
+          sort:
+            unsorted: true
+            sorted: true
+            empty: true
+        sort:
+          unsorted: true
+          sorted: true
+          empty: true
+        content:
+        - actor: actor
+          reason: reason
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          afterValue: afterValue
+          beforeValue: beforeValue
+          entityType: entityType
+          tenantId: tenantId
+          ipAddress: ipAddress
+          action: action
+          entityId: entityId
+          id: 0
+        - actor: actor
+          reason: reason
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          afterValue: afterValue
+          beforeValue: beforeValue
+          entityType: entityType
+          tenantId: tenantId
+          ipAddress: ipAddress
+          action: action
+          entityId: entityId
+          id: 0
+        first: true
+        totalElements: 6
+        empty: true
+      properties:
+        content:
+          items:
+            $ref: "#/components/schemas/AuditLogResponse"
+          type: array
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        sort:
+          $ref: "#/components/schemas/SortObject"
+        totalElements:
+          format: int64
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+        size:
+          type: integer
+        numberOfElements:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+        empty:
+          type: boolean
+    ErrorResponse:
+      example:
+        path: path
+        fieldErrors:
+        - field: field
+          message: message
+          rejectedValue: ""
+        - field: field
+          message: message
+          rejectedValue: ""
+        error: error
+        message: message
+        timestamp: 2000-01-23T04:56:07.000+00:00
+        status: 0
+      properties:
+        timestamp:
+          format: date-time
+          type: string
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        fieldErrors:
+          items:
+            $ref: "#/components/schemas/ErrorResponse_fieldErrors_inner"
+          type: array
+    CategoryResponse_questionMappings_inner:
+      example:
+        questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        sortOrder: 6
+        weight: 1.4658129805029452
+        questionText: questionText
+      properties:
+        questionId:
+          format: uuid
+          type: string
+        questionVersionId:
+          format: uuid
+          type: string
+        questionText:
+          type: string
+        sortOrder:
+          type: integer
+        weight:
+          type: number
+    SurveyResponse_pages_inner_questions_inner:
+      example:
+        pinnedQuestionText: pinnedQuestionText
+        questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        categoryWeightPercentage: 1.4658129805029452
+        answerConfig: answerConfig
+        pinnedCategoryDescription: pinnedCategoryDescription
+        mandatory: true
+        questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        pinnedCategoryName: pinnedCategoryName
+        pinnedQuestionType: RANK
+        categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        sortOrder: 5
+        pinnedQuestionMaxScore: 5.637376656633329
+        pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        id:
+          format: uuid
+          type: string
+        questionId:
+          format: uuid
+          type: string
+        questionVersionId:
+          format: uuid
+          type: string
+        categoryId:
+          format: uuid
+          type: string
+        categoryVersionId:
+          format: uuid
+          type: string
+        categoryWeightPercentage:
+          type: number
+        sortOrder:
+          type: integer
+        mandatory:
+          type: boolean
+        answerConfig:
+          type: string
+        pinnedQuestionText:
+          type: string
+        pinnedQuestionType:
+          enum:
+          - RANK
+          - RATING_SCALE
+          - SINGLE_CHOICE
+          - MULTIPLE_CHOICE
+          type: string
+        pinnedQuestionMaxScore:
+          type: number
+        pinnedQuestionOptionConfig:
+          type: string
+        pinnedCategoryName:
+          type: string
+        pinnedCategoryDescription:
+          type: string
+    SurveyResponse_pages_inner:
+      example:
+        sortOrder: 6
+        questions:
+        - pinnedQuestionText: pinnedQuestionText
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryWeightPercentage: 1.4658129805029452
+          answerConfig: answerConfig
+          pinnedCategoryDescription: pinnedCategoryDescription
+          mandatory: true
+          questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          pinnedCategoryName: pinnedCategoryName
+          pinnedQuestionType: RANK
+          categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 5
+          pinnedQuestionMaxScore: 5.637376656633329
+          pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        - pinnedQuestionText: pinnedQuestionText
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryWeightPercentage: 1.4658129805029452
+          answerConfig: answerConfig
+          pinnedCategoryDescription: pinnedCategoryDescription
+          mandatory: true
+          questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          pinnedCategoryName: pinnedCategoryName
+          pinnedQuestionType: RANK
+          categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 5
+          pinnedQuestionMaxScore: 5.637376656633329
+          pinnedQuestionOptionConfig: pinnedQuestionOptionConfig
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        title: title
+      properties:
+        id:
+          format: uuid
+          type: string
+        title:
+          type: string
+        sortOrder:
+          type: integer
+        questions:
+          items:
+            $ref: "#/components/schemas/SurveyResponse_pages_inner_questions_inner"
+          type: array
+    CampaignPreviewResponse_pages_inner_questions_inner:
+      example:
+        questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        answerConfig: answerConfig
+        optionConfig: optionConfig
+        categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        sortOrder: 1
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        text: text
+        type: RANK
+        maxScore: 6.027456183070403
+        mandatory: true
+      properties:
+        id:
+          format: uuid
+          type: string
+        questionId:
+          format: uuid
+          type: string
+        questionVersionId:
+          format: uuid
+          type: string
+        categoryVersionId:
+          format: uuid
+          type: string
+        text:
+          type: string
+        type:
+          enum:
+          - RANK
+          - RATING_SCALE
+          - SINGLE_CHOICE
+          - MULTIPLE_CHOICE
+          type: string
+        maxScore:
+          type: number
+        mandatory:
+          type: boolean
+        sortOrder:
+          type: integer
+        optionConfig:
+          type: string
+        answerConfig:
+          type: string
+    CampaignPreviewResponse_pages_inner:
+      example:
+        sortOrder: 0
+        questions:
+        - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          answerConfig: answerConfig
+          optionConfig: optionConfig
+          categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 1
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          text: text
+          type: RANK
+          maxScore: 6.027456183070403
+          mandatory: true
+        - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          answerConfig: answerConfig
+          optionConfig: optionConfig
+          categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 1
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          text: text
+          type: RANK
+          maxScore: 6.027456183070403
+          mandatory: true
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        title: title
+      properties:
+        id:
+          format: uuid
+          type: string
+        title:
+          type: string
+        sortOrder:
+          type: integer
+        questions:
+          items:
+            $ref: "#/components/schemas/CampaignPreviewResponse_pages_inner_questions_inner"
+          type: array
+    AuthProfileResponse_claimMappings_inner:
+      example:
+        internalField: internalField
+        externalClaim: externalClaim
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        required: true
+      properties:
+        id:
+          format: uuid
+          type: string
+        externalClaim:
+          type: string
+        internalField:
+          type: string
+        required:
+          type: boolean
+    ResponseSubmissionRequest_answers_inner:
+      example:
+        score: 0.8008281904610115
+        questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        value: value
+      properties:
+        questionId:
+          format: uuid
+          type: string
+        questionVersionId:
+          format: uuid
+          type: string
+        value:
+          type: string
+        score:
+          type: number
+      required:
+      - questionId
+    SurveyResponseResponse_answers_inner:
+      example:
+        score: 6.027456183070403
+        questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        value: value
+      properties:
+        id:
+          format: uuid
+          type: string
+        questionId:
+          format: uuid
+          type: string
+        questionVersionId:
+          format: uuid
+          type: string
+        value:
+          type: string
+        score:
+          type: number
+    WeightProfileResponse_categoryWeights_inner:
+      example:
+        weightPercentage: 0.8008281904610115
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        id:
+          format: uuid
+          type: string
+        categoryId:
+          format: uuid
+          type: string
+        weightPercentage:
+          type: number
+    ScoreResult_categoryScores_inner:
+      example:
+        normalizedScore: 5.962133916683182
+        weightPercentage: 5.637376656633329
+        rawScore: 6.027456183070403
+        maxScore: 1.4658129805029452
+        weightedScore: 2.3021358869347655
+        categoryId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        categoryId:
+          format: uuid
+          type: string
+        rawScore:
+          type: number
+        maxScore:
+          type: number
+        normalizedScore:
+          type: number
+        weightPercentage:
+          type: number
+        weightedScore:
+          type: number
+    ErrorResponse_fieldErrors_inner:
+      example:
+        field: field
+        message: message
+        rejectedValue: ""
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+        rejectedValue: {}
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      description: Engine-issued admin access token
+      scheme: bearer
+      type: http
+
