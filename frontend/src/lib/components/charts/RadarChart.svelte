@@ -7,17 +7,17 @@
         datasets = [], // Supports [{ label, data: [{value, label}], color }]
         xKey = 'value', 
         yKey = 'label', 
-        colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'] 
+        color = '#3b82f6' 
     } = $props<{
         data?: any[];
         datasets?: any[];
         xKey?: string;
         yKey?: string;
-        colors?: string[];
+        color?: string;
     }>();
-    
+
     let canvas: HTMLCanvasElement;
-    let chartInstance: Chart<'pie'> | null = null;
+    let chartInstance: Chart<'radar'> | null = null;
 
     function buildLabels() {
         if (datasets && datasets.length > 0) {
@@ -39,20 +39,41 @@
                     const found = ds.data.find((d: any) => d[yKey] === label);
                     return found ? (Number(found[xKey]) || 0) : 0;
                 });
+                
+                // Add some transparency to the radar fill area for better comparative readability
+                const hexToRgba = (hex: string, alpha: number) => {
+                    let c: any;
+                    if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+                        c= hex.substring(1).split('');
+                        if(c.length== 3){
+                            c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+                        }
+                        const numColor = parseInt(c.join(''), 16);
+                        return 'rgba(' + [(numColor >> 16) & 255, (numColor >> 8) & 255, numColor & 255].join(',') + ',' + alpha + ')';
+                    }
+                    return hex; // fallback if not hex
+                }
+
+                const baseColor = ds.color || color;
+
                 return {
                     label: ds.label,
                     data: alignedData,
-                    backgroundColor: colors.slice(0, labels.length),
-                    borderWidth: 1,
-                    borderColor: '#ffffff'
+                    borderColor: baseColor,
+                    backgroundColor: hexToRgba(baseColor, 0.2), // Transparent fill
+                    pointBackgroundColor: baseColor,
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: baseColor,
                 };
             });
         } else {
             return [{
+                label: 'Count',
                 data: data.map((d: any) => Number(d[xKey]) || 0),
-                backgroundColor: colors.slice(0, data.length),
-                borderWidth: 1,
-                borderColor: '#ffffff'
+                borderColor: color,
+                backgroundColor: color + '33', // rough 20% opacity using hex
+                pointBackgroundColor: color,
             }];
         }
     }
@@ -70,7 +91,7 @@
         if (!ctx) return;
 
         chartInstance = new Chart(ctx, {
-            type: 'pie',
+            type: 'radar',
             data: {
                 labels: buildLabels(),
                 datasets: buildDatasets()
@@ -79,18 +100,14 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: { boxWidth: 12 }
-                    },
+                    legend: { display: datasets && datasets.length > 0 },
                     tooltip: {
                         callbacks: {
                             label: (context: any) => {
-                                let label = context.label || '';
+                                let label = context.dataset.label || '';
                                 if (label) label += ': ';
-                                if (context.parsed !== null) {
-                                    const val = context.parsed;
-                                    label += val;
+                                if (context.parsed.r !== null) {
+                                    label += context.parsed.r;
                                     
                                     const targetDatasets = datasets && datasets.length > 0 ? datasets : [{ data }];
                                     const dsData = targetDatasets[context.datasetIndex]?.data || [];
@@ -105,6 +122,12 @@
                             }
                         }
                     }
+                },
+                scales: {
+                    r: { 
+                        beginAtZero: true,
+                        ticks: { precision: 0 } // whole integers only for counts
+                    }
                 }
             }
         });
@@ -117,6 +140,6 @@
     });
 </script>
 
-<div class="w-full h-full relative">
+<div class="relative w-full h-full">
     <canvas bind:this={canvas}></canvas>
 </div>

@@ -384,9 +384,30 @@
     }
 
     async function copyToClipboard(text: string, id: string) {
-        await navigator.clipboard.writeText(text);
-        copiedId = id;
-        setTimeout(() => (copiedId = null), 2000);
+        try {
+            if (navigator?.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                } finally {
+                    textArea.remove();
+                }
+            }
+            copiedId = id;
+            setTimeout(() => (copiedId = null), 2000);
+        } catch (err) {
+            console.error("Failed to copy:", err);
+            toast.error("Failed to copy to clipboard");
+        }
     }
 
     function formatDate(iso: string) {

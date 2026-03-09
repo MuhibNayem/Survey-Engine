@@ -26,11 +26,12 @@ This is intentionally operational and sequence-driven for product, onboarding, a
 8. Private Responder Signed Token Flow
 9. Response Lifecycle Flow
 10. Automated Scoring Lifecycle Flow (Default)
-11. End-to-End Recommended Build Order
-12. Explicit Tagging Chain (Question -> Category -> Survey -> Campaign)
-13. Out-of-MVP Lifecycle Items
-14. Super-Admin Tenant Operations Flow
-15. Audit Log Query Flow
+11. Reporting and Advanced Analytics Flow
+12. End-to-End Recommended Build Order
+13. Explicit Tagging Chain (Question -> Category -> Survey -> Campaign)
+14. Out-of-MVP Lifecycle Items
+15. Super-Admin Tenant Operations Flow
+16. Audit Log Query Flow
 
 ---
 
@@ -660,7 +661,38 @@ Guarantee deterministic weighted scoring with minimal operational steps.
 
 ---
 
-## 11. End-to-End Recommended Build Order
+## 11. Reporting and Advanced Analytics Flow
+
+### Goal
+Provide organizers with real-time aggregated insights, score distributions, metadata filtering, and cross-segment comparisons for active and closed campaigns.
+
+### Recommended creation order
+1. Ensure campaign has responses.
+2. View Overall Analytics (`/full-report`).
+3. Apply metadata filters to slice data.
+4. Use Comparison Engine (`/compare`) for multi-segment analysis.
+
+### Step-by-step
+
+1. Fetch Overall Analytics (`GET /api/v1/analytics/campaigns/{campaignId}/full-report`).
+- Why: Provides a unified dashboard payload (summary, scores, trends, questions) to avoid N+1 API calls.
+- How: Call endpoint with admin session.
+- Result: Full aggregation of all responses for the campaign.
+
+2. Slice Overall Analytics (`GET /api/v1/analytics/campaigns/{campaignId}/full-report?metadata.Department=Sales`).
+- Why: Organizers want to drill down into specific demographic performance.
+- How: Append `metadata.{key}={value}` query parameters.
+- Result: Aggregations reflect only responses matching the provided metadata.
+
+3. Compare Multiple Segments (`POST /api/v1/analytics/campaigns/{campaignId}/compare`).
+- Why: Advanced operational analysis requires side-by-side demographic comparison (e.g., Sales vs Engineering).
+- How: Send a `ComparisonRequest` containing an array of segment definitions (name + metadata filters).
+- Result: Backend multiplexes the data aggregations and returns a `ComparisonAnalyticsResponse` mapping each segment to its respective `full-report` payload.
+- Frontend handling: The Svelte `PieChart`, `BarChart`, and `LineChart` components ingest these payloads dynamically via an array of `datasets[]` to render overlapping comparison geometries automatically.
+
+---
+
+## 12. End-to-End Recommended Build Order
 
 If a new tenant asks “what should we configure first,” use this order:
 
@@ -693,7 +725,7 @@ If a new tenant asks “what should we configure first,” use this order:
 
 ---
 
-## 12. Explicit Tagging Chain (Question -> Category -> Survey -> Campaign)
+## 13. Explicit Tagging Chain (Question -> Category -> Survey -> Campaign)
 
 This section is the canonical no-ambiguity chain for entity tagging.
 
@@ -757,7 +789,7 @@ This section is the canonical no-ambiguity chain for entity tagging.
 
 ---
 
-## 13. Out-of-MVP Lifecycle Items
+## 14. Out-of-MVP Lifecycle Items
 
 The following flows exist in broader documentation but are not part of implemented MVP lifecycle scope:
 
@@ -769,7 +801,7 @@ The following flows exist in broader documentation but are not part of implement
 
 ---
 
-## 14. Super-Admin Tenant Operations Flow
+## 15. Super-Admin Tenant Operations Flow
 
 ### Goal
 Allow platform operators to manage tenant lifecycle and provide support operations.
@@ -808,7 +840,7 @@ Allow platform operators to manage tenant lifecycle and provide support operatio
 
 ---
 
-## 15. Audit Log Query Flow
+## 16. Audit Log Query Flow
 
 ### Goal
 Provide traceability for tenant-level and platform-wide operational activity.

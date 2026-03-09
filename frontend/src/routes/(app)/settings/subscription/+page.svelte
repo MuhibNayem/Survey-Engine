@@ -14,6 +14,8 @@
         ShieldCheck,
         AlertCircle,
         Sparkles,
+        ChevronDown,
+        ChevronUp,
     } from "lucide-svelte";
     import type {
         SubscriptionResponse,
@@ -28,6 +30,7 @@
     let activeCampaignCount = $state(0);
     let loading = $state(true);
     let error = $state<string | null>(null);
+    let expandedPlanCode = $state<string | null>(null);
 
     const planBadgeVariant = $derived(
         subscription?.status === "ACTIVE"
@@ -125,6 +128,10 @@
 
     function initiateCheckout(planCode: string) {
         goto(`/payment/checkout?planCode=${planCode}&source=settings`);
+    }
+
+    function togglePlanDetails(planCode: string) {
+        expandedPlanCode = expandedPlanCode === planCode ? null : planCode;
     }
 
     onMount(loadData);
@@ -374,6 +381,56 @@
                                     >
                                 </li>
                             </ul>
+
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                class="w-full justify-between px-2"
+                                onclick={() => togglePlanDetails(plan.planCode)}
+                            >
+                                <span>Plan details</span>
+                                {#if expandedPlanCode === plan.planCode}
+                                    <ChevronUp class="h-4 w-4" />
+                                {:else}
+                                    <ChevronDown class="h-4 w-4" />
+                                {/if}
+                            </Button>
+
+                            {#if expandedPlanCode === plan.planCode}
+                                <div class="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3">
+                                    <div class="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                        <div>Billing cycle</div>
+                                        <div class="text-right text-foreground">{plan.billingCycleDays} days</div>
+                                        <div>API access</div>
+                                        <div class="text-right text-foreground">{plan.apiAccessEnabled ? "Enabled" : "Disabled"}</div>
+                                        <div>SSO</div>
+                                        <div class="text-right text-foreground">{plan.ssoEnabled ? "Enabled" : "Disabled"}</div>
+                                        <div>Custom branding</div>
+                                        <div class="text-right text-foreground">{plan.customBrandingEnabled ? "Enabled" : "Disabled"}</div>
+                                        <div>Signed token</div>
+                                        <div class="text-right text-foreground">{plan.signedTokenEnabled ? "Enabled" : "Disabled"}</div>
+                                        <div>Weight profiles</div>
+                                        <div class="text-right text-foreground">{plan.weightProfilesEnabled ? "Enabled" : "Disabled"}</div>
+                                    </div>
+
+                                    {#if plan.features && plan.features.length > 0}
+                                        <div class="border-t border-border/60 pt-3">
+                                            <p class="text-xs font-semibold text-foreground mb-2">Included features</p>
+                                            <ul class="space-y-1.5">
+                                                {#each plan.features as feature}
+                                                    <li class="text-xs text-muted-foreground">
+                                                        <span class="text-foreground font-medium">{feature.name}</span>
+                                                        {#if feature.description}
+                                                            <span>: {feature.description}</span>
+                                                        {/if}
+                                                    </li>
+                                                {/each}
+                                            </ul>
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/if}
 
                             <Button
                                 class="w-full mt-4"

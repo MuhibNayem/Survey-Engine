@@ -22,7 +22,9 @@
     } from "lucide-svelte";
     import BarChartComponent from '$lib/components/charts/BarChart.svelte';
     import PieChartComponent from '$lib/components/charts/PieChart.svelte';
+    import RadarChartComponent from "$lib/components/charts/RadarChart.svelte";
     import LineChartComponent from '$lib/components/charts/LineChart.svelte';
+    import { Filter } from "lucide-svelte";
     import type { CampaignResponse, AnalyticsResponse, ScoreDistributionResponse, QuestionAnalyticsResponse, CampaignPreviewResponse, TemporalAnalyticsResponse, FullCampaignAnalyticsResponse } from "$lib/types";
 
     let campaign = $state<CampaignResponse | null>(null);
@@ -72,12 +74,29 @@
                 qMap = report.questionAnalytics || {};
             } else {
                 // Comparison Mode Fetch
-                const payload = {
-                    segments: segments.filter(s => Object.values(s.filters).some(v => v !== '') || s.name).map(s => ({
+                const segmentPayloads = segments.map(s => {
+                    // Extract only non-empty filters
+                    const validFilters: Record<string, string> = {};
+                    Object.entries(s.filters).forEach(([key, val]) => {
+                        if (val && val.toString().trim() !== '') {
+                            validFilters[key] = val.toString().trim();
+                        }
+                    });
+                    
+                    return {
                         name: s.name,
-                        metadataFilters: s.filters
-                    }))
-                };
+                        metadataFilters: validFilters
+                    };
+                }); 
+
+                const hasFilters = segmentPayloads.some(s => Object.keys(s.metadataFilters).length > 0);
+                if (!hasFilters) {
+                    comparisonData = {};
+                    analytics = null as any; 
+                    return; // Skip API call if no segments have actual data filled
+                }
+
+                const payload = { segments: segmentPayloads.filter(s => Object.keys(s.metadataFilters).length > 0 || s.name) };
                 const res = await api.post<any>(`/analytics/campaigns/${campaignId}/compare`, payload);
                 comparisonData = res.data.segmentReports;
                 
@@ -321,6 +340,18 @@
                 <Button variant="outline" class="mt-4" onclick={loadAnalytics}
                     >Retry</Button
                 >
+            </Card.Content>
+        </Card.Root>
+    {:else if viewMode === 'compare' && Object.keys(comparisonData).length === 0}
+        <Card.Root class="border-indigo-200 bg-indigo-50/50 mt-8 border-dashed border-2">
+            <Card.Content class="py-16 flex flex-col items-center justify-center text-center">
+                <div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center mb-4">
+                    <Filter class="h-6 w-6 text-indigo-600" />
+                </div>
+                <h3 class="text-xl font-semibold text-indigo-900 mb-2">Configure Segments to Compare</h3>
+                <p class="text-indigo-700/70 max-w-md mx-auto text-sm">
+                    Please use the segment builder above to select specific demographic filters for Segment A and Segment B. Click "Apply Analysis" when you're ready to see the comparison.
+                </p>
             </Card.Content>
         </Card.Root>
     {:else if analytics}
@@ -724,10 +755,10 @@
                                         }))
                                     }))}
                                     
-                                    {#if compareDatasets.some(ds => ds.data.length > 0)}
+                                    {#if compareDatasets.some((ds: any) => ds.data.length > 0)}
                                         <div class="h-[250px] mt-4">
-                                            {#if question.type === 'SINGLE_CHOICE' && compareDatasets.every(ds => ds.data.length <= 8)}
-                                                <PieChartComponent datasets={compareDatasets} />
+                                            {#if question.type === 'SINGLE_CHOICE' && compareDatasets.every((ds: any) => ds.data.length <= 8)}
+                                                <RadarChartComponent datasets={compareDatasets} />
                                             {:else}
                                                 <BarChartComponent datasets={compareDatasets} />
                                             {/if}

@@ -40,7 +40,6 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 
 * Real payment gateway integration (currently mock-success gateway).  
 * Per-feature usage metering beyond implemented quotas (admin users, active campaigns, responses per campaign).  
-* Advanced analytics (time-series traffic dashboards, segmentation UI, BI pipelines).  
 * Full enterprise permission matrix beyond role-based API controls.  
 * Public API for theme template lifecycle (theme tables exist but dedicated theming controller is not implemented).  
 * Native SAML protocol stack, native LDAP bind integration, and provider-specific SDK integrations for each IdP vendor.
@@ -297,7 +296,15 @@ Production targets:
 * Score calculation uses deterministic category aggregation from validated answers and normalized weighted scoring.  
 * Manual scoring profile endpoints remain available (`/api/v1/scoring/**`) for non-default use cases, but MVP frontend uses the simplified automatic flow.
 
-### **4.11 SaaS Subscription and Plans**
+### **4.11 Advanced Analytics and Cross-Segment Comparison**
+
+* Platform provides real-time aggregated analytics mapped over responses, scores, and temporal metadata.
+* **Overall Analytics mode:** Generates a unified `/full-report` that includes total summaries, answer-level histograms, and temporal completion velocity curves. Can be fully filtered by single metadata key-value queries (e.g., `metadata.Department=Sales`).
+* **Cross-Segment Comparison mode:** Features a dedicated `/compare` POST endpoint receiving a dynamically built `ComparisonRequest` containing up to 5 demographic segments (each with specific metadata filters).
+* The comparison engine isolates datasets concurrently on the backend and maps them into a unified `ComparisonAnalyticsResponse`.
+* The frontend seamlessly maps these payload arrays into overlapping comparative geometries for Grouped Bar Charts and Multi-Line Temporal Curves without requiring BI tool extraction.
+
+### **4.12 SaaS Subscription and Plans**
 
 * Tenant subscription records include plan, status, billing period, and activity state.  
 * Subscription checkout uses mock payment gateway and records transaction success.  
@@ -385,6 +392,8 @@ Production targets:
 * Auth profiles/validation: `/api/v1/auth/**`
   * Includes provider template endpoints for onboarding UI.
 * Responses: `/api/v1/responses/**` and public submit `/api/v1/responses`
+* Advanced Analytics: `/api/v1/analytics/campaigns/{campaignId}/**`
+  * Includes `/full-report` (GET, metadata filtered) and `/compare` (POST, multiplexed segments).
 * Audit logs: `/api/v1/audit-logs`, `/api/v1/admin/superadmin/audit-logs`
 
 ## **7\. Non-Functional Requirements (Implemented Baseline)**

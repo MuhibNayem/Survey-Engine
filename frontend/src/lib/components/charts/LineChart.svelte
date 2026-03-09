@@ -5,8 +5,16 @@
     let { 
         data = [], 
         datasets = [], // Supports [{ label, data: [{date, count}], color }]
+        xKey = 'count',
+        yKey = 'date',
         color = '#3b82f6' 
-    } = $props();
+    } = $props<{
+        data?: any[];
+        datasets?: any[];
+        xKey?: string;
+        yKey?: string;
+        color?: string;
+    }>();
     
     let canvas: HTMLCanvasElement;
     let chartInstance: Chart<'line'> | null = null;
@@ -15,38 +23,37 @@
         if (datasets && datasets.length > 0) {
             return datasets.map((ds: any) => ({
                 label: ds.label,
-                data: ds.data.map((d: any) => Number(d.count) || 0),
+                data: ds.data.map((d: any) => ({
+                    x: d[yKey],
+                    y: Number(d[xKey]) || 0,
+                    percentage: d.percentage
+                })),
                 borderColor: ds.color || color,
-                backgroundColor: (ds.color || color) + '33',
-                borderWidth: 2,
-                pointBackgroundColor: '#ffffff',
-                pointBorderColor: ds.color || color,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                fill: true,
-                tension: 0.4
+                backgroundColor: ds.color || color,
+                tension: 0.3,
+                fill: false,
             }));
         } else {
             return [{
-                label: 'Responses',
-                data: data.map((d: any) => Number(d.count) || 0),
+                label: 'Count',
+                data: data.map((d: any) => ({
+                    x: d[yKey],
+                    y: Number(d[xKey]) || 0,
+                    percentage: d.percentage
+                })),
                 borderColor: color,
-                backgroundColor: color + '33', // 20% opacity hex
-                borderWidth: 2,
-                pointBackgroundColor: '#ffffff',
-                pointBorderColor: color,
-                pointRadius: 4,
-                pointHoverRadius: 6,
+                backgroundColor: color,
+                tension: 0.3,
                 fill: true,
-                tension: 0.4
             }];
         }
     }
 
     function buildLabels() {
         // Find longest dataset to extract labels if using datasets mapped, else use single data prop
+        // Labels are now derived from the yKey (which is typically date for x-axis)
         const primaryData = datasets && datasets.length > 0 ? datasets[0].data : data;
-        return primaryData.map((d: any) => new Date(d.date).toLocaleDateString());
+        return primaryData.map((d: any) => new Date(d[yKey]).toLocaleDateString());
     }
 
     $effect(() => {
@@ -77,6 +84,20 @@
                     tooltip: {
                         intersect: false,
                         mode: 'index',
+                        callbacks: {
+                            label: (context: any) => {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y;
+                                    const raw = context.raw as { y: number, percentage?: number };
+                                    if (raw && raw.percentage !== undefined && raw.percentage !== null) {
+                                        label += ` (${Number(raw.percentage).toFixed(1)}%)`;
+                                    }
+                                }
+                                return label;
+                            }
+                        }
                     }
                 },
                 scales: {

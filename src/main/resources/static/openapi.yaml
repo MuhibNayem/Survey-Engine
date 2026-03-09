@@ -2121,6 +2121,74 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
 
+  /api/v1/analytics/campaigns/{campaignId}/full-report:
+    get:
+      tags: [Responses]
+      operationId: getFullReport
+      summary: Get full analytics report with metadata filters
+      description: |
+        Why this endpoint is needed:
+        The dashboard needs an aggregated snapshot of campaign performance, score curves, and individual question breakdowns.
+        
+        What this endpoint does:
+        Returns all analytics metrics for a single segment (or the entire campaign).
+      parameters:
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Full campaign analytics payload returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullCampaignAnalyticsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/analytics/campaigns/{campaignId}/compare:
+    post:
+      tags: [Responses]
+      operationId: compareSegments
+      summary: Compare multiple analytics segments
+      description: |
+        Why this endpoint is needed:
+        Platform users need side-by-side comparative analytics of demographic segments.
+        
+        What this endpoint does:
+        Multiplexes the /full-report generation across up to 5 concurrent demographic segments.
+      parameters:
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComparisonRequest'
+      responses:
+        '200':
+          description: Multi-segment comparison matrix returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonAnalyticsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   /api/v1/scoring/profiles:
     post:
       tags: [Scoring]
