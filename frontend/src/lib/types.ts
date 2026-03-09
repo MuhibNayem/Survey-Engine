@@ -442,6 +442,13 @@ export interface PlanDefinitionResponse {
     deviceFingerprintEnabled: boolean;
     apiAccessEnabled: boolean;
     active: boolean;
+    features: {
+        featureCode: string;
+        category: string;
+        name: string;
+        description: string;
+        displayOrder: number;
+    }[];
 }
 
 // --- Tenant Auth Config ---

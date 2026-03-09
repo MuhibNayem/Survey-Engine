@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -87,4 +90,13 @@ public class PlanDefinition extends AuditableEntity {
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    @ManyToMany(fetch = jakarta.persistence.FetchType.EAGER)
+    @jakarta.persistence.JoinTable(
+            name = "plan_definition_features",
+            joinColumns = @jakarta.persistence.JoinColumn(name = "plan_definition_id"),
+            inverseJoinColumns = @jakarta.persistence.JoinColumn(name = "feature_id")
+    )
+    @Builder.Default
+    private Set<PlanFeature> features = new HashSet<>();
 }

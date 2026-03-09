@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -33,4 +34,5 @@ public class PlanDefinitionResponse {
     private boolean deviceFingerprintEnabled;
     private boolean apiAccessEnabled;
     private boolean active;
+    private List<FeatureResponse> features;
 }

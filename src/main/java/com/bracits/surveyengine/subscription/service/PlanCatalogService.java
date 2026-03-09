@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -72,6 +73,20 @@ public class PlanCatalogService {
                 .deviceFingerprintEnabled(p.isDeviceFingerprintEnabled())
                 .apiAccessEnabled(p.isApiAccessEnabled())
                 .active(p.isActive())
+                .features(p.getFeatures().stream()
+                        .map(this::toFeatureResponse)
+                        .sorted(Comparator.comparing(com.bracits.surveyengine.subscription.dto.FeatureResponse::getDisplayOrder))
+                        .toList())
+                .build();
+    }
+
+    private com.bracits.surveyengine.subscription.dto.FeatureResponse toFeatureResponse(com.bracits.surveyengine.subscription.entity.PlanFeature f) {
+        return com.bracits.surveyengine.subscription.dto.FeatureResponse.builder()
+                .featureCode(f.getFeatureCode())
+                .category(f.getCategory())
+                .name(f.getName())
+                .description(f.getDescription())
+                .displayOrder(f.getDisplayOrder())
                 .build();
     }
 }

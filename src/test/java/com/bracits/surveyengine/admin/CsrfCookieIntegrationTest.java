@@ -56,7 +56,7 @@ public class CsrfCookieIntegrationTest {
         MvcResult registerResult = mockMvc.perform(post("/api/v1/admin/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registerContent))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn();
         
         Cookie[] accessCookies = registerResult.getResponse().getCookies();

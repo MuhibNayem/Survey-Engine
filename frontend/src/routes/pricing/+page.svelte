@@ -126,188 +126,86 @@
         return !!p[key];
     }
 
-    // Feature comparison table — reads toggle values from API when available
+    // Feature comparison table — dynamically builds from backend features payload
     const featureCategories = $derived.by(() => {
         const hasApi = apiPlans.length > 0;
-        const b = (
-            key: keyof PlanDefinitionResponse,
-            fallback: { basic: boolean; pro: boolean; enterprise: boolean },
-        ) =>
-            hasApi
-                ? {
-                      basic: planToggle("BASIC", key),
-                      pro: planToggle("PRO", key),
-                      enterprise: planToggle("ENTERPRISE", key),
-                  }
-                : fallback;
+        
+        // If API fails to load features, return an empty list or fallback to nothing.
+        // We'll return empty to show no features if API fails, or we could keep the hardcoded list as fallback.
+        // The requirement says: "Remove all hardcoded feature categories...".
+        if (!hasApi || !apiPlans[0].features) {
+            return [];
+        }
 
-        return [
-            {
-                name: "Survey & Content",
-                features: [
-                    {
-                        name: "Question Bank (CRUD + Versioning)",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Categories with Weighted Mappings",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Multi-Page Survey Builder",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Survey Snapshots on Publish",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Custom Branding & Themes",
-                        ...b("customBrandingEnabled", {
-                            basic: false,
-                            pro: true,
-                            enterprise: true,
-                        }),
-                    },
-                ],
-            },
-            {
-                name: "Campaigns & Distribution",
-                features: [
-                    {
-                        name: "Public Campaigns",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Private Campaigns (Token Auth)",
-                        ...b("signedTokenEnabled", {
-                            basic: false,
-                            pro: true,
-                            enterprise: true,
-                        }),
-                    },
-                    {
-                        name: "6 Distribution Channels",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Response Quotas & IP Restrictions",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Device Fingerprint Dedup",
-                        ...b("deviceFingerprintEnabled", {
-                            basic: false,
-                            pro: true,
-                            enterprise: true,
-                        }),
-                    },
-                ],
-            },
-            {
-                name: "Authentication",
-                features: [
-                    {
-                        name: "Admin JWT Auth",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "OIDC / PKCE Respondent Auth",
-                        ...b("signedTokenEnabled", {
-                            basic: false,
-                            pro: true,
-                            enterprise: true,
-                        }),
-                    },
-                    {
-                        name: "Custom SSO Integration",
-                        ...b("ssoEnabled", {
-                            basic: false,
-                            pro: false,
-                            enterprise: true,
-                        }),
-                    },
-                    {
-                        name: "Auth Provider Templates (Okta, Auth0)",
-                        ...b("signedTokenEnabled", {
-                            basic: false,
-                            pro: true,
-                            enterprise: true,
-                        }),
-                    },
-                ],
-            },
-            {
-                name: "Analytics & Scoring",
-                features: [
-                    {
-                        name: "Basic Campaign Analytics",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Weighted Scoring Engine",
-                        ...b("weightProfilesEnabled", {
-                            basic: false,
-                            pro: true,
-                            enterprise: true,
-                        }),
-                    },
-                    {
-                        name: "Response Locking & Reopen Audit",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                ],
-            },
-            {
-                name: "Support",
-                features: [
-                    {
-                        name: "Email Support",
-                        basic: true,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Priority Support",
-                        basic: false,
-                        pro: true,
-                        enterprise: true,
-                    },
-                    {
-                        name: "Dedicated Account Manager",
+        // 1. Collect all unique features across all plans
+        const allFeaturesMap = new Map<string, any>();
+        
+        apiPlans.forEach((plan) => {
+            if (!plan.features) return;
+            plan.features.forEach((feat) => {
+                if (!allFeaturesMap.has(feat.featureCode)) {
+                    allFeaturesMap.set(feat.featureCode, {
+                        code: feat.featureCode,
+                        category: feat.category,
+                        name: feat.name,
+                        description: feat.description,
+                        displayOrder: feat.displayOrder,
+                        // Initialize availability for each plan
                         basic: false,
                         pro: false,
-                        enterprise: true,
-                    },
-                    {
-                        name: "SLA Guarantee",
-                        basic: false,
-                        pro: false,
-                        enterprise: true,
-                    },
-                ],
-            },
-        ];
+                        enterprise: false
+                    });
+                }
+            });
+        });
+
+        const allFeatures = Array.from(allFeaturesMap.values());
+
+        // 2. Mark availability for each plan
+        apiPlans.forEach((plan) => {
+            if (!plan.features) return;
+            
+            const isBasic = plan.planCode === "BASIC";
+            const isPro = plan.planCode === "PRO";
+            const isEnterprise = plan.planCode === "ENTERPRISE";
+
+            plan.features.forEach((feat) => {
+                const f = allFeaturesMap.get(feat.featureCode);
+                if (f) {
+                    if (isBasic) f.basic = true;
+                    if (isPro) f.pro = true;
+                    if (isEnterprise) f.enterprise = true;
+                }
+            });
+        });
+
+        // 3. Group by category
+        const categoriesMap = new Map<string, any[]>();
+        allFeatures.forEach((f) => {
+            if (!categoriesMap.has(f.category)) {
+                categoriesMap.set(f.category, []);
+            }
+            categoriesMap.get(f.category)?.push(f);
+        });
+
+        // 4. Format into array and sort
+        const result = Array.from(categoriesMap.entries()).map(([name, features]) => {
+            // Sort features within category by displayOrder
+            const sortedFeatures = features.sort((a, b) => a.displayOrder - b.displayOrder);
+            return {
+                name,
+                features: sortedFeatures
+            };
+        });
+
+        // Optional: Sort categories if needed. We'll leave them in insertion order based on lowest displayOrder.
+        result.sort((a, b) => {
+             const minA = Math.min(...a.features.map((f: any) => f.displayOrder));
+             const minB = Math.min(...b.features.map((f: any) => f.displayOrder));
+             return minA - minB;
+        });
+
+        return result;
     });
 </script>
 
