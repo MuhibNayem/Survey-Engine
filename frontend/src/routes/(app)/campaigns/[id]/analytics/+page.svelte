@@ -23,7 +23,7 @@
     import BarChartComponent from '$lib/components/charts/BarChart.svelte';
     import PieChartComponent from '$lib/components/charts/PieChart.svelte';
     import LineChartComponent from '$lib/components/charts/LineChart.svelte';
-    import type { CampaignResponse, AnalyticsResponse, ScoreDistributionResponse, QuestionAnalyticsResponse, CampaignPreviewResponse, TemporalAnalyticsResponse } from "$lib/types";
+    import type { CampaignResponse, AnalyticsResponse, ScoreDistributionResponse, QuestionAnalyticsResponse, CampaignPreviewResponse, TemporalAnalyticsResponse, FullCampaignAnalyticsResponse } from "$lib/types";
 
     let campaign = $state<CampaignResponse | null>(null);
     let campaignPreview = $state<CampaignPreviewResponse | null>(null);
@@ -31,10 +31,21 @@
     let scoreDist = $state<ScoreDistributionResponse | null>(null);
     let trends = $state<TemporalAnalyticsResponse | null>(null);
     let qMap = $state<Record<string, QuestionAnalyticsResponse>>({});
+    
+    // Comparison State
+    let viewMode = $state<'single' | 'compare'>('single');
+    let comparisonData = $state<Record<string, FullCampaignAnalyticsResponse>>({});
+    let segments = $state<Array<{id: string, name: string, filters: Record<string, string>, color: string}>>([
+        { id: '1', name: 'Segment A', filters: {}, color: '#3b82f6' },
+        { id: '2', name: 'Segment B', filters: {}, color: '#f59e0b' }
+    ]);
+    
     let loading = $state(true);
     let error = $state<string | null>(null);
     let metadataFilters = $state<Record<string, string>>({});
     let initialLoadComplete = $state(false);
+
+    const presetColors = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
     const campaignId = $derived(page.params.id);
 
@@ -43,43 +54,38 @@
         loading = true;
         error = null;
         try {
-            const params = new URLSearchParams();
-            Object.entries(metadataFilters).forEach(([key, value]) => {
-                if (value && value.trim() !== '') {
-                    params.append(`metadata.${key}`, value.trim());
-                }
-            });
-            const aRes = await api.get<AnalyticsResponse>(`/responses/analytics/${campaignId}?${params.toString()}`);
-            analytics = aRes.data;
-
-            const queryAppend = params.toString() ? '?' + params.toString() : '';
-            try {
-                const sRes = await api.get<ScoreDistributionResponse>(`/analytics/campaigns/${campaignId}/scores${queryAppend}`);
-                scoreDist = sRes.data;
-            } catch (e) {
-                scoreDist = null;
-            }
-
-            try {
-                const tRes = await api.get<TemporalAnalyticsResponse>(`/analytics/campaigns/${campaignId}/trends${queryAppend}`);
-                trends = tRes.data;
-            } catch (e) {
-                trends = null;
-            }
-
-            if (campaignPreview) {
-                const questionsToAnalyze = campaignPreview.pages.flatMap((p: any) => p.questions).filter((q: any) => 
-                    q.type === 'SINGLE_CHOICE' || q.type === 'MULTIPLE_CHOICE' || q.type === 'RATING_SCALE'
-                );
+            if (viewMode === 'single') {
+                const params = new URLSearchParams();
+                Object.entries(metadataFilters).forEach(([key, value]) => {
+                    if (value && value.trim() !== '') {
+                        params.append(`metadata.${key}`, value.trim());
+                    }
+                });
+                const queryAppend = params.toString() ? '?' + params.toString() : '';
                 
-                const newQMap: Record<string, QuestionAnalyticsResponse> = {};
-                await Promise.all(questionsToAnalyze.map(async (q: any) => {
-                    try {
-                        const res = await api.get<QuestionAnalyticsResponse>(`/analytics/campaigns/${campaignId}/questions/${q.questionId}${queryAppend}`);
-                        newQMap[q.questionId] = res.data;
-                    } catch (e) {}
-                }));
-                qMap = newQMap;
+                const res = await api.get<FullCampaignAnalyticsResponse>(`/analytics/campaigns/${campaignId}/full-report${queryAppend}`);
+                const report = res.data;
+                
+                analytics = report.summary as unknown as AnalyticsResponse;
+                scoreDist = report.scoreDistribution;
+                trends = report.temporalTrends;
+                qMap = report.questionAnalytics || {};
+            } else {
+                // Comparison Mode Fetch
+                const payload = {
+                    segments: segments.filter(s => Object.values(s.filters).some(v => v !== '') || s.name).map(s => ({
+                        name: s.name,
+                        metadataFilters: s.filters
+                    }))
+                };
+                const res = await api.post<any>(`/analytics/campaigns/${campaignId}/compare`, payload);
+                comparisonData = res.data.segmentReports;
+                
+                // Set first segment as primary summary reference
+                const primaryKey = Object.keys(comparisonData)[0];
+                if (primaryKey) {
+                    analytics = comparisonData[primaryKey].summary as unknown as AnalyticsResponse;
+                }
             }
         } catch (err) {
             error = "Failed to load analytics data.";
@@ -92,48 +98,15 @@
         loading = true;
         error = null;
         try {
-            const [cRes, aRes, previewRes] = await Promise.all([
+            const [cRes, previewRes] = await Promise.all([
                 api.get<CampaignResponse>(`/campaigns/${campaignId}`),
-                api.get<AnalyticsResponse>(`/responses/analytics/${campaignId}`),
                 api.get<CampaignPreviewResponse>(`/campaigns/${campaignId}/preview`),
             ]);
             campaign = cRes.data;
-            analytics = aRes.data;
             campaignPreview = previewRes.data;
-
-            // Fetch advanced analytics
-            const params = new URLSearchParams();
-            Object.entries(metadataFilters).forEach(([key, value]) => {
-                if (value && value.trim() !== '') {
-                    params.append(`metadata.${key}`, value.trim());
-                }
-            });
-            const queryAppend = params.toString() ? '?' + params.toString() : '';
-
-            try {
-                const sRes = await api.get<ScoreDistributionResponse>(`/analytics/campaigns/${campaignId}/scores${queryAppend}`);
-                scoreDist = sRes.data;
-            } catch (e) {}
-
-            try {
-                const tRes = await api.get<TemporalAnalyticsResponse>(`/analytics/campaigns/${campaignId}/trends${queryAppend}`);
-                trends = tRes.data;
-            } catch (e) {}
-
-            if (campaignPreview) {
-                const questionsToAnalyze = campaignPreview.pages.flatMap((p: any) => p.questions).filter((q: any) => 
-                    q.type === 'SINGLE_CHOICE' || q.type === 'MULTIPLE_CHOICE' || q.type === 'RATING_SCALE'
-                );
-                
-                const newQMap: Record<string, QuestionAnalyticsResponse> = {};
-                await Promise.all(questionsToAnalyze.map(async (q: any) => {
-                    try {
-                        const res = await api.get<QuestionAnalyticsResponse>(`/analytics/campaigns/${campaignId}/questions/${q.questionId}${queryAppend}`);
-                        newQMap[q.questionId] = res.data;
-                    } catch (e) {}
-                }));
-                qMap = newQMap;
-            }
+            
+            await refetchAnalytics();
+            
             initialLoadComplete = true;
         } catch (err) {
             error = "Failed to load analytics data.";
@@ -143,15 +116,6 @@
     }
 
     onMount(loadAnalytics);
-
-    $effect(() => {
-        if (initialLoadComplete) {
-            const serializedFilters = JSON.stringify(metadataFilters);
-            if (serializedFilters) {
-                refetchAnalytics();
-            }
-        }
-    });
 
     function statusBadgeVariant(status: string) {
         switch (status) {
@@ -229,34 +193,118 @@
         </div>
     </div>
 
-    <!-- Dynamic Metadata Filters -->
+    <!-- Dynamic Metadata Filters / Segment Builder -->
     {#if campaign?.dataCollectionFields && campaign.dataCollectionFields.some((f) => f.enabled)}
-        <div class="flex flex-row flex-wrap gap-3 items-center pt-2">
-            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-2">Segment Data By:</span>
-            {#each campaign.dataCollectionFields as field}
-                <div class="flex items-center gap-2">
-                    {#if field.enabled && (field.fieldType === 'TEXT' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'NUMBER' || field.fieldType === 'TEXTAREA')}
-                        <Input 
-                            type={field.fieldType.toLowerCase() === 'number' ? 'number' : 'text'}
-                            placeholder={`Segment by ${field.label}...`}
-                            bind:value={metadataFilters[field.fieldKey]}
-                            class="w-48 h-9 text-sm"
-                        />
+        <div class="bg-card border rounded-lg p-4 space-y-4">
+            <div class="flex items-center justify-between border-b pb-4">
+                <div class="space-y-1">
+                    <h3 class="font-medium leading-none">Analysis Mode</h3>
+                    <p class="text-sm text-muted-foreground">Toggle between full campaign overview or cross-segment comparison.</p>
+                </div>
+                <!-- Mode Toggle -->
+                <div class="flex items-center gap-1 bg-muted p-1 rounded-md">
+                    <button 
+                        class="px-4 py-1.5 text-sm font-medium rounded-sm transition-colors {viewMode === 'single' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+                        onclick={() => { viewMode = 'single'; refetchAnalytics(); }}
+                    >Overall View</button>
+                    <button 
+                        class="px-4 py-1.5 text-sm font-medium rounded-sm transition-colors {viewMode === 'compare' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+                        onclick={() => { viewMode = 'compare'; refetchAnalytics(); }}
+                    >Compare Segments</button>
+                </div>
+            </div>
+
+            {#if viewMode === 'single'}
+                <div class="flex flex-row flex-wrap gap-3 items-center pt-2">
+                    <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-2">Global Filter By:</span>
+                    {#each campaign.dataCollectionFields as field}
+                        <div class="flex items-center gap-2">
+                            {#if field.enabled && (field.fieldType === 'TEXT' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'NUMBER' || field.fieldType === 'TEXTAREA')}
+                                <Input 
+                                    type={field.fieldType.toLowerCase() === 'number' ? 'number' : 'text'}
+                                    placeholder={`Filter by ${field.label}...`}
+                                    bind:value={metadataFilters[field.fieldKey]}
+                                    class="w-48 h-9 text-sm"
+                                />
+                            {/if}
+                        </div>
+                    {/each}
+                    {#if Object.values(metadataFilters).some(v => v !== undefined && v.trim() !== '')}
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            class="h-9 px-2 text-muted-foreground hover:text-foreground"
+                            onclick={() => {
+                                metadataFilters = {};
+                                refetchAnalytics();
+                            }}
+                        >
+                            Clear Filters
+                        </Button>
                     {/if}
                 </div>
-            {/each}
-            {#if Object.values(metadataFilters).some(v => v !== undefined && v.trim() !== '')}
-                <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    class="h-9 px-2 text-muted-foreground hover:text-foreground"
-                    onclick={() => {
-                        metadataFilters = {};
-                    }}
-                >
-                    Clear Segments
-                </Button>
+            {:else}
+                <div class="space-y-4 pt-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {#each segments as segment, i}
+                            <div class="border rounded-md p-3 space-y-3 relative group">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full" style="background-color: {segment.color}"></div>
+                                    <Input bind:value={segment.name} class="h-8 font-medium border-transparent hover:border-input focus-visible:ring-1" />
+                                    {#if segments.length > 2}
+                                        <button 
+                                            class="absolute top-3 right-3 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onclick={() => {
+                                                segments = segments.filter(s => s.id !== segment.id);
+                                                refetchAnalytics();
+                                            }}
+                                        >×</button>
+                                    {/if}
+                                </div>
+                                <div class="space-y-2">
+                                    {#each campaign.dataCollectionFields.filter((f) => f.enabled) as field}
+                                        <div class="text-xs text-muted-foreground mb-1">{field.label}</div>
+                                        <Input 
+                                            type={field.fieldType.toLowerCase() === 'number' ? 'number' : 'text'}
+                                            placeholder={`Any ${field.label}...`}
+                                            bind:value={segment.filters[field.fieldKey]}
+                                            class="w-full h-8 text-sm"
+                                        />
+                                    {/each}
+                                </div>
+                            </div>
+                        {/each}
+                        
+                        {#if segments.length < 5}
+                            <button 
+                                class="border border-dashed rounded-md flex flex-col items-center justify-center text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors p-4 min-h-[150px]"
+                                onclick={() => {
+                                    segments = [...segments, { 
+                                        id: Date.now().toString(), 
+                                        name: `Segment ${String.fromCharCode(65 + segments.length)}`, 
+                                        filters: {}, 
+                                        color: presetColors[segments.length % presetColors.length] 
+                                    }];
+                                }}
+                            >
+                                <span class="text-2xl mb-2">+</span>
+                                <span class="text-sm font-medium">Add Segment</span>
+                            </button>
+                        {/if}
+                    </div>
+                </div>
             {/if}
+            
+            <div class="flex justify-end pt-2">
+                <Button 
+                    variant="default" 
+                    size="sm" 
+                    onclick={refetchAnalytics}
+                    disabled={loading}
+                >
+                    Apply Analysis
+                </Button>
+            </div>
         </div>
     {/if}
 
@@ -367,7 +415,7 @@
             </Card.Root>
         </div>
 
-        {#if trends && trends.trendPoints.length > 0}
+        {#if viewMode === 'single' && trends && trends.trendPoints.length > 0}
             <!-- Temporal Trend Analytics -->
             <div class="mt-8">
                 <Card.Root class="shadow-md overflow-hidden">
@@ -389,6 +437,27 @@
                     </Card.Header>
                     <Card.Content class="h-[300px] pt-6">
                         <LineChartComponent data={trends.trendPoints} color="#3b82f6" />
+                    </Card.Content>
+                </Card.Root>
+            </div>
+        {:else if viewMode === 'compare' && Object.keys(comparisonData).length > 0}
+            <!-- Temporal Trend Comparison -->
+            <div class="mt-8">
+                <Card.Root class="shadow-md overflow-hidden">
+                    <Card.Header class="bg-blue-50 dark:bg-blue-950/20 border-b border-blue-100 dark:border-blue-900/50">
+                        <Card.Title class="text-blue-900 dark:text-blue-200">Responses Over Time (Comparison)</Card.Title>
+                        <Card.Description class="text-blue-700/70 dark:text-blue-300/60">
+                            Comparative chronological submission volume between segments.
+                        </Card.Description>
+                    </Card.Header>
+                    <Card.Content class="h-[300px] pt-6">
+                        <LineChartComponent 
+                            datasets={segments.filter(s => comparisonData[s.name]).map((s) => ({
+                                label: s.name,
+                                color: s.color,
+                                data: comparisonData[s.name]?.temporalTrends?.trendPoints || []
+                            }))} 
+                        />
                     </Card.Content>
                 </Card.Root>
             </div>
@@ -546,7 +615,7 @@
         </div>
 
         <!-- Advanced Analytics: Score Distribution -->
-        {#if scoreDist && scoreDist.totalScoredResponses > 0}
+        {#if viewMode === 'single' && scoreDist && scoreDist.totalScoredResponses > 0}
             <div class="mt-8">
                 <Card.Root class="shadow-md overflow-hidden">
                     <Card.Header class="bg-indigo-50 dark:bg-indigo-950/20 border-b border-indigo-100 dark:border-indigo-900/50">
@@ -577,34 +646,59 @@
                     </Card.Content>
                 </Card.Root>
             </div>
+        {:else if viewMode === 'compare' && Object.keys(comparisonData).length > 0}
+            <div class="mt-8">
+                <Card.Root class="shadow-md overflow-hidden">
+                    <Card.Header class="bg-indigo-50 dark:bg-indigo-950/20 border-b border-indigo-100 dark:border-indigo-900/50">
+                        <Card.Title class="text-indigo-900 dark:text-indigo-200">Score Distribution (Comparison)</Card.Title>
+                        <Card.Description class="text-indigo-700/70 dark:text-indigo-300/60">
+                            Comparative bucket analysis of scores between segments.
+                        </Card.Description>
+                    </Card.Header>
+                    <Card.Content class="h-[400px] pt-6">
+                        <BarChartComponent 
+                            datasets={segments.filter(s => comparisonData[s.name] && comparisonData[s.name].scoreDistribution?.scoreBuckets?.length > 0).map((s) => ({
+                                label: s.name,
+                                color: s.color,
+                                data: comparisonData[s.name].scoreDistribution.scoreBuckets.map((b: any) => ({
+                                    label: b.rangeLabel,
+                                    value: b.count,
+                                    percentage: b.percentage
+                                }))
+                            }))}
+                        />
+                    </Card.Content>
+                </Card.Root>
+            </div>
         {/if}
 
         <!-- Advanced Analytics: Question Frequencies -->
-        {#if campaignPreview && Object.keys(qMap).length > 0}
+        {#if campaignPreview && (Object.keys(qMap).length > 0 || Object.keys(comparisonData).length > 0)}
             <div class="mt-8">
                 <h2 class="text-xl font-semibold border-b pb-2 mb-6">Question Breakdown</h2>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {#each campaignPreview.pages.flatMap((p: any) => p.questions) as question, i}
-                        {#if qMap[question.questionId]}
-                            {@const qData = qMap[question.questionId]}
-                            {@const chartData = qData.optionFrequencies.map((opt: any) => ({
-                                label: opt.optionValue.length > 30 ? opt.optionValue.substring(0,30) + '...' : opt.optionValue,
-                                value: opt.count,
-                                percentage: opt.percentage
-                            }))}
-                            <Card.Root class="shadow-sm flex flex-col">
-                                <Card.Header class="pb-2">
-                                    <div class="flex justify-between items-start gap-4">
-                                        <div>
-                                            <h3 class="font-medium text-sm text-muted-foreground mb-1">Question {i + 1}</h3>
-                                            <Card.Title class="text-base leading-tight">
-                                                {question.text}
-                                            </Card.Title>
-                                        </div>
-                                        <Badge variant="secondary">{question.type.replace('_', ' ')}</Badge>
+                    {#each campaignPreview.pages.flatMap((p: any) => p.questions).filter((q: any) => q.type === 'SINGLE_CHOICE' || q.type === 'MULTIPLE_CHOICE' || q.type === 'RATING_SCALE') as question, i}
+                        <Card.Root class="shadow-sm flex flex-col">
+                            <Card.Header class="pb-2">
+                                <div class="flex justify-between items-start gap-4">
+                                    <div>
+                                        <h3 class="font-medium text-sm text-muted-foreground mb-1">Question {i + 1}</h3>
+                                        <Card.Title class="text-base leading-tight">
+                                            {question.text}
+                                        </Card.Title>
                                     </div>
-                                </Card.Header>
-                                <Card.Content class="flex-1 mt-4">
+                                    <Badge variant="secondary">{question.type.replace('_', ' ')}</Badge>
+                                </div>
+                            </Card.Header>
+                            <Card.Content class="flex-1 mt-4">
+                                {#if viewMode === 'single' && qMap[question.questionId]}
+                                    {@const qData = qMap[question.questionId]}
+                                    {@const chartData = qData.optionFrequencies.map((opt: any) => ({
+                                        label: opt.optionValue.length > 30 ? opt.optionValue.substring(0,30) + '...' : opt.optionValue,
+                                        value: opt.count,
+                                        percentage: opt.percentage
+                                    }))}
+                                    
                                     {#if chartData.length > 0}
                                         <div class="h-[250px] mt-4">
                                             {#if question.type === 'SINGLE_CHOICE' && chartData.length <= 8}
@@ -618,9 +712,34 @@
                                             No quantifiable data for this question format yet.
                                         </div>
                                     {/if}
-                                </Card.Content>
-                            </Card.Root>
-                        {/if}
+                                    
+                                {:else if viewMode === 'compare' && Object.keys(comparisonData).length > 0}
+                                    {@const compareDatasets = segments.filter(s => comparisonData[s.name] && comparisonData[s.name].questionAnalytics[question.questionId]).map(s => ({
+                                        label: s.name,
+                                        color: s.color,
+                                        data: comparisonData[s.name].questionAnalytics[question.questionId].optionFrequencies.map((opt: any) => ({
+                                            label: opt.optionValue.length > 30 ? opt.optionValue.substring(0,30) + '...' : opt.optionValue,
+                                            value: opt.count,
+                                            percentage: opt.percentage
+                                        }))
+                                    }))}
+                                    
+                                    {#if compareDatasets.some(ds => ds.data.length > 0)}
+                                        <div class="h-[250px] mt-4">
+                                            {#if question.type === 'SINGLE_CHOICE' && compareDatasets.every(ds => ds.data.length <= 8)}
+                                                <PieChartComponent datasets={compareDatasets} />
+                                            {:else}
+                                                <BarChartComponent datasets={compareDatasets} />
+                                            {/if}
+                                        </div>
+                                    {:else}
+                                        <div class="h-[200px] flex items-center justify-center text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-muted/20">
+                                            No cross-segment data available for comparison.
+                                        </div>
+                                    {/if}
+                                {/if}
+                            </Card.Content>
+                        </Card.Root>
                     {/each}
                 </div>
             </div>

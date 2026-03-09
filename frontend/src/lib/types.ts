@@ -411,6 +411,28 @@ export interface TemporalAnalyticsResponse {
     trendPoints: TrendPoint[];
 }
 
+export interface FullCampaignAnalyticsResponse {
+    campaignId: string;
+    summary: AnalyticsResponse;
+    scoreDistribution: ScoreDistributionResponse;
+    temporalTrends: TemporalAnalyticsResponse;
+    questionAnalytics: Record<string, QuestionAnalyticsResponse>;
+}
+
+export interface ComparisonSegmentConfig {
+    name: string;
+    metadataFilters: Record<string, string>;
+}
+
+export interface ComparisonRequest {
+    segments: ComparisonSegmentConfig[];
+}
+
+export interface ComparisonAnalyticsResponse {
+    campaignId: string;
+    segmentReports: Record<string, FullCampaignAnalyticsResponse>;
+}
+
 // --- Scoring ---
 export interface CategoryWeightRequest {
     categoryId: string;

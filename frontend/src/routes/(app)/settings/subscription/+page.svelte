@@ -19,11 +19,13 @@
         SubscriptionResponse,
         PlanDefinitionResponse,
         CampaignResponse,
+        PageResponse,
     } from "$lib/types";
 
     let subscription = $state<SubscriptionResponse | null>(null);
     let plans = $state<PlanDefinitionResponse[]>([]);
     let campaigns = $state<CampaignResponse[]>([]);
+    let activeCampaignCount = $state(0);
     let loading = $state(true);
     let error = $state<string | null>(null);
 
@@ -87,13 +89,28 @@
             const [subRes, plansRes, campsRes] = await Promise.allSettled([
                 api.get<SubscriptionResponse>("/admin/subscriptions/me"),
                 api.get<PlanDefinitionResponse[]>("/admin/plans"),
-                api.get<CampaignResponse[]>("/campaigns"),
+                api.get<PageResponse<CampaignResponse> | CampaignResponse[]>(
+                    "/campaigns?size=1",
+                ),
             ]);
 
             if (subRes.status === "fulfilled") subscription = subRes.value.data;
             if (plansRes.status === "fulfilled") plans = plansRes.value.data;
-            if (campsRes.status === "fulfilled")
-                campaigns = campsRes.value.data;
+            if (campsRes.status === "fulfilled") {
+                const data = campsRes.value.data as
+                    | PageResponse<CampaignResponse>
+                    | CampaignResponse[];
+                if (Array.isArray(data)) {
+                    campaigns = data;
+                    activeCampaignCount = data.length;
+                } else {
+                    campaigns = data.content || [];
+                    activeCampaignCount =
+                        typeof data.totalElements === "number"
+                            ? data.totalElements
+                            : campaigns.length;
+                }
+            }
 
             // If we failed to get plans, treat it as a hard failure since we can't render the grid.
             if (plansRes.status === "rejected") {
@@ -223,7 +240,7 @@
                             >
                                 <span>Active Campaigns</span>
                                 <span class="text-muted-foreground font-normal">
-                                    {campaigns.length} / {isUnlimited(
+                                    {activeCampaignCount} / {isUnlimited(
                                         subscription.maxCampaigns,
                                     )
                                         ? "Unlimited"
@@ -232,9 +249,9 @@
                             </div>
                             {#if !isUnlimited(subscription.maxCampaigns)}
                                 <ProgressBar
-                                    value={campaigns.length}
+                                    value={activeCampaignCount}
                                     max={subscription.maxCampaigns}
-                                    colorClass={campaigns.length >=
+                                    colorClass={activeCampaignCount >=
                                     subscription.maxCampaigns
                                         ? "bg-destructive"
                                         : "bg-primary"}

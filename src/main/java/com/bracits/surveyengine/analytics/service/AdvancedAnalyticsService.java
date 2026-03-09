@@ -1,5 +1,8 @@
 package com.bracits.surveyengine.analytics.service;
 
+import com.bracits.surveyengine.analytics.dto.ComparisonAnalyticsResponse;
+import com.bracits.surveyengine.analytics.dto.ComparisonRequest;
+import com.bracits.surveyengine.analytics.dto.FullCampaignAnalyticsResponse;
 import com.bracits.surveyengine.analytics.dto.QuestionAnalyticsResponse;
 import com.bracits.surveyengine.analytics.dto.ScoreDistributionResponse;
 import com.bracits.surveyengine.analytics.dto.TemporalAnalyticsResponse;
@@ -41,4 +44,20 @@ public interface AdvancedAnalyticsService {
      * @return TemporalAnalyticsResponse containing counts grouped by submission date
      */
     TemporalAnalyticsResponse getTemporalTrends(UUID campaignId, Map<String, String> metadataFilters);
+
+    /**
+     * Retrieves a consolidated view of all analytics (Summary, Scores, Trends, Questions) in a single payload.
+     * @param campaignId the ID of the campaign
+     * @param metadataFilters optional respondent metadata filters
+     * @return FullCampaignAnalyticsResponse containing all metrics
+     */
+    FullCampaignAnalyticsResponse getFullCampaignAnalytics(UUID campaignId, Map<String, String> metadataFilters);
+
+    /**
+     * Executes advanced analytics grouped by named segments for A/B comparison.
+     * @param campaignId the ID of the campaign
+     * @param request the ComparisonRequest containing multiple named metadata filter segments
+     * @return ComparisonAnalyticsResponse mapping each segment name to its FullCampaignAnalyticsResponse
+     */
+    ComparisonAnalyticsResponse compareSegments(UUID campaignId, ComparisonRequest request);
 }

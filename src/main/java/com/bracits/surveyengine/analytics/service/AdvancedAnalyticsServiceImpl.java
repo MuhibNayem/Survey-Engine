@@ -1,5 +1,8 @@
 package com.bracits.surveyengine.analytics.service;
 
+import com.bracits.surveyengine.analytics.dto.ComparisonAnalyticsResponse;
+import com.bracits.surveyengine.analytics.dto.ComparisonRequest;
+import com.bracits.surveyengine.analytics.dto.FullCampaignAnalyticsResponse;
 import com.bracits.surveyengine.analytics.dto.OptionFrequency;
 import com.bracits.surveyengine.analytics.dto.QuestionAnalyticsResponse;
 import com.bracits.surveyengine.analytics.dto.ScoreDistributionResponse;
@@ -245,6 +248,61 @@ public class AdvancedAnalyticsServiceImpl implements AdvancedAnalyticsService {
 
         return TemporalAnalyticsResponse.builder()
                 .trendPoints(trendPoints)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FullCampaignAnalyticsResponse getFullCampaignAnalytics(UUID campaignId, Map<String, String> metadataFilters) {
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        campaignRepository.findByIdAndTenantId(campaignId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+
+        // Get Overview Data
+        Map<String, Object> summary = getCampaignSummary(campaignId, metadataFilters);
+        ScoreDistributionResponse scores = getScoreDistribution(campaignId, metadataFilters);
+        TemporalAnalyticsResponse trends = getTemporalTrends(campaignId, metadataFilters);
+
+        // Get All Questions and calculate frequencies
+        // To be safe and reuse logic, we just find unique question IDs from all valid responses
+        List<SurveyResponse> validResponses = fetchValidResponses(campaignId, tenantId, metadataFilters);
+        Set<UUID> uniqueQuestionIds = validResponses.stream()
+                .flatMap(r -> r.getAnswers().stream())
+                .map(Answer::getQuestionId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, QuestionAnalyticsResponse> qAnalytics = new HashMap<>();
+        for (UUID qId : uniqueQuestionIds) {
+            // Reusing getQuestionAnalytics causes DB hits each time inside the loop because of fetchValidResponses.
+            // But since this is a quick refactor for the frontend, we will call it for now.
+            // Future opt: Pass pre-fetched validResponses into an overloaded getQuestionAnalytics
+            qAnalytics.put(qId, getQuestionAnalytics(campaignId, qId, metadataFilters));
+        }
+
+        return FullCampaignAnalyticsResponse.builder()
+                .campaignId(campaignId)
+                .summary(summary)
+                .scoreDistribution(scores)
+                .temporalTrends(trends)
+                .questionAnalytics(qAnalytics)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ComparisonAnalyticsResponse compareSegments(UUID campaignId, ComparisonRequest request) {
+        Map<String, FullCampaignAnalyticsResponse> reports = new HashMap<>();
+
+        if (request != null && request.getSegments() != null) {
+            for (ComparisonRequest.SegmentConfig segment : request.getSegments()) {
+                reports.put(segment.getName(), getFullCampaignAnalytics(campaignId, segment.getMetadataFilters()));
+            }
+        }
+
+        return ComparisonAnalyticsResponse.builder()
+                .campaignId(campaignId)
+                .segmentReports(reports)
                 .build();
     }
 

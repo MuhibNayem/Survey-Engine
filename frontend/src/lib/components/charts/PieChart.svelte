@@ -1,54 +1,88 @@
 <script lang="ts">
-    import { pie, arc } from 'd3-shape';
+    import { onMount, onDestroy } from 'svelte';
+    import Chart from 'chart.js/auto';
+
+    let { 
+        data = [], 
+        datasets = [], // Supports [{ label, data: [{value, label}], color }]
+        xKey = 'value', 
+        yKey = 'label', 
+        colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'] 
+    } = $props();
     
-    let { data = [] } = $props();
-    const colors = ['#818cf8', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c'];
+    let canvas: HTMLCanvasElement;
+    let chartInstance: Chart<'pie'> | null = null;
 
-    let width = $state(400);
-    let height = $state(300);
+    function buildDatasets() {
+        const primaryData = datasets && datasets.length > 0 ? datasets[0].data : data;
+        return [{
+            data: primaryData.map((d: any) => Number(d[xKey]) || 0),
+            backgroundColor: colors.slice(0, primaryData.length),
+            borderWidth: 1,
+            borderColor: '#ffffff'
+        }];
+    }
 
-    const radius = $derived(Math.min(width * 0.5, height) / 2 - 10);
-    const pieGen = $derived(pie<any, any>().value((d: any) => d.value).sort(null));
-    const arcGen = $derived(arc<any, any>().innerRadius(radius * 0.4).outerRadius(radius));
-    const arcs = $derived(pieGen(data));
+    function buildLabels() {
+        const primaryData = datasets && datasets.length > 0 ? datasets[0].data : data;
+        return primaryData.map((d: any) => d[yKey]);
+    }
+
+    $effect(() => {
+        if (chartInstance && (data.length > 0 || datasets.length > 0)) {
+            chartInstance.data.labels = buildLabels();
+            chartInstance.data.datasets = buildDatasets();
+            chartInstance.update();
+        }
+    });
+
+    onMount(() => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        chartInstance = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: buildLabels(),
+                datasets: buildDatasets()
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { boxWidth: 12 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                let label = context.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed !== null) {
+                                    label += context.parsed;
+                                    const idx = context.dataIndex;
+                                    const activeData = datasets && datasets.length > 0 ? datasets[0].data : data;
+                                    if (activeData[idx] && activeData[idx].percentage !== undefined) {
+                                        label += ` (${Number(activeData[idx].percentage).toFixed(1)}%)`;
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    onDestroy(() => {
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+    });
 </script>
 
-<div class="w-full h-full min-h-[250px] flex flex-row items-center justify-center gap-4" bind:clientWidth={width} bind:clientHeight={height}>
-    <div class="flex-shrink-0" style="width: {Math.min(width * 0.5, height)}px; height: {Math.min(width * 0.5, height)}px">
-        <svg width="100%" height="100%" viewBox="0 0 {Math.min(width * 0.5, height)} {Math.min(width * 0.5, height)}">
-            <g transform="translate({Math.min(width * 0.5, height) / 2}, {Math.min(width * 0.5, height) / 2})">
-                {#each arcs as d, i}
-                    <path
-                        d={arcGen(d as any)}
-                        fill={colors[i % colors.length]}
-                        class="transition-all duration-300 hover:opacity-80 cursor-pointer stroke-background"
-                        stroke-width="2"
-                    >
-                        <title>{d.data.label}: {d.data.value} ({d.data.percentage.toFixed(1)}%)</title>
-                    </path>
-                    {#if d.data.percentage > 5}
-                        <text
-                            transform="translate({arcGen.centroid(d as any)})"
-                            text-anchor="middle"
-                            class="text-[10px] fill-white font-semibold pointer-events-none"
-                            dy=".32em"
-                        >
-                            {d.data.percentage.toFixed(0)}%
-                        </text>
-                    {/if}
-                {/each}
-            </g>
-        </svg>
-    </div>
-    
-    <!-- Legend -->
-    <div class="flex flex-col gap-2 overflow-y-auto max-h-[80%] flex-1 pl-2">
-        {#each data as d, i}
-            <div class="flex items-center gap-2 text-xs">
-                <div class="w-3 h-3 rounded-sm shrink-0" style="background-color: {colors[i % colors.length]}"></div>
-                <span class="text-muted-foreground truncate" title={d.label}>{d.label}</span>
-                <span class="font-medium ml-auto pl-2 shrink-0">{d.percentage.toFixed(1)}%</span>
-            </div>
-        {/each}
-    </div>
+<div class="w-full h-full relative">
+    <canvas bind:this={canvas}></canvas>
 </div>

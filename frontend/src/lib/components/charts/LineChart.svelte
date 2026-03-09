@@ -1,98 +1,103 @@
 <script lang="ts">
-    import { line, curveMonotoneX, area } from 'd3-shape';
-    import { scaleTime, scaleLinear } from 'd3-scale';
-    import { max, extent } from 'd3-array';
+    import { onMount, onDestroy } from 'svelte';
+    import Chart from 'chart.js/auto';
 
-    let { data = [], color = '#818cf8' } = $props();
+    let { 
+        data = [], 
+        datasets = [], // Supports [{ label, data: [{date, count}], color }]
+        color = '#3b82f6' 
+    } = $props();
+    
+    let canvas: HTMLCanvasElement;
+    let chartInstance: Chart<'line'> | null = null;
 
-    let width = $state(600);
-    let height = $state(300);
-    const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+    function buildDatasets() {
+        if (datasets && datasets.length > 0) {
+            return datasets.map((ds: any) => ({
+                label: ds.label,
+                data: ds.data.map((d: any) => Number(d.count) || 0),
+                borderColor: ds.color || color,
+                backgroundColor: (ds.color || color) + '33',
+                borderWidth: 2,
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: ds.color || color,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.4
+            }));
+        } else {
+            return [{
+                label: 'Responses',
+                data: data.map((d: any) => Number(d.count) || 0),
+                borderColor: color,
+                backgroundColor: color + '33', // 20% opacity hex
+                borderWidth: 2,
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: color,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.4
+            }];
+        }
+    }
 
-    const innerWidth = $derived(Math.max(0, width - margin.left - margin.right));
-    const innerHeight = $derived(Math.max(0, height - margin.top - margin.bottom));
+    function buildLabels() {
+        // Find longest dataset to extract labels if using datasets mapped, else use single data prop
+        const primaryData = datasets && datasets.length > 0 ? datasets[0].data : data;
+        return primaryData.map((d: any) => new Date(d.date).toLocaleDateString());
+    }
 
-    const parsedData = $derived(data.map((d: any) => ({
-        date: new Date(d.date),
-        count: d.count
-    })));
+    $effect(() => {
+        if (chartInstance && (data.length > 0 || datasets.length > 0)) {
+            chartInstance.data.labels = buildLabels();
+            chartInstance.data.datasets = buildDatasets();
+            chartInstance.update();
+        }
+    });
 
-    const xScale = $derived(scaleTime()
-        .domain(extent(parsedData, (d: any) => d.date) as [Date, Date] || [new Date(), new Date()])
-        .range([0, innerWidth]));
+    onMount(() => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-    const yScale = $derived(scaleLinear()
-        .domain([0, (max(parsedData, (d: any) => d.count) || 10) * 1.2]) 
-        .range([innerHeight, 0]));
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: buildLabels(),
+                datasets: buildDatasets()
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: datasets && datasets.length > 0
+                    },
+                    tooltip: {
+                        intersect: false,
+                        mode: 'index',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    });
 
-    const lineGen = $derived(line<any>()
-        .x(d => xScale(d.date))
-        .y(d => yScale(d.count))
-        .curve(curveMonotoneX));
-
-    const areaGen = $derived(area<any>()
-        .x(d => xScale(d.date))
-        .y0(innerHeight)
-        .y1(d => yScale(d.count))
-        .curve(curveMonotoneX));
+    onDestroy(() => {
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+    });
 </script>
 
-<div class="w-full h-full min-h-[300px] relative" bind:clientWidth={width} bind:clientHeight={height}>
-    <svg {width} {height}>
-        <g transform="translate({margin.left}, {margin.top})">
-            <!-- Grid Lines -->
-            {#each yScale.ticks(5) as tick}
-                <g transform="translate(0, {yScale(tick)})">
-                    <line x2={innerWidth} stroke="#e2e8f0" class="dark:stroke-slate-800" stroke-width="1" stroke-dasharray="4" />
-                    <text x="-10" dy=".32em" text-anchor="end" class="text-xs fill-muted-foreground">{tick}</text>
-                </g>
-            {/each}
-
-            {#if parsedData.length > 0}
-                <!-- Area -->
-                <path
-                    d={areaGen(parsedData)}
-                    fill={color}
-                    fill-opacity="0.2"
-                />
-                
-                <!-- Line -->
-                <path
-                    d={lineGen(parsedData)}
-                    fill="none"
-                    stroke={color}
-                    stroke-width="3"
-                />
-
-                <!-- Points -->
-                {#each parsedData as d}
-                    <circle
-                        cx={xScale(d.date)}
-                        cy={yScale(d.count)}
-                        r="5"
-                        class="fill-background"
-                        stroke={color}
-                        stroke-width="2"
-                    >
-                        <title>{d.date.toLocaleDateString()}: {d.count} responses</title>
-                    </circle>
-                {/each}
-            {/if}
-
-            <!-- X Axis Base -->
-            <g transform="translate(0, {innerHeight})">
-                <line x2={innerWidth} stroke="#cbd5e1" class="dark:stroke-slate-700" stroke-width="1" />
-                {#if parsedData.length > 0}
-                    <text x={0} y="20" text-anchor="start" class="text-xs fill-muted-foreground">
-                        {parsedData[0].date.toLocaleDateString()}
-                    </text>
-                    {#if parsedData.length > 1}
-                        <text x={innerWidth} y="20" text-anchor="end" class="text-xs fill-muted-foreground">
-                            {parsedData[parsedData.length - 1].date.toLocaleDateString()}
-                        </text>
-                    {/if}
-                {/if}
-            </g>
-        </g>
-    </svg>
+<div class="w-full h-full relative">
+    <canvas bind:this={canvas}></canvas>
 </div>
