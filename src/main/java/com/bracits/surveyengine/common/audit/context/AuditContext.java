@@ -14,6 +14,7 @@ public class AuditContext {
     private final String actor;
     private final String tenantId;
     private final String ipAddress;
+    private final String impersonatedBy;
 
     private static final ThreadLocal<AuditContext> CONTEXT = new ThreadLocal<>();
 

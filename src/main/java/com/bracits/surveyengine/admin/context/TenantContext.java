@@ -37,10 +37,21 @@ public class TenantContext {
         return info != null ? info.roles() : Set.of();
     }
 
+    public static String getImpersonatedBy() {
+        TenantInfo info = CONTEXT.get();
+        return info != null ? info.impersonatedBy() : null;
+    }
+
     public record TenantInfo(
             String tenantId,
             String userId,
             String email,
-            Set<String> roles) {
+            Set<String> roles,
+            String impersonatedBy) {
+
+        /** Backwards-compatible constructor for non-impersonation contexts. */
+        public TenantInfo(String tenantId, String userId, String email, Set<String> roles) {
+            this(tenantId, userId, email, roles, null);
+        }
     }
 }

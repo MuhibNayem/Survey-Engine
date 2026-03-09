@@ -16,6 +16,8 @@ import com.bracits.surveyengine.subscription.repository.SubscriptionRepository;
 import com.bracits.surveyengine.tenant.entity.Tenant;
 import com.bracits.surveyengine.tenant.repository.TenantRepository;
 import com.bracits.surveyengine.response.repository.SurveyResponseRepository;
+import com.bracits.surveyengine.common.audit.AuditLogService;
+import com.bracits.surveyengine.admin.context.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -42,6 +44,7 @@ public class TenantAdminService {
         private final SurveyResponseRepository surveyResponseRepository;
         private final JwtService jwtService;
         private final RefreshTokenRepository refreshTokenRepository;
+        private final AuditLogService auditLogService;
 
         @Value("${survey-engine.jwt.refresh-ttl-seconds:604800}")
         private long refreshTtlSeconds;
@@ -111,7 +114,12 @@ public class TenantAdminService {
                                                 () -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
                                                                 "No admin user found for tenant"));
 
-                String accessToken = jwtService.generateToken(user);
+                // Resolve impersonator identity from current TenantContext (the Super Admin)
+                TenantContext.TenantInfo currentAdmin = TenantContext.get();
+                String impersonatorEmail = currentAdmin != null && currentAdmin.email() != null
+                                ? currentAdmin.email() : "SUPER_ADMIN";
+
+                String accessToken = jwtService.generateImpersonationToken(user, impersonatorEmail);
                 String refreshTokenValue = UUID.randomUUID().toString();
 
                 RefreshToken refreshToken = RefreshToken.builder()
@@ -132,6 +140,31 @@ public class TenantAdminService {
                                 .tokenType("Bearer")
                                 .expiresIn(jwtService.getTokenTtlSeconds())
                                 .build();
+
+                // Explicitly log this action against the TARGET tenant so their admins can see it.
+                // The @Auditable annotation will separately log it for the SUPER ADMIN (actor).
+                String actor = "SYSTEM";
+                com.bracits.surveyengine.admin.context.TenantContext.TenantInfo info = TenantContext.get();
+                if (info != null && info.email() != null) {
+                    actor = info.email();
+                } else if (info != null && info.userId() != null) {
+                    actor = info.userId();
+                }
+                
+                try {
+                    auditLogService.record(
+                            tenantId,                     // Target Tenant gets the log
+                            "UserSecurity",               // Category
+                            "TENANT_IMPERSONATED",        // Action
+                            "TENANT_IMPERSONATED",        // Sub-action
+                            actor,                        // The SuperAdmin who did it
+                            "Super Admin " + actor + " initiated an impersonation session.",
+                            null, null,                   // Old/New values
+                            "SERVER"                      // IP
+                    );
+                } catch (Exception e) {
+                    // Log but don't fail the authentication
+                }
 
                 return response;
         }

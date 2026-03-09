@@ -53,6 +53,7 @@ public class AuditAspect {
         String actor = resolveActor();
         String tenantId = resolveTenantId();
         String ipAddress = resolveClientIp();
+        String impersonatedBy = TenantContext.getImpersonatedBy();
 
         // 1. Setup thread-local context for JPA EntityListeners
         AuditContext context = AuditContext.builder()
@@ -60,6 +61,7 @@ public class AuditAspect {
                 .actor(actor)
                 .tenantId(tenantId)
                 .ipAddress(ipAddress)
+                .impersonatedBy(impersonatedBy)
                 .build();
         AuditContext.setContext(context);
         boolean clearInFinally = true;
@@ -86,13 +88,17 @@ public class AuditAspect {
             // Fallback: for non-entity actions (no JPA save → no EntityListener fires)
             if (executedSuccessfully && isNonEntityAction(action)) {
                 try {
+                    String reason = "Action: " + action;
+                    if (impersonatedBy != null) {
+                        reason += " [impersonated by " + impersonatedBy + "]";
+                    }
                     auditLogService.record(
                             tenantId,
                             "System",
                             joinPoint.getSignature().getName(),
                             action,
                             actor,
-                            "Action: " + action,
+                            reason,
                             null, null,
                             ipAddress);
                 } catch (Exception e) {

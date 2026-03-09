@@ -126,6 +126,10 @@ public class HibernateAuditListener implements PostInsertEventListener, PostUpda
             String action = context.getAction();
             String actor = context.getActor();
             String reason = dbAction + " via AOP";
+            if (context.getImpersonatedBy() != null) {
+                reason += " [impersonated by " + context.getImpersonatedBy() + "]";
+            }
+            final String finalReason = reason;
             String ipAddress = context.getIpAddress();
 
             Runnable writer = () -> {
@@ -136,7 +140,7 @@ public class HibernateAuditListener implements PostInsertEventListener, PostUpda
                             entityId,
                             action,
                             actor,
-                            reason,
+                            finalReason,
                             beforeJson,
                             afterJson,
                             ipAddress);

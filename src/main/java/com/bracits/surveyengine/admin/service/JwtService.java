@@ -34,14 +34,30 @@ public class JwtService {
      * Generate a JWT for an authenticated admin user.
      */
     public String generateToken(AdminUser user) {
+        return generateTokenInternal(user, null);
+    }
+
+    /**
+     * Generate a JWT for an impersonation session.
+     * Includes an {@code impersonated_by} claim identifying the Super Admin who initiated the session.
+     */
+    public String generateImpersonationToken(AdminUser user, String impersonatorEmail) {
+        return generateTokenInternal(user, impersonatorEmail);
+    }
+
+    private String generateTokenInternal(AdminUser user, String impersonatorEmail) {
         Instant now = Instant.now();
+        var claims = new java.util.HashMap<>(Map.of(
+                "tenant_id", user.getTenantId(),
+                "email", user.getEmail(),
+                "role", user.getRole().name(),
+                "name", user.getFullName()));
+        if (impersonatorEmail != null) {
+            claims.put("impersonated_by", impersonatorEmail);
+        }
         return Jwts.builder()
                 .subject(user.getId().toString())
-                .claims(Map.of(
-                        "tenant_id", user.getTenantId(),
-                        "email", user.getEmail(),
-                        "role", user.getRole().name(),
-                        "name", user.getFullName()))
+                .claims(claims)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(tokenTtlSeconds)))
                 .signWith(signingKey)

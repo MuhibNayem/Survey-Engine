@@ -11,12 +11,27 @@
         CreditCard,
         TrendingUp,
         ShieldAlert,
+        Clock3,
     } from "lucide-svelte";
     import api from "$lib/api";
-    import type { SuperAdminMetricsResponse } from "$lib/types";
+    import type {
+        SuperAdminMetricsResponse,
+        AuditLogEntry,
+        PaginatedResponse,
+    } from "$lib/types";
 
     let liveMetrics = $state<SuperAdminMetricsResponse | null>(null);
+    let recentActivity = $state<AuditLogEntry[]>([]);
     let error = $state<string | null>(null);
+
+    function formatTime(iso: string) {
+        return new Date(iso).toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    }
 
     onMount(async () => {
         if (!auth.isAuthenticated) {
@@ -28,13 +43,19 @@
         }
 
         try {
-            const { data } = await api.get<SuperAdminMetricsResponse>(
-                "/admin/superadmin/tenants/metrics",
-            );
-            liveMetrics = data;
+            const [metricsRes, activityRes] = await Promise.all([
+                api.get<SuperAdminMetricsResponse>(
+                    "/admin/superadmin/tenants/metrics",
+                ),
+                api.get<PaginatedResponse<AuditLogEntry>>(
+                    "/admin/superadmin/audit-logs?page=0&size=8",
+                ),
+            ]);
+            liveMetrics = metricsRes.data;
+            recentActivity = activityRes.data?.content ?? [];
         } catch (err) {
             console.error("Failed to load platform metrics", err);
-            error = "Could not load real-time platform metrics.";
+            error = "Could not load real-time platform metrics and activity.";
         }
     });
 
@@ -186,7 +207,7 @@
             </div>
         </div>
 
-        <!-- Recent System Activity Placeholder -->
+        <!-- Recent Platform Activity -->
         <div class="md:col-span-1 lg:col-span-2">
             <Card.Root
                 class="h-full border-border/50 bg-gradient-to-br from-background to-muted/20"
@@ -198,21 +219,42 @@
                     >
                 </Card.Header>
                 <Card.Content>
-                    <div
-                        class="flex flex-col items-center justify-center py-10 text-center"
-                    >
-                        <Activity
-                            class="mb-4 h-10 w-10 text-muted-foreground/30"
-                        />
-                        <p class="text-sm font-medium text-foreground">
-                            No recent activity
-                        </p>
-                        <p class="text-xs text-muted-foreground mt-1 max-w-sm">
-                            Platform audit logs and significant event tracking
-                            will appear here once the backend metrics endpoint
-                            is fully implemented.
-                        </p>
-                    </div>
+                    {#if recentActivity.length === 0}
+                        <div
+                            class="flex flex-col items-center justify-center py-10 text-center"
+                        >
+                            <Activity
+                                class="mb-4 h-10 w-10 text-muted-foreground/30"
+                            />
+                            <p class="text-sm font-medium text-foreground">
+                                No recent activity
+                            </p>
+                            <p class="text-xs text-muted-foreground mt-1 max-w-sm">
+                                No platform audit events were returned in the latest query.
+                            </p>
+                        </div>
+                    {:else}
+                        <div class="space-y-3">
+                            {#each recentActivity as item (item.id)}
+                                <div class="rounded-lg border border-border/60 bg-muted/20 p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="space-y-1">
+                                            <p class="text-sm font-medium text-foreground">
+                                                {item.action}
+                                            </p>
+                                            <p class="text-xs text-muted-foreground">
+                                                {item.entityType} · {item.tenantId ?? "platform"} · {item.actor}
+                                            </p>
+                                        </div>
+                                        <span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                            <Clock3 class="h-3.5 w-3.5" />
+                                            {formatTime(item.createdAt)}
+                                        </span>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
                 </Card.Content>
             </Card.Root>
         </div>

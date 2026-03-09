@@ -56,6 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String tenantId = claims.get("tenant_id", String.class);
                     String email = claims.get("email", String.class);
                     String role = claims.get("role", String.class);
+                    String impersonatedBy = claims.get("impersonated_by", String.class);
 
                     // Set Spring Security authentication
                     var authorities = List.of(
@@ -64,12 +65,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userId, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(auth);
 
-                    // Set TenantContext
+                    // Set TenantContext (includes impersonation info if present)
                     TenantContext.set(new TenantContext.TenantInfo(
-                            tenantId, userId, email, Set.of(role)));
+                            tenantId, userId, email, Set.of(role), impersonatedBy));
 
-                    log.debug("Admin JWT validated: tenant={}, user={}, role={}",
-                            tenantId, userId, role);
+                    log.debug("Admin JWT validated: tenant={}, user={}, role={}, impersonatedBy={}",
+                            tenantId, userId, role, impersonatedBy);
                 } catch (Exception e) {
                     log.debug("Invalid JWT: {}", e.getMessage());
                     // Don't set auth — let Spring Security handle 401
