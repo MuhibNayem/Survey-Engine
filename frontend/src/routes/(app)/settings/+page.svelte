@@ -1,11 +1,13 @@
 <script lang="ts">
     import { auth } from "$lib/stores/auth.svelte";
     import { goto } from "$app/navigation";
+    import { onMount } from "svelte";
     import * as Card from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
     import { Separator } from "$lib/components/ui/separator";
     import { Switch } from "$lib/components/ui/switch";
     import { Label } from "$lib/components/ui/label";
+    import { Confetti } from "$lib/components/confetti";
     import {
         CreditCard,
         ShieldCheck,
@@ -15,12 +17,17 @@
         Sun,
     } from "lucide-svelte";
 
-    // Theme toggle state (if we had a theme store, we'd bind to it here. Mocking for now as per Shadcn Svelte patterns)
+    // Theme toggle state
     let isDarkMode = $state(
         typeof document !== "undefined"
             ? document.documentElement.classList.contains("dark")
             : false,
     );
+
+    // Confetti celebration for profile completion
+    let showConfetti = $state(false);
+    let confettiTitle = $state('');
+    let confettiMessage = $state('');
 
     function toggleTheme() {
         isDarkMode = !isDarkMode;
@@ -30,6 +37,16 @@
             document.documentElement.classList.remove("dark");
         }
     }
+
+    onMount(() => {
+        // 🎉 Celebrate if profile is complete (has email and tenant)
+        if (auth.user?.email && auth.user?.tenantId && auth.user?.role) {
+            showConfetti = true;
+            confettiTitle = '✅ Profile Complete!';
+            confettiMessage = 'Your account is fully set up and ready to go.';
+            setTimeout(() => (showConfetti = false), 4000);
+        }
+    });
 </script>
 
 <svelte:head>
@@ -187,3 +204,19 @@
         </div>
     </div>
 </div>
+
+<!-- 🎉 Confetti Celebration -->
+{#if showConfetti}
+    <Confetti
+        fire={showConfetti}
+        showBanner={true}
+        title={confettiTitle}
+        message={confettiMessage}
+        particleCount={150}
+        spread={80}
+        startVelocity={50}
+        duration={3500}
+        colors={['#10b981', '#3b82f6', '#8b5cf6']}
+        onComplete={() => (showConfetti = false)}
+    />
+{/if}

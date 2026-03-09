@@ -12,6 +12,7 @@
     import { Textarea } from "$lib/components/ui/textarea";
     import { toast } from "svelte-sonner";
     import { Skeleton } from "$lib/components/ui/skeleton";
+    import { Confetti } from "$lib/components/confetti";
     import {
         ArrowLeft,
         Settings,
@@ -45,6 +46,11 @@
         "overview",
     );
     let copiedId = $state<string | null>(null);
+
+    // Confetti celebration
+    let showConfetti = $state(false);
+    let confettiTitle = $state('');
+    let confettiMessage = $state('');
 
     // Settings form
     let settings = $state<CampaignSettingsRequest>({
@@ -357,6 +363,11 @@
         activateLoading = true;
         try {
             await api.post(`/campaigns/${campaignId}/activate`);
+            // 🎉 Celebrate campaign activation
+            showConfetti = true;
+            confettiTitle = '🚀 Campaign Activated!';
+            confettiMessage = 'Your campaign is now live and collecting responses.';
+            setTimeout(() => (showConfetti = false), 4500);
             await loadCampaign();
         } catch {
             // silent
@@ -1395,3 +1406,19 @@
         line-height: 1.55;
     }
 </style>
+
+<!-- 🎉 Confetti Celebration -->
+{#if showConfetti}
+    <Confetti
+        fire={showConfetti}
+        showBanner={true}
+        title={confettiTitle}
+        message={confettiMessage}
+        particleCount={150}
+        spread={80}
+        startVelocity={50}
+        duration={4000}
+        colors={['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b']}
+        onComplete={() => (showConfetti = false)}
+    />
+{/if}

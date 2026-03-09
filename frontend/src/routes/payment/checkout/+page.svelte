@@ -9,6 +9,7 @@
     import { Label } from "$lib/components/ui/label";
     import { Badge } from "$lib/components/ui/badge";
     import { Skeleton } from "$lib/components/ui/skeleton";
+    import { Confetti } from "$lib/components/confetti";
     import {
         CreditCard,
         ShieldCheck,
@@ -28,6 +29,9 @@
     let error = $state<string | null>(null);
     let plan = $state<PlanDefinitionResponse | null>(null);
     let source = $state<"settings" | "onboarding">("settings");
+    
+    // Confetti celebration
+    let showConfetti = $state(false);
 
     let cardholderName = $state("");
     let cardNumber = $state("");
@@ -86,15 +90,21 @@
                 },
             );
 
-            if (source === "onboarding") {
-                if (auth.user?.role === "SUPER_ADMIN") {
-                    goto("/admin/dashboard");
+            // 🎉 Celebrate successful payment!
+            showConfetti = true;
+            
+            // Wait for confetti animation before redirecting
+            setTimeout(() => {
+                if (source === "onboarding") {
+                    if (auth.user?.role === "SUPER_ADMIN") {
+                        goto("/admin/dashboard");
+                    } else {
+                        goto("/dashboard");
+                    }
                 } else {
-                    goto("/dashboard");
+                    goto("/settings/subscription");
                 }
-            } else {
-                goto("/settings/subscription");
-            }
+            }, 4500);
         } catch (err: any) {
             error = err?.response?.data?.message || "Payment failed.";
         } finally {
@@ -380,4 +390,21 @@
             </div>
         {/if}
     </div>
+
+    <!-- 🎉 Confetti Celebration for Successful Payment -->
+    {#if showConfetti}
+        <Confetti
+            fire={showConfetti}
+            particleCount={150}
+            spread={100}
+            startVelocity={55}
+            duration={4000}
+            colors={['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#FFD700', '#06b6d4']}
+            showBanner={true}
+            title="🎉 Payment Successful!"
+            message="Your subscription has been activated. Welcome to the premium experience!"
+            gravity={0.9}
+            onComplete={() => (showConfetti = false)}
+        />
+    {/if}
 </div>

@@ -9,9 +9,13 @@
     import { Textarea } from "$lib/components/ui/textarea";
     import * as Select from "$lib/components/ui/select";
     import { ConfirmDialog } from "$lib/components/ui/confirm-dialog";
+    import { EmptyState } from "$lib/components/empty-state";
+    import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import PageHeader from "$lib/components/layout/PageHeader.svelte";
     import Pagination from "$lib/components/ui/pagination/Pagination.svelte";
     import { Skeleton } from "$lib/components/ui/skeleton";
+    import { useKeyboardShortcuts, commonShortcuts } from "$lib/hooks/useKeyboardShortcuts.svelte";
+    import { Confetti } from "$lib/components/confetti";
     import {
         Plus,
         Pencil,
@@ -22,6 +26,7 @@
         FileText,
         ChevronRight,
         ArrowRightCircle,
+        MoreHorizontal,
     } from "lucide-svelte";
     import type {
         SurveyResponse,
@@ -87,6 +92,22 @@
     let lifecycleTarget = $state<SurveyResponse | null>(null);
     let lifecycleState = $state<SurveyLifecycleState>("PUBLISHED");
     let lifecycleLoading = $state(false);
+
+    // Confetti celebration
+    let showConfetti = $state(false);
+    let confettiTitle = $state('');
+    let confettiMessage = $state('');
+
+    // Keyboard shortcuts
+    useKeyboardShortcuts([
+        commonShortcuts.createNew(() => {
+            if (!dialogOpen) openCreateDialog();
+        }),
+        commonShortcuts.search(() => {
+            const searchInput = document.querySelector('input[placeholder="Search surveys..."]') as HTMLInputElement;
+            searchInput?.focus();
+        })
+    ]);
 
     // --- Computed ---
     const filteredSurveys = $derived(
@@ -706,6 +727,13 @@
             await api.post(`/surveys/${lifecycleTarget.id}/lifecycle`, {
                 targetState: lifecycleState,
             });
+            // 🎉 Celebrate survey published
+            if (lifecycleState === 'PUBLISHED') {
+                showConfetti = true;
+                confettiTitle = '📄 Survey Published!';
+                confettiMessage = 'Your survey is now live and ready for responses.';
+                setTimeout(() => (showConfetti = false), 4000);
+            }
             lifecycleTarget = null;
             await loadData();
         } catch {
@@ -804,33 +832,18 @@
             </div>
         </Card.Root>
     {:else if filteredSurveys.length === 0}
-        <Card.Root
-            class="flex flex-col items-center justify-center py-16 text-center"
-        >
-            <Card.Content>
-                <div
-                    class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted"
-                >
-                    <FileText class="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 class="text-lg font-semibold text-foreground">
-                    {searchQuery || stateFilter
-                        ? "No surveys match your filters"
-                        : "No surveys yet"}
-                </h3>
-                <p class="mt-1 text-sm text-muted-foreground">
-                    {searchQuery || stateFilter
-                        ? "Try adjusting your search or filter."
-                        : "Create your first survey to start collecting data."}
-                </p>
-                {#if !searchQuery && !stateFilter}
-                    <Button class="mt-4" onclick={openCreateDialog}>
-                        <Plus class="mr-2 h-4 w-4" />
-                        Create Survey
-                    </Button>
-                {/if}
-            </Card.Content>
-        </Card.Root>
+        <!-- Enhanced Empty State -->
+        <EmptyState
+            title={searchQuery || stateFilter ? 'No surveys match your filters' : 'No surveys yet'}
+            description={
+                searchQuery || stateFilter
+                    ? 'Try adjusting your search or filter.'
+                    : 'Create your first survey to start collecting data. Surveys can have multiple pages and questions.'
+            }
+            actionLabel="Create Survey"
+            onAction={openCreateDialog}
+            illustration="survey"
+        />
     {:else}
         <Card.Root>
             <div class="overflow-x-auto">
@@ -1781,3 +1794,19 @@
     onConfirm={handleDelete}
     onCancel={() => (deleteTarget = null)}
 />
+
+<!-- 🎉 Confetti Celebration -->
+{#if showConfetti}
+    <Confetti
+        fire={showConfetti}
+        showBanner={true}
+        title={confettiTitle}
+        message={confettiMessage}
+        particleCount={150}
+        spread={80}
+        startVelocity={50}
+        duration={3500}
+        colors={['#3b82f6', '#8b5cf6', '#ec4899']}
+        onComplete={() => (showConfetti = false)}
+    />
+{/if}

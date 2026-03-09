@@ -1,28 +1,26 @@
 <script lang="ts">
-    import { auth } from "$lib/stores/auth.svelte";
-    import api from "$lib/api";
-    import { onMount } from "svelte";
-    import { goto } from "$app/navigation";
-    import * as Card from "$lib/components/ui/card";
-    import { Badge } from "$lib/components/ui/badge";
-    import { Button } from "$lib/components/ui/button";
-    import { ProgressBar } from "$lib/components/ui/progress-bar";
-    import { Skeleton } from "$lib/components/ui/skeleton";
-    import {
-        HelpCircle,
-        FolderKanban,
-        FileText,
-        Megaphone,
-        MessageSquareText,
-        ArrowRight,
-        CreditCard,
-        BarChart3,
-    } from "lucide-svelte";
-    import type {
-        SubscriptionResponse,
-        CampaignResponse,
-        AnalyticsResponse,
-    } from "$lib/types";
+	import { auth } from '$lib/stores/auth.svelte';
+	import api from '$lib/api';
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import * as Card from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { ProgressBar } from '$lib/components/ui/progress-bar';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { EmptyState } from '$lib/components/empty-state';
+	import { Confetti } from '$lib/components/confetti';
+	import {
+		HelpCircle,
+		FolderKanban,
+		FileText,
+		Megaphone,
+		MessageSquareText,
+		ArrowRight,
+		CreditCard,
+		BarChart3
+	} from 'lucide-svelte';
+	import type { SubscriptionResponse, CampaignResponse, AnalyticsResponse } from '$lib/types';
 
     type CampaignWithAnalytics = CampaignResponse & {
         analytics?: AnalyticsResponse;
@@ -38,6 +36,12 @@
         responses: "—",
     });
     let loadingCampaigns = $state(true);
+
+    // Confetti celebration for milestones
+    let showConfetti = $state(false);
+    let confettiTitle = $state('');
+    let confettiMessage = $state('');
+    let previousResponses = $state(0);
 
     const statCards = $derived([
         {
@@ -149,6 +153,16 @@
                 if (c.analytics) totalRes += c.analytics.totalResponses;
             }
             stats.responses = totalRes > 0 ? `${totalRes}+` : "0";
+
+            // 🎉 Celebrate milestone reached (100 responses)
+            const currentResponses = totalRes;
+            if (previousResponses < 100 && currentResponses >= 100) {
+                showConfetti = true;
+                confettiTitle = '🎊 Milestone Reached!';
+                confettiMessage = "You've collected 100 responses. Amazing work!";
+                setTimeout(() => (showConfetti = false), 5500);
+            }
+            previousResponses = currentResponses;
         }
 
         loadingCampaigns = false;
@@ -376,20 +390,15 @@
                         {/each}
                     </div>
                 </Card.Root>
-            {:else if recentCampaigns.length === 0}
-                <Card.Root
-                    class="flex h-[380px] flex-col items-center justify-center text-center"
-                >
-                    <Megaphone
-                        class="mb-4 h-10 w-10 text-muted-foreground/50"
-                    />
-                    <p class="text-sm font-medium text-foreground">
-                        No campaigns yet
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                        Create a campaign to see it here.
-                    </p>
-                </Card.Root>
+            			{:else if recentCampaigns.length === 0}
+				<!-- Enhanced Empty State -->
+				<EmptyState
+					title="No campaigns yet"
+					description="Create your first campaign to start collecting responses and viewing analytics here."
+					actionLabel="Create Campaign"
+					onAction={() => goto('/campaigns')}
+					illustration="campaign"
+				/>
             {:else}
                 <Card.Root>
                     <div class="divide-y divide-border">
@@ -483,3 +492,19 @@
         </div>
     </div>
 </div>
+
+<!-- 🎉 Confetti Celebration -->
+{#if showConfetti}
+    <Confetti
+        fire={showConfetti}
+        showBanner={true}
+        title={confettiTitle}
+        message={confettiMessage}
+        particleCount={200}
+        spread={100}
+        startVelocity={60}
+        duration={5000}
+        colors={['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981']}
+        onComplete={() => (showConfetti = false)}
+    />
+{/if}

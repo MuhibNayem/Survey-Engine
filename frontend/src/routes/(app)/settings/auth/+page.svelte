@@ -32,11 +32,17 @@
     } from "$lib/types";
     import { toast } from "svelte-sonner";
     import { auth } from "$lib/stores/auth.svelte";
+    import { Confetti } from "$lib/components/confetti";
 
     let profile = $state<AuthProfileResponse | null>(null);
     let templates = $state<ProviderTemplateResponse[]>([]);
     let loading = $state(true);
     let error = $state<string | null>(null);
+
+    // Confetti celebration
+    let showConfetti = $state(false);
+    let confettiTitle = $state('');
+    let confettiMessage = $state('');
 
     // Form state
     let isEditing = $state(false);
@@ -171,6 +177,11 @@
                 );
             }
             profile = res.data;
+            // 🎉 Celebrate auth profile configuration
+            showConfetti = true;
+            confettiTitle = '🔐 Auth Configured!';
+            confettiMessage = 'Your authentication profile has been successfully configured.';
+            setTimeout(() => (showConfetti = false), 4000);
             toast.success("Authentication profile saved successfully.");
             isEditing = false;
         } catch (err: any) {
@@ -710,3 +721,19 @@
     onConfirm={handleRotateKey}
     onCancel={() => (confirmRotate = false)}
 />
+
+<!-- 🎉 Confetti Celebration -->
+{#if showConfetti}
+    <Confetti
+        fire={showConfetti}
+        showBanner={true}
+        title={confettiTitle}
+        message={confettiMessage}
+        particleCount={150}
+        spread={80}
+        startVelocity={50}
+        duration={3500}
+        colors={['#8b5cf6', '#3b82f6', '#10b981']}
+        onComplete={() => (showConfetti = false)}
+    />
+{/if}

@@ -1,32 +1,45 @@
 <script lang="ts">
-    import api from "$lib/api";
-    import { page } from "$app/state";
-    import { onMount } from "svelte";
-    import { goto } from "$app/navigation";
-    import * as Card from "$lib/components/ui/card";
-    import { Button } from "$lib/components/ui/button";
-    import { Badge } from "$lib/components/ui/badge";
-    import { Input } from "$lib/components/ui/input";
-    import * as Select from "$lib/components/ui/select";
-    import { ProgressBar } from "$lib/components/ui/progress-bar";
-    import { Skeleton } from "$lib/components/ui/skeleton";
-    import {
-        ArrowLeft,
-        BarChart3,
-        Users,
-        Clock,
-        CheckCircle2,
-        Lock,
-        MousePointerClick,
-        FileDown,
-        ArrowRight,
-    } from "lucide-svelte";
-    import BarChartComponent from '$lib/components/charts/BarChart.svelte';
-    import PieChartComponent from '$lib/components/charts/PieChart.svelte';
-    import RadarChartComponent from "$lib/components/charts/RadarChart.svelte";
-    import LineChartComponent from '$lib/components/charts/LineChart.svelte';
-    import { Filter } from "lucide-svelte";
-    import type { CampaignResponse, AnalyticsResponse, ScoreDistributionResponse, QuestionAnalyticsResponse, CampaignPreviewResponse, TemporalAnalyticsResponse, FullCampaignAnalyticsResponse } from "$lib/types";
+	import api from '$lib/api';
+	import { page } from '$app/state';
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Input } from '$lib/components/ui/input';
+	import * as Select from '$lib/components/ui/select';
+	import { ProgressBar } from '$lib/components/ui/progress-bar';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { DateRangePicker } from '$lib/components/date-range-picker';
+	import {
+		ArrowLeft,
+		BarChart3,
+		Users,
+		Clock,
+		CheckCircle2,
+		Lock,
+		MousePointerClick,
+		FileDown,
+		ArrowRight,
+		Download,
+		Calendar
+	} from 'lucide-svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import BarChartComponent from '$lib/components/charts/BarChart.svelte';
+	import PieChartComponent from '$lib/components/charts/PieChart.svelte';
+	import RadarChartComponent from '$lib/components/charts/RadarChart.svelte';
+	import LineChartComponent from '$lib/components/charts/LineChart.svelte';
+	import { Filter } from 'lucide-svelte';
+	import { exportToCSV, createPrintableTable } from '$lib/utils/export';
+	import type {
+		CampaignResponse,
+		AnalyticsResponse,
+		ScoreDistributionResponse,
+		QuestionAnalyticsResponse,
+		CampaignPreviewResponse,
+		TemporalAnalyticsResponse,
+		FullCampaignAnalyticsResponse
+	} from '$lib/types';
 
     let campaign = $state<CampaignResponse | null>(null);
     let campaignPreview = $state<CampaignPreviewResponse | null>(null);
@@ -47,6 +60,78 @@
     let error = $state<string | null>(null);
     let metadataFilters = $state<Record<string, string>>({});
     let initialLoadComplete = $state(false);
+
+    // Date Range State
+    let startDate = $state(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    let endDate = $state(new Date().toISOString().split('T')[0]);
+
+    // Export Functions
+    function handleExportSummary() {
+        if (!analytics) return;
+        const data = [{
+            metric: 'Total Responses',
+            value: analytics.totalResponses,
+            completionRate: `${(analytics.completionRate * 100).toFixed(1)}%`,
+            avgCompletionTime: 'N/A',
+            avgScore: 'N/A'
+        }];
+        exportToCSV(
+            data,
+            `analytics-summary-${campaignId}`,
+            [
+                { key: 'metric', label: 'Metric' },
+                { key: 'value', label: 'Value' },
+                { key: 'completionRate', label: 'Completion Rate' },
+                { key: 'avgCompletionTime', label: 'Avg Completion Time' },
+                { key: 'avgScore', label: 'Average Score' }
+            ]
+        );
+    }
+
+    function handleExportQuestions() {
+        if (!qMap || Object.keys(qMap).length === 0) return;
+        const data = Object.values(qMap).map((q) => ({
+            questionId: q.questionId,
+            questionType: q.questionType,
+            totalAnswers: q.totalAnswers,
+            averageScore: q.averageScore?.toFixed(2) ?? 'N/A',
+            completionRate: 'N/A'
+        }));
+        exportToCSV(
+            data,
+            `analytics-questions-${campaignId}`,
+            [
+                { key: 'questionId', label: 'Question ID' },
+                { key: 'questionText', label: 'Question Text' },
+                { key: 'totalResponses', label: 'Responses' },
+                { key: 'averageScore', label: 'Avg Score' },
+                { key: 'completionRate', label: 'Completion Rate' }
+            ]
+        );
+    }
+
+    function handleExportPDF() {
+        if (!analytics || !campaign) return;
+        const content = createPrintableTable(
+            [{
+                campaign: campaign.name,
+                totalResponses: analytics.totalResponses,
+                completionRate: `${(analytics.completionRate * 100).toFixed(1)}%`,
+                avgScore: 'N/A',
+                dateRange: `${startDate} - ${endDate}`
+            }],
+            [
+                { key: 'campaign', label: 'Campaign' },
+                { key: 'totalResponses', label: 'Total Responses' },
+                { key: 'completionRate', label: 'Completion Rate' },
+                { key: 'avgScore', label: 'Avg Score' },
+                { key: 'dateRange', label: 'Date Range' }
+            ],
+            `Analytics Report - ${campaign.name}`
+        );
+        // PDF export - use browser print for now
+        window.print();
+    }
 
     const presetColors = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
@@ -192,20 +277,50 @@
             </div>
         </div>
         <div class="flex gap-2">
-            <Button
-                variant="outline"
-                disabled={loading ||
-                    !analytics ||
-                    analytics.totalResponses === 0}
-            >
-                <FileDown class="mr-2 h-4 w-4" />
-                Export Data
-            </Button>
+            <!-- Date Range Picker -->
+            <DateRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onChange={(range) => {
+                    startDate = range.start;
+                    endDate = range.end;
+                    refetchAnalytics();
+                }}
+                size="sm"
+            />
+
+            <!-- Export Dropdown -->
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                    <Button
+                        variant="outline"
+                        disabled={loading || !analytics || analytics.totalResponses === 0}
+                    >
+                        <Download class="mr-2 h-4 w-4" aria-hidden="true" />
+                        Export
+                    </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="end">
+                    <DropdownMenu.Item onclick={handleExportSummary}>
+                        <FileDown class="mr-2 h-4 w-4" aria-hidden="true" />
+                        Export Summary (CSV)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item onclick={handleExportQuestions}>
+                        <FileDown class="mr-2 h-4 w-4" aria-hidden="true" />
+                        Export Questions (CSV)
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Separator />
+                    <DropdownMenu.Item onclick={handleExportPDF}>
+                        <BarChart3 class="mr-2 h-4 w-4" aria-hidden="true" />
+                        Export Report (PDF)
+                    </DropdownMenu.Item>
+                </DropdownMenu.Content>
+            </DropdownMenu.Root>
+
             {#if campaign}
                 <Button
                     variant="secondary"
-                    onclick={() =>
-                        campaign && goto(`/campaigns/${campaign.id}`)}
+                    onclick={() => campaign && goto(`/campaigns/${campaign.id}`)}
                 >
                     Campaign Settings
                 </Button>

@@ -7,6 +7,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
     import { Skeleton } from "$lib/components/ui/skeleton";
+    import { Confetti } from "$lib/components/confetti";
     import { CheckCircle2, CreditCard, Sparkles } from "lucide-svelte";
     import type {
         PlanDefinitionResponse,
@@ -17,6 +18,11 @@
     let error = $state<string | null>(null);
     let plans = $state<PlanDefinitionResponse[]>([]);
     let subscription = $state<SubscriptionResponse | null>(null);
+
+    // Confetti celebration
+    let showConfetti = $state(false);
+    let confettiTitle = $state('');
+    let confettiMessage = $state('');
 
     function isUpgradeRestrictedState() {
         return (
@@ -42,6 +48,11 @@
     }
 
     function startCheckout(planCode: string) {
+        // 🎉 Celebrate plan selection
+        showConfetti = true;
+        confettiTitle = '✨ Welcome Aboard!';
+        confettiMessage = 'Your plan has been selected. Let\'s get started on your survey journey!';
+        setTimeout(() => (showConfetti = false), 5000);
         goto(`/payment/checkout?planCode=${planCode}&source=onboarding`);
     }
 
@@ -197,3 +208,19 @@
         {/if}
     </div>
 </div>
+
+<!-- 🎉 Confetti Celebration -->
+{#if showConfetti}
+    <Confetti
+        fire={showConfetti}
+        showBanner={true}
+        title={confettiTitle}
+        message={confettiMessage}
+        particleCount={180}
+        spread={90}
+        startVelocity={55}
+        duration={4500}
+        colors={['#FFD700', '#10b981', '#3b82f6', '#8b5cf6']}
+        onComplete={() => (showConfetti = false)}
+    />
+{/if}
