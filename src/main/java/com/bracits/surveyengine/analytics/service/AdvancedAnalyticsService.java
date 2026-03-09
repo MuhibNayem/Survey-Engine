@@ -2,6 +2,7 @@ package com.bracits.surveyengine.analytics.service;
 
 import com.bracits.surveyengine.analytics.dto.QuestionAnalyticsResponse;
 import com.bracits.surveyengine.analytics.dto.ScoreDistributionResponse;
+import com.bracits.surveyengine.analytics.dto.TemporalAnalyticsResponse;
 
 import java.util.Map;
 import java.util.UUID;
@@ -32,4 +33,12 @@ public interface AdvancedAnalyticsService {
      * @return Object containing summary statistics (will use existing CampaignAnalytics + extra fields)
      */
     Object getCampaignSummary(UUID campaignId, Map<String, String> metadataFilters);
+
+    /**
+     * Retrieves the temporal trend of response submissions for a campaign.
+     * @param campaignId the ID of the campaign
+     * @param metadataFilters optional respondent metadata filters
+     * @return TemporalAnalyticsResponse containing counts grouped by submission date
+     */
+    TemporalAnalyticsResponse getTemporalTrends(UUID campaignId, Map<String, String> metadataFilters);
 }

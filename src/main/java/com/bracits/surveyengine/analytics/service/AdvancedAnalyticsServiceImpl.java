@@ -3,6 +3,7 @@ package com.bracits.surveyengine.analytics.service;
 import com.bracits.surveyengine.analytics.dto.OptionFrequency;
 import com.bracits.surveyengine.analytics.dto.QuestionAnalyticsResponse;
 import com.bracits.surveyengine.analytics.dto.ScoreDistributionResponse;
+import com.bracits.surveyengine.analytics.dto.TemporalAnalyticsResponse;
 import com.bracits.surveyengine.campaign.repository.CampaignRepository;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
 import com.bracits.surveyengine.common.tenant.TenantSupport;
@@ -213,6 +214,38 @@ public class AdvancedAnalyticsServiceImpl implements AdvancedAnalyticsService {
         // For now, we return basic advanced metrics.
 
         return summary;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TemporalAnalyticsResponse getTemporalTrends(UUID campaignId, Map<String, String> metadataFilters) {
+        String tenantId = TenantSupport.currentTenantOrDefault();
+        campaignRepository.findByIdAndTenantId(campaignId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+
+        List<SurveyResponse> responses = fetchValidResponses(campaignId, tenantId, metadataFilters);
+
+        // Group by Date string (YYYY-MM-DD)
+        Map<String, Long> grouping = new TreeMap<>(); // Treemap for chronological sorting
+        
+        for (SurveyResponse response : responses) {
+            if (response.getSubmittedAt() != null) {
+                // simple truncate to 10 chars "2023-10-05T..."
+                String date = response.getSubmittedAt().toString().substring(0, 10);
+                grouping.put(date, grouping.getOrDefault(date, 0L) + 1);
+            }
+        }
+
+        List<TemporalAnalyticsResponse.TrendPoint> trendPoints = grouping.entrySet().stream()
+                .map(e -> TemporalAnalyticsResponse.TrendPoint.builder()
+                        .date(e.getKey())
+                        .count(e.getValue())
+                        .build())
+                .collect(Collectors.toList());
+
+        return TemporalAnalyticsResponse.builder()
+                .trendPoints(trendPoints)
+                .build();
     }
 
     private List<SurveyResponse> fetchValidResponses(UUID campaignId, String tenantId, Map<String, String> metadataFilters) {

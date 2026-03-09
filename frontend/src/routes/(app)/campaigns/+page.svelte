@@ -21,6 +21,7 @@
         Megaphone,
         Eye,
         Play,
+        BarChart,
     } from "lucide-svelte";
     import type {
         CampaignResponse,
@@ -365,12 +366,24 @@
                                         <Button
                                             variant="ghost"
                                             size="sm"
+                                            title="View Details"
                                             onclick={() =>
                                                 goto(
                                                     `/campaigns/${campaign.id}`,
                                                 )}
                                         >
                                             <Eye class="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            title="Campaign Analytics"
+                                            onclick={() =>
+                                                goto(
+                                                    `/campaigns/${campaign.id}/analytics`,
+                                                )}
+                                        >
+                                            <BarChart class="h-4 w-4 text-indigo-500" />
                                         </Button>
                                         {#if campaign.status === "DRAFT"}
                                             <Button

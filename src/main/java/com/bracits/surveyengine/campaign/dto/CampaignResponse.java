@@ -5,6 +5,7 @@ import com.bracits.surveyengine.campaign.entity.CampaignStatus;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -25,4 +26,5 @@ public class CampaignResponse {
     private Instant createdAt;
     private String updatedBy;
     private Instant updatedAt;
+    private List<DataCollectionFieldResponse> dataCollectionFields;
 }

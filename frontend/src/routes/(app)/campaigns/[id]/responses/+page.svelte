@@ -256,12 +256,12 @@
         </div>
 
         <!-- Dynamic Metadata Filters -->
-        {#if campaign?.dataCollectionFields && campaign.dataCollectionFields.length > 0}
+        {#if campaign?.dataCollectionFields && campaign.dataCollectionFields.some((f) => f.enabled)}
             <div class="flex flex-row flex-wrap gap-3 items-center pt-2 border-t border-border mt-1">
                 <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-2">Custom Filters:</span>
                 {#each campaign.dataCollectionFields as field}
                     <div class="flex items-center gap-2">
-                        {#if field.fieldType === 'TEXT' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'NUMBER'}
+                        {#if field.enabled && (field.fieldType === 'TEXT' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'NUMBER' || field.fieldType === 'TEXTAREA')}
                             <Input 
                                 type={field.fieldType.toLowerCase() === 'number' ? 'number' : 'text'}
                                 placeholder={`Filter by ${field.label}...`}

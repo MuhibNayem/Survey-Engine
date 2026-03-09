@@ -368,6 +368,49 @@ export interface AnalyticsResponse {
     completionRate: number;
 }
 
+export interface OptionFrequency {
+    optionValue: string;
+    count: number;
+    percentage: number;
+}
+
+export interface QuestionAnalyticsResponse {
+    campaignId: string;
+    questionId: string;
+    questionType: QuestionType;
+    totalAnswers: number;
+    averageScore: number | null;
+    maxScore: number | null;
+    optionFrequencies: OptionFrequency[];
+}
+
+export interface ScoreBucket {
+    rangeLabel: string;
+    minRange: number;
+    maxRange: number;
+    count: number;
+    percentage: number;
+}
+
+export interface ScoreDistributionResponse {
+    campaignId: string;
+    totalScoredResponses: number;
+    averageScore: number;
+    medianScore: number;
+    highScore: number;
+    lowScore: number;
+    scoreBuckets: ScoreBucket[];
+}
+
+export interface TrendPoint {
+    date: string;
+    count: number;
+}
+
+export interface TemporalAnalyticsResponse {
+    trendPoints: TrendPoint[];
+}
+
 // --- Scoring ---
 export interface CategoryWeightRequest {
     categoryId: string;

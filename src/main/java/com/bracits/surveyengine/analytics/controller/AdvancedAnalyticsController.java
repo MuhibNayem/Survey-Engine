@@ -2,6 +2,7 @@ package com.bracits.surveyengine.analytics.controller;
 
 import com.bracits.surveyengine.analytics.dto.QuestionAnalyticsResponse;
 import com.bracits.surveyengine.analytics.dto.ScoreDistributionResponse;
+import com.bracits.surveyengine.analytics.dto.TemporalAnalyticsResponse;
 import com.bracits.surveyengine.analytics.service.AdvancedAnalyticsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +49,15 @@ public class AdvancedAnalyticsController {
 
         Map<String, String> metadataFilters = extractMetadataFilters(allParams);
         return ResponseEntity.ok(advancedAnalyticsService.getScoreDistribution(campaignId, metadataFilters));
+    }
+
+    @GetMapping("/{campaignId}/trends")
+    public ResponseEntity<TemporalAnalyticsResponse> getTemporalTrends(
+            @PathVariable UUID campaignId,
+            @RequestParam Map<String, String> allParams) {
+
+        Map<String, String> metadataFilters = extractMetadataFilters(allParams);
+        return ResponseEntity.ok(advancedAnalyticsService.getTemporalTrends(campaignId, metadataFilters));
     }
 
     private Map<String, String> extractMetadataFilters(Map<String, String> allParams) {

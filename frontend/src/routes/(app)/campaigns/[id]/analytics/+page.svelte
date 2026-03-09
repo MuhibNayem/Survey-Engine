@@ -20,10 +20,17 @@
         FileDown,
         ArrowRight,
     } from "lucide-svelte";
-    import type { CampaignResponse, AnalyticsResponse } from "$lib/types";
+    import BarChartComponent from '$lib/components/charts/BarChart.svelte';
+    import PieChartComponent from '$lib/components/charts/PieChart.svelte';
+    import LineChartComponent from '$lib/components/charts/LineChart.svelte';
+    import type { CampaignResponse, AnalyticsResponse, ScoreDistributionResponse, QuestionAnalyticsResponse, CampaignPreviewResponse, TemporalAnalyticsResponse } from "$lib/types";
 
     let campaign = $state<CampaignResponse | null>(null);
+    let campaignPreview = $state<CampaignPreviewResponse | null>(null);
     let analytics = $state<AnalyticsResponse | null>(null);
+    let scoreDist = $state<ScoreDistributionResponse | null>(null);
+    let trends = $state<TemporalAnalyticsResponse | null>(null);
+    let qMap = $state<Record<string, QuestionAnalyticsResponse>>({});
     let loading = $state(true);
     let error = $state<string | null>(null);
     let metadataFilters = $state<Record<string, string>>({});
@@ -44,6 +51,36 @@
             });
             const aRes = await api.get<AnalyticsResponse>(`/responses/analytics/${campaignId}?${params.toString()}`);
             analytics = aRes.data;
+
+            const queryAppend = params.toString() ? '?' + params.toString() : '';
+            try {
+                const sRes = await api.get<ScoreDistributionResponse>(`/analytics/campaigns/${campaignId}/scores${queryAppend}`);
+                scoreDist = sRes.data;
+            } catch (e) {
+                scoreDist = null;
+            }
+
+            try {
+                const tRes = await api.get<TemporalAnalyticsResponse>(`/analytics/campaigns/${campaignId}/trends${queryAppend}`);
+                trends = tRes.data;
+            } catch (e) {
+                trends = null;
+            }
+
+            if (campaignPreview) {
+                const questionsToAnalyze = campaignPreview.pages.flatMap((p: any) => p.questions).filter((q: any) => 
+                    q.type === 'SINGLE_CHOICE' || q.type === 'MULTIPLE_CHOICE' || q.type === 'RATING_SCALE'
+                );
+                
+                const newQMap: Record<string, QuestionAnalyticsResponse> = {};
+                await Promise.all(questionsToAnalyze.map(async (q: any) => {
+                    try {
+                        const res = await api.get<QuestionAnalyticsResponse>(`/analytics/campaigns/${campaignId}/questions/${q.questionId}${queryAppend}`);
+                        newQMap[q.questionId] = res.data;
+                    } catch (e) {}
+                }));
+                qMap = newQMap;
+            }
         } catch (err) {
             error = "Failed to load analytics data.";
         } finally {
@@ -55,12 +92,48 @@
         loading = true;
         error = null;
         try {
-            const [cRes, aRes] = await Promise.all([
+            const [cRes, aRes, previewRes] = await Promise.all([
                 api.get<CampaignResponse>(`/campaigns/${campaignId}`),
                 api.get<AnalyticsResponse>(`/responses/analytics/${campaignId}`),
+                api.get<CampaignPreviewResponse>(`/campaigns/${campaignId}/preview`),
             ]);
             campaign = cRes.data;
             analytics = aRes.data;
+            campaignPreview = previewRes.data;
+
+            // Fetch advanced analytics
+            const params = new URLSearchParams();
+            Object.entries(metadataFilters).forEach(([key, value]) => {
+                if (value && value.trim() !== '') {
+                    params.append(`metadata.${key}`, value.trim());
+                }
+            });
+            const queryAppend = params.toString() ? '?' + params.toString() : '';
+
+            try {
+                const sRes = await api.get<ScoreDistributionResponse>(`/analytics/campaigns/${campaignId}/scores${queryAppend}`);
+                scoreDist = sRes.data;
+            } catch (e) {}
+
+            try {
+                const tRes = await api.get<TemporalAnalyticsResponse>(`/analytics/campaigns/${campaignId}/trends${queryAppend}`);
+                trends = tRes.data;
+            } catch (e) {}
+
+            if (campaignPreview) {
+                const questionsToAnalyze = campaignPreview.pages.flatMap((p: any) => p.questions).filter((q: any) => 
+                    q.type === 'SINGLE_CHOICE' || q.type === 'MULTIPLE_CHOICE' || q.type === 'RATING_SCALE'
+                );
+                
+                const newQMap: Record<string, QuestionAnalyticsResponse> = {};
+                await Promise.all(questionsToAnalyze.map(async (q: any) => {
+                    try {
+                        const res = await api.get<QuestionAnalyticsResponse>(`/analytics/campaigns/${campaignId}/questions/${q.questionId}${queryAppend}`);
+                        newQMap[q.questionId] = res.data;
+                    } catch (e) {}
+                }));
+                qMap = newQMap;
+            }
             initialLoadComplete = true;
         } catch (err) {
             error = "Failed to load analytics data.";
@@ -157,12 +230,12 @@
     </div>
 
     <!-- Dynamic Metadata Filters -->
-    {#if campaign?.dataCollectionFields && campaign.dataCollectionFields.length > 0}
+    {#if campaign?.dataCollectionFields && campaign.dataCollectionFields.some((f) => f.enabled)}
         <div class="flex flex-row flex-wrap gap-3 items-center pt-2">
             <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-2">Segment Data By:</span>
             {#each campaign.dataCollectionFields as field}
                 <div class="flex items-center gap-2">
-                    {#if field.fieldType === 'TEXT' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'NUMBER'}
+                    {#if field.enabled && (field.fieldType === 'TEXT' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'NUMBER' || field.fieldType === 'TEXTAREA')}
                         <Input 
                             type={field.fieldType.toLowerCase() === 'number' ? 'number' : 'text'}
                             placeholder={`Segment by ${field.label}...`}
@@ -294,8 +367,35 @@
             </Card.Root>
         </div>
 
+        {#if trends && trends.trendPoints.length > 0}
+            <!-- Temporal Trend Analytics -->
+            <div class="mt-8">
+                <Card.Root class="shadow-md overflow-hidden">
+                    <Card.Header class="bg-blue-50 dark:bg-blue-950/20 border-b border-blue-100 dark:border-blue-900/50">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <Card.Title class="text-blue-900 dark:text-blue-200">Responses Over Time</Card.Title>
+                                <Card.Description class="text-blue-700/70 dark:text-blue-300/60">
+                                    Chronological submission volume based on current segments.
+                                </Card.Description>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-sm text-blue-600 dark:text-blue-400 font-semibold">Peak Submissions</span>
+                                <div class="text-3xl font-bold text-blue-700 dark:text-blue-300">
+                                    {Math.max(...trends.trendPoints.map(t => t.count))}
+                                </div>
+                            </div>
+                        </div>
+                    </Card.Header>
+                    <Card.Content class="h-[300px] pt-6">
+                        <LineChartComponent data={trends.trendPoints} color="#3b82f6" />
+                    </Card.Content>
+                </Card.Root>
+            </div>
+        {/if}
+
         <!-- Funnel & Details -->
-        <div class="grid gap-6 lg:grid-cols-2">
+        <div class="grid gap-6 lg:grid-cols-2 mt-8">
             <!-- Response Funnel -->
             <Card.Root>
                 <Card.Header>
@@ -444,5 +544,87 @@
 
             </div>
         </div>
+
+        <!-- Advanced Analytics: Score Distribution -->
+        {#if scoreDist && scoreDist.totalScoredResponses > 0}
+            <div class="mt-8">
+                <Card.Root class="shadow-md overflow-hidden">
+                    <Card.Header class="bg-indigo-50 dark:bg-indigo-950/20 border-b border-indigo-100 dark:border-indigo-900/50">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <Card.Title class="text-indigo-900 dark:text-indigo-200">Score Distribution Curve</Card.Title>
+                                <Card.Description class="text-indigo-700/70 dark:text-indigo-300/60">
+                                    Histogram tracking the bell curve of respondent final scores. Median: {scoreDist.medianScore.toFixed(2)}
+                                </Card.Description>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-sm text-indigo-600 dark:text-indigo-400 font-semibold">Avg Score</span>
+                                <div class="text-3xl font-bold text-indigo-700 dark:text-indigo-300">
+                                    {scoreDist.averageScore.toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    </Card.Header>
+                    <Card.Content class="h-[400px] pt-6">
+                        <BarChartComponent 
+                            data={scoreDist.scoreBuckets.map((b: any) => ({
+                                label: b.rangeLabel,
+                                value: b.count,
+                                percentage: b.percentage
+                            }))}
+                            color="#818cf8"
+                        />
+                    </Card.Content>
+                </Card.Root>
+            </div>
+        {/if}
+
+        <!-- Advanced Analytics: Question Frequencies -->
+        {#if campaignPreview && Object.keys(qMap).length > 0}
+            <div class="mt-8">
+                <h2 class="text-xl font-semibold border-b pb-2 mb-6">Question Breakdown</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {#each campaignPreview.pages.flatMap((p: any) => p.questions) as question, i}
+                        {#if qMap[question.questionId]}
+                            {@const qData = qMap[question.questionId]}
+                            {@const chartData = qData.optionFrequencies.map((opt: any) => ({
+                                label: opt.optionValue.length > 30 ? opt.optionValue.substring(0,30) + '...' : opt.optionValue,
+                                value: opt.count,
+                                percentage: opt.percentage
+                            }))}
+                            <Card.Root class="shadow-sm flex flex-col">
+                                <Card.Header class="pb-2">
+                                    <div class="flex justify-between items-start gap-4">
+                                        <div>
+                                            <h3 class="font-medium text-sm text-muted-foreground mb-1">Question {i + 1}</h3>
+                                            <Card.Title class="text-base leading-tight">
+                                                {question.text}
+                                            </Card.Title>
+                                        </div>
+                                        <Badge variant="secondary">{question.type.replace('_', ' ')}</Badge>
+                                    </div>
+                                </Card.Header>
+                                <Card.Content class="flex-1 mt-4">
+                                    {#if chartData.length > 0}
+                                        <div class="h-[250px] mt-4">
+                                            {#if question.type === 'SINGLE_CHOICE' && chartData.length <= 8}
+                                                <PieChartComponent data={chartData} />
+                                            {:else}
+                                                <BarChartComponent data={chartData} />
+                                            {/if}
+                                        </div>
+                                    {:else}
+                                        <div class="h-[200px] flex items-center justify-center text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-muted/20">
+                                            No quantifiable data for this question format yet.
+                                        </div>
+                                    {/if}
+                                </Card.Content>
+                            </Card.Root>
+                        {/if}
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
     {/if}
 </div>

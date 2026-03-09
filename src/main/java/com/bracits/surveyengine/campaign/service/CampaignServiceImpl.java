@@ -247,6 +247,10 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     private CampaignResponse toResponse(Campaign c) {
+        CampaignSettings settings = settingsRepository.findByCampaignId(c.getId()).orElse(null);
+        List<DataCollectionFieldResponse> fieldResponses = settings == null
+                ? List.of()
+                : toFieldResponses(settings.getDataCollectionFields());
         return CampaignResponse.builder()
                 .id(c.getId())
                 .name(c.getName())
@@ -261,6 +265,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .createdAt(c.getCreatedAt())
                 .updatedBy(c.getUpdatedBy())
                 .updatedAt(c.getUpdatedAt())
+                .dataCollectionFields(fieldResponses)
                 .build();
     }
 
