@@ -157,11 +157,12 @@
     <nav
         class="relative z-10 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto lg:px-8"
     >
-        <div class="flex items-center gap-2">
+        <a href="/" class="flex items-center gap-2">
             <img src={logo} alt="SE" class="h-9 w-9 object-contain" />
             <span class="text-xl font-bold text-foreground">Survey Engine</span>
-        </div>
+        </a>
         <div class="flex items-center gap-3">
+            <Button variant="ghost" href="/docs/api">API Docs</Button>
             <Button variant="ghost" href="/login">Sign in</Button>
             <Button href="/register">
                 Get Started
@@ -210,6 +211,14 @@
                 href="/pricing"
             >
                 View Pricing
+            </Button>
+            <Button
+                variant="outline"
+                size="lg"
+                class="px-8 py-6 text-base"
+                href="/docs/api"
+            >
+                API Documentation
             </Button>
         </div>
 

@@ -1,20 +1,49 @@
 <script lang="ts">
-  import SimpleCodeBlock from '$lib/components/ApiDocs/SimpleCodeBlock.svelte';
-  import { 
-    Terminal, Key, Database, Zap, UserCircle, BarChart3, ShieldCheck, ShoppingBag, 
-    History, Info, AlertCircle, CheckCircle2, Library, BookOpen, Shield, Lock, 
-    CreditCard, Layout, Globe, Activity, ListOrdered, FileJson, GraduationCap, ChevronRight
+  import SimpleCodeBlock from "$lib/components/ApiDocs/SimpleCodeBlock.svelte";
+  import {
+    Terminal,
+    Key,
+    Database,
+    Zap,
+    UserCircle,
+    BarChart3,
+    ShieldCheck,
+    ShoppingBag,
+    History,
+    Info,
+    AlertCircle,
+    CheckCircle2,
+    Library,
+    BookOpen,
+    Shield,
+    Lock,
+    CreditCard,
+    Layout,
+    Globe,
+    Activity,
+    ListOrdered,
+    FileJson,
+    GraduationCap,
+    ChevronRight,
+    HelpCircle,
+    Tag,
+    FileText,
+    Send,
+    MousePointerClick,
+    PieChart,
+    Target,
+    ShieldAlert,
   } from "lucide-svelte";
   import { Button } from "$lib/components/ui/button";
-  import { onMount } from 'svelte';
+  import { onMount } from "svelte";
 
-  let activeTab = $state('typescript');
+  let activeTab = $state("typescript");
 
   const languages = [
-    { id: 'typescript', name: 'TypeScript', icon: 'TS' },
-    { id: 'java', name: 'Java', icon: 'Java' },
-    { id: 'go', name: 'Go', icon: 'Go' },
-    { id: 'python', name: 'Python', icon: 'Py' }
+    { id: "typescript", name: "TypeScript", icon: "TS" },
+    { id: "java", name: "Java", icon: "Java" },
+    { id: "go", name: "Go", icon: "Go" },
+    { id: "python", name: "Python", icon: "Py" },
   ];
 
   // We rely on the parent DocsSidebar now.
@@ -24,40 +53,59 @@
   <!-- 1. CENTER: DESCRIPTION & INLINE CODE (FLUID) -->
   <div class="px-8 md:px-12 py-12 space-y-32">
     <!-- Global Language Selector (Sticky) -->
-    <div class="sticky top-0 z-50 py-4 bg-background/80 backdrop-blur-md border-b border-border/50 flex items-center justify-between">
+    <div
+      class="sticky top-0 z-50 py-4 bg-background/80 backdrop-blur-md border-b border-border/50 flex items-center justify-between"
+    >
       <div class="flex items-center gap-4">
-        <span class="text-xs font-bold text-muted-foreground uppercase tracking-widest">Select Language:</span>
-        <div class="flex items-center gap-1 p-1 bg-muted rounded-xl border border-border">
+        <span
+          class="text-xs font-bold text-muted-foreground uppercase tracking-widest"
+          >Select Language:</span
+        >
+        <div
+          class="flex items-center gap-1 p-1 bg-muted rounded-xl border border-border"
+        >
           {#each languages as lang}
             <button
-              onclick={() => activeTab = lang.id}
-              class="px-4 py-2 text-xs font-bold rounded-lg transition-all {activeTab === lang.id ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground hover:bg-background'}"
+              onclick={() => (activeTab = lang.id)}
+              class="px-4 py-2 text-xs font-bold rounded-lg transition-all {activeTab ===
+              lang.id
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-muted-foreground hover:text-foreground hover:bg-background'}"
             >
               {lang.name}
             </button>
           {/each}
         </div>
       </div>
-      <div class="flex items-center gap-2 text-[10px] font-mono text-muted-foreground uppercase tracking-tighter max-md:hidden">
-        <span class="w-2 h-2 rounded-full bg-green-500"></span>
-        Unified Code Sync
-      </div>
     </div>
 
     <!-- Hero Section -->
     <header id="foundations" class="space-y-6 border-b border-border/50 pb-16">
       <h1 class="text-6xl font-black tracking-tighter leading-[0.8] mb-8">
-        Enterprise <br/>
+        Enterprise <br />
         <span class="text-primary">SDK Reference</span>
       </h1>
-      <p class="text-xl text-muted-foreground leading-relaxed max-w-2xl font-medium">
-        Integrate full-scale survey orchestration, advanced category-based analytics, and multi-tenant governance into your ecosystem with native type safety.
+      <p
+        class="text-xl text-muted-foreground leading-relaxed max-w-2xl font-medium"
+      >
+        Integrate full-scale survey orchestration, advanced category-based
+        analytics, and multi-tenant governance into your ecosystem with native
+        type safety.
       </p>
       <div class="flex items-center gap-4">
-        <Button variant="outline" class="rounded-full h-11 px-8 font-bold shadow-sm">View API Spec</Button>
-        <Button variant="ghost" class="rounded-full h-11 px-8 font-bold group text-muted-foreground hover:text-primary">
+        <Button
+          variant="outline"
+          class="rounded-full h-11 px-8 font-bold shadow-sm"
+          >View API Spec</Button
+        >
+        <Button
+          variant="ghost"
+          class="rounded-full h-11 px-8 font-bold group text-muted-foreground hover:text-primary"
+        >
           GitHub Repos
-          <ChevronRight class="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          <ChevronRight
+            class="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform"
+          />
         </Button>
       </div>
     </header>
@@ -70,79 +118,120 @@
           <h2 class="text-4xl font-bold tracking-tight">Foundations</h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Survey Engine SDKs are built for performance and type safety. We provide official clients for modern stacks, 
-          handling complex token rotation, CSRF protection, and serialization internally.
+          Survey Engine SDKs are built for performance and type safety. We
+          provide official clients for modern stacks, handling complex token
+          rotation, CSRF protection, and serialization internally.
         </p>
       </div>
 
       <div class="grid lg:grid-cols-2 gap-12">
         <div class="space-y-8">
           <div class="space-y-4">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">1. Installation</h3>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Installation
+            </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Add the core SDK package to your project. Our packages include built-in TypeScript types, 
-              Pydantic models for Python, and native POJOs for Java.
+              Add the core SDK package to your project. Our packages include
+              built-in TypeScript types, Pydantic models for Python, and native
+              POJOs for Java.
             </p>
           </div>
-          
+
           <div class="space-y-4 mt-12">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">2. Client Initialization</h3>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Client Initialization
+            </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Initialize the `ApiClient` with your tenant's base path. You can provide credentials during initialization 
-              or lazily after performing a login request.
+              Initialize the `ApiClient` with your tenant's base path. You can
+              provide credentials during initialization or lazily after
+              performing a login request.
             </p>
           </div>
         </div>
 
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-             <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Setup</span>
-             <div class="flex gap-1.5">
-               <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
-               <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
-               <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
-             </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Setup</span
+            >
+            <div class="flex gap-1.5">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+              <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+              <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+            </div>
           </div>
-          {#if activeTab === 'typescript'}
+          {#if activeTab === "typescript"}
             <div class="space-y-6">
-              <SimpleCodeBlock language="bash" code={`npm install @survey-engine/sdk --save`} />
-              <SimpleCodeBlock language="typescript" code={`import { Configuration, ApiClient } from '@survey-engine/sdk';
+              <SimpleCodeBlock
+                language="bash"
+                code={`npm install @survey-engine/sdk --save`}
+              />
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { Configuration, ApiClient } from '@survey-engine/sdk';
 
 const config = new Configuration({
     basePath: "https://api.yourdomain.com",
     accessToken: "YOUR_JWT_TOKEN"
-});`} />
+});
+const client = new ApiClient(config);`}
+              />
             </div>
-          {:else if activeTab === 'java'}
+          {:else if activeTab === "java"}
             <div class="space-y-6">
-              <SimpleCodeBlock language="bash" code={`<!-- Maven -->
+              <SimpleCodeBlock
+                language="bash"
+                code={`<!-- Maven -->
 <dependency>
   <groupId>org.openapitools</groupId>
   <artifactId>openapi-java-client</artifactId>
   <version>1.1.0</version>
-</dependency>`} />
-              <SimpleCodeBlock language="java" code={`import org.openapitools.client.ApiClient;
+</dependency>`}
+              />
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.ApiClient;
 import org.openapitools.client.Configuration;
 
 ApiClient client = Configuration.getDefaultApiClient();
-client.setBasePath("https://api.yourdomain.com");`} />
+client.setBasePath("https://api.yourdomain.com");
+client.setAccessToken("YOUR_JWT_TOKEN");`}
+              />
             </div>
-          {:else if activeTab === 'go'}
+          {:else if activeTab === "go"}
             <div class="space-y-6">
-              <SimpleCodeBlock language="bash" code={`go get github.com/your-org/survey-engine-go`} />
-              <SimpleCodeBlock language="go" code={`import openapi "github.com/your-org/survey-engine-go"
+              <SimpleCodeBlock
+                language="bash"
+                code={`go get github.com/muhibnayem/survey-engine-sdk-go`}
+              />
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
 
-cfg := openapi.NewConfiguration()
+cfg := sdk.NewConfiguration()
 cfg.Host = "api.yourdomain.com"
-client := openapi.NewAPIClient(cfg)`} />
+client := sdk.NewAPIClient(cfg)`}
+              />
             </div>
-          {:else if activeTab === 'python'}
+          {:else if activeTab === "python"}
             <div class="space-y-6">
-              <SimpleCodeBlock language="bash" code={`pip install survey-engine-sdk`} />
-              <SimpleCodeBlock language="python" code={`import openapi_client
+              <SimpleCodeBlock
+                language="bash"
+                code={`pip install openapi-client`}
+              />
+              <SimpleCodeBlock
+                language="python"
+                code={`import openapi_client
 
 conf = openapi_client.Configuration(host="https://api.yourdomain.com")
-client = openapi_client.ApiClient(conf)`} />
+conf.access_token = "YOUR_JWT_TOKEN"
+client = openapi_client.ApiClient(conf)`}
+              />
             </div>
           {/if}
         </div>
@@ -152,221 +241,800 @@ client = openapi_client.ApiClient(conf)`} />
     <!-- Identity & Access Section -->
     <section id="id-access" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
+        <div class="flex items-center gap-3 text-primary">
           <Key class="w-10 h-10" />
           <h2 class="text-4xl font-bold tracking-tight">Admin Identity</h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Securely authenticate platform administrators. We support both <strong>Headless Token Mode</strong> for backend services
-          and <strong>Secure Cookie Mode</strong> for browser-based administrative tools.
+          The Identity service manages the full lifecycle of tenant
+          administrators. Our SDKs support dual-mode authentication:
         </p>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="p-6 rounded-2xl bg-muted/30 border border-border/50">
+            <h4 class="font-bold mb-2 flex items-center gap-2">
+              <Globe class="w-4 h-4 text-primary" />
+              Secure Cookie Mode
+            </h4>
+            <p class="text-xs text-muted-foreground">
+              Standard for browser-based dashboards. Uses HttpOnly cookies,
+              refresh-token rotation, and CSRF protection.
+            </p>
+          </div>
+          <div class="p-6 rounded-2xl bg-muted/30 border border-border/50">
+            <h4 class="font-bold mb-2 flex items-center gap-2">
+              <Zap class="w-4 h-4 text-yellow-500" />
+              Headless Token Mode
+            </h4>
+            <p class="text-xs text-muted-foreground">
+              Standard for API integrations and CLI tools. Returns explicit JWT
+              payloads in response bodies.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div class="grid lg:grid-cols-2 gap-12">
         <div class="space-y-12">
           <div class="space-y-4">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Registration & Onboarding</h3>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Registration & Onboarding
+            </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Bootstrap new tenant administrators. This endpoint provisions initial tenant records and issues a trial subscription.
+              Provision a new admin account. This bootstraps the tenant context
+              and entitles a trial subscription automatically.
             </p>
           </div>
           <div class="space-y-4 pt-12">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Headless Login</h3>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Authentication Flows
+            </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Exchange credentials for access and refresh tokens. Use these tokens in subsequent `Configuration` updates.
+              Log in administrators via email/password. In Cookie Mode, tokens
+              are set via headers; in Token Mode, they are returned in the
+              result.
+            </p>
+          </div>
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              3. Session Management
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Handle session renewal, CSRF bootstrapping (for browsers), and
+              explicit logout.
             </p>
           </div>
         </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Identity</span>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Identity API</span
+            >
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { AdminAuthenticationApi } from '@survey-engine/sdk';
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { AdminAuthenticationApi, RegisterRequest, LoginRequest } from '@survey-engine/sdk';
 
 const authApi = new AdminAuthenticationApi(config);
-await authApi.loginAdminTokenMode({
-    email: "admin@tenant.com",
-    password: "pass"
-});`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`AdminAuthenticationApi api = new AdminAuthenticationApi(client);
-AuthResponse res = api.loginAdminTokenMode(new LoginRequest()
-    .email("admin@tenant.com").password("pass"));`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`res, _, _ := client.AdminAuthenticationAPI.LoginAdminTokenMode(ctx).LoginRequest(req).Execute()`} />
-          {:else if activeTab === 'python'}
-             <SimpleCodeBlock language="python" code={`auth_api = openapi_client.AdminAuthenticationApi(client)
-res = auth_api.login_admin_token_mode(openapi_client.LoginRequest(
-    email="admin@tenant.com", password="pass"))`} />
+
+// Registration
+const admin = await authApi.registerAdmin({
+  registerRequest: { email: "owner@tenant.com", password: "...", tenantName: "Acme" }
+});
+
+// Login (Token Mode)
+const tokens = await authApi.loginAdminTokenMode({
+  loginRequest: { email: "...", password: "..." }
+});
+
+// Session Lifecycle
+await authApi.refreshAdminToken();
+await authApi.getCsrfToken();
+await authApi.logoutAdmin();`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.AdminAuthenticationApi;
+import org.openapitools.client.model.RegisterRequest;
+import org.openapitools.client.model.LoginRequest;
+import org.openapitools.client.model.AuthUserResponse;
+import org.openapitools.client.model.AuthResponse;
+
+AdminAuthenticationApi api = new AdminAuthenticationApi(client);
+
+// Registration
+AuthUserResponse admin = api.registerAdmin(new RegisterRequest()
+    .email("owner@tenant.com").password("...").tenantName("Acme"));
+
+// Login (Token Mode)
+AuthResponse tokens = api.loginAdminTokenMode(new LoginRequest()
+    .email("...").password("..."));
+
+// Session Lifecycle
+api.refreshAdminToken();
+api.getCsrfToken();
+api.logoutAdmin();`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// Registration
+admin, _, _ := client.AdminAuthenticationAPI.RegisterAdmin(ctx).
+    RegisterRequest(sdk.RegisterRequest{Email: "owner@tenant.com"}).Execute()
+
+// Login (Token Mode)
+tokens, _, _ := client.AdminAuthenticationAPI.LoginAdminTokenMode(ctx).
+    LoginRequest(sdk.LoginRequest{Email: "..."}).Execute()
+
+// Session Lifecycle
+client.AdminAuthenticationAPI.RefreshAdminToken(ctx).Execute()
+client.AdminAuthenticationAPI.LogoutAdmin(ctx).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.admin_authentication_api import AdminAuthenticationApi
+from openapi_client.models.register_request import RegisterRequest
+from openapi_client.models.login_request import LoginRequest
+
+api = AdminAuthenticationApi(client)
+
+# Registration
+admin = api.register_admin(register_request=RegisterRequest(
+    email="owner@tenant.com", password="...", tenant_name="Acme"))
+
+# Login (Token Mode)
+tokens = api.login_admin_token_mode(login_request=LoginRequest(
+    email="...", password="..."))
+
+# Session Lifecycle
+api.refresh_admin_token()
+api.logout_admin()`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
     <!-- Auth Profiles Section -->
-    <section id="auth-profiles" class="space-y-12 pt-16 border-t border-border/20">
+    <section
+      id="auth-profiles"
+      class="space-y-12 pt-16 border-t border-border/20"
+    >
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
+        <div class="flex items-center gap-3 text-primary">
           <Lock class="w-10 h-10" />
           <h2 class="text-4xl font-bold tracking-tight">Auth Profiles</h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Define security requirements for respondent sessions. Configure multi-factor requirements,
-          session timeouts, and OIDC provider mappings.
+          The Auth Profiles service enables tenant-level responder trust
+          policies. Securely configure OIDC providers, manage signing keys, and
+          audit all security-sensitive configuration changes.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
         <div class="space-y-12">
           <div class="space-y-4">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Global Policies</h3>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Profile Management
+            </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Retrieve or update the respondent security policy for your tenant.
+              Provision and manage auth profiles. Each profile defines how
+              respondent identities are verified, including claim mappings and
+              default security scopes.
+            </p>
+          </div>
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Security Lifecycle
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Perform signing key rotation and monitor configuration audit logs.
+              Key rotation is essential for maintaining cryptographic hygiene
+              and incident readiness.
+            </p>
+          </div>
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              3. IdP Templates
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Accelerate onboarding with pre-defined templates for popular
+              identity providers (Okta, Auth0, Azure AD). Templates include
+              recommended scopes and mapping defaults.
             </p>
           </div>
         </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Profiles</span>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Profiles API</span
+            >
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { AuthProfilesApi } from '@survey-engine/sdk';
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { AuthProfilesApi, AuthProfileRequest } from '@survey-engine/sdk';
 
 const profileApi = new AuthProfilesApi(config);
-const policy = await profileApi.getAuthProfiles();
-console.log("MFA Required:", policy.mfaEnabled);`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`AuthProfilesApi api = new AuthProfilesApi(client);
-RespondentAuthProfileResponse profile = api.getAuthProfiles();`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`profile, _, _ := client.AuthProfilesAPI.GetAuthProfiles(ctx).Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api = openapi_client.AuthProfilesApi(client)
-profile = api.get_auth_profiles()`} />
+
+// CRUD
+const profile = await profileApi.getAuthProfileByTenant({ tenantId: "..." });
+await profileApi.updateAuthProfile({ id: "...", authProfileRequest: { ... } });
+
+// Key & Audit
+await profileApi.rotateAuthProfileKey({ id: "..." });
+const logs = await profileApi.getAuthProfileAudit({ id: "..." });
+
+// Templates
+const templates = await profileApi.listProviderTemplates();`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.AuthProfilesApi;
+import org.openapitools.client.model.AuthProfileRequest;
+import org.openapitools.client.model.AuthProfileResponse;
+import org.openapitools.client.model.AuthConfigAudit;
+import org.openapitools.client.model.ProviderTemplateResponse;
+
+AuthProfilesApi api = new AuthProfilesApi(client);
+
+// CRUD
+AuthProfileResponse profile = api.getAuthProfileByTenant("...");
+api.updateAuthProfile(UUID.fromString("..."), new AuthProfileRequest());
+
+// Key & Audit
+api.rotateAuthProfileKey(UUID.fromString("..."));
+List<AuthConfigAudit> logs = api.getAuthProfileAudit(UUID.fromString("..."));
+
+// Templates
+List<ProviderTemplateResponse> templates = api.listProviderTemplates();`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// CRUD
+profile, _, _ := client.AuthProfilesAPI.GetAuthProfileByTenant(ctx, "...").Execute()
+client.AuthProfilesAPI.UpdateAuthProfile(ctx, "...").
+    AuthProfileRequest(sdk.AuthProfileRequest{...}).Execute()
+
+// Key & Audit
+client.AuthProfilesAPI.RotateAuthProfileKey(ctx, "...").Execute()
+logs, _, _ := client.AuthProfilesAPI.GetAuthProfileAudit(ctx, "...").Execute()
+
+// Templates
+templates, _, _ := client.AuthProfilesAPI.ListProviderTemplates(ctx).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.auth_profiles_api import AuthProfilesApi
+from openapi_client.models.auth_profile_request import AuthProfileRequest
+
+api = AuthProfilesApi(client)
+
+# CRUD
+profile = api.get_auth_profile_by_tenant(tenant_id="...")
+api.update_auth_profile(id="...", auth_profile_request=AuthProfileRequest(...))
+
+# Key & Audit
+api.rotate_auth_profile_key(id="...")
+logs = api.get_auth_profile_audit(id="...")
+
+# Templates
+templates = api.list_provider_templates()`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
-    <!-- Plans Section -->
-    <section id="plans-catalog" class="space-y-12 pt-16 border-t border-border/20">
+    <!-- OIDC Respondent Flow Section -->
+    <section id="oidc-flow" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <Layout class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Plans & Catalog</h2>
+        <div class="flex items-center gap-3 text-primary">
+          <Zap class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">
+            OIDC Respondent Flow
+          </h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Explore available platform plans and their commercial limits. Super admins can mutate this catalog to adjust
-          pricing and quota globally.
+          Integrate external OIDC identity flows for respondents. Our SDKs
+          handle the initiation and callback processing to bridge external trust
+          into platform-native responder sessions.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
         <div class="space-y-12">
           <div class="space-y-4">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Listing Active Plans</h3>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Initiation
+            </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Get a canonical list of plans with their campaign, response, and user limits.
+              Start an OIDC flow. The SDK returns the authorization URL and
+              state/nonce context generated by the service.
+            </p>
+          </div>
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Callback Completion
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Complete the flow by exchanging the authorization code. On
+              success, the service issues a one-time respondent access code.
             </p>
           </div>
         </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Plans</span>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} OIDC API</span
+            >
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { PlansApi } from '@survey-engine/sdk';
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { OIDCRespondentFlowApi, OidcStartRequest } from '@survey-engine/sdk';
 
-const plansApi = new PlansApi(config);
-const plans = await plansApi.listActivePlans();`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`PlansApi api = new PlansApi(client);
-List<PlanDefinitionResponse> plans = api.listActivePlans();`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`plans, _, _ := client.PlansAPI.ListActivePlans(ctx).Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api = openapi_client.PlansApi(client)
-plans = api.list_active_plans()`} />
+const oidcApi = new OIDCRespondentFlowApi(config);
+
+// Start Flow
+const start = await oidcApi.startRespondentOidc({
+  oidcStartRequest: { campaignId: "...", tenantId: "...", redirectUri: "..." }
+});
+
+// Complete Callback
+const result = await oidcApi.completeRespondentOidc({
+  state: "...", code: "..."
+});
+
+console.log("Access Code:", result.accessCode);`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.OIDCRespondentFlowApi;
+import org.openapitools.client.model.OidcStartRequest;
+import org.openapitools.client.model.OidcStartResponse;
+import org.openapitools.client.model.OidcCallbackResponse;
+
+OIDCRespondentFlowApi api = new OIDCRespondentFlowApi(client);
+
+// Start Flow
+OidcStartResponse start = api.startRespondentOidc(new OidcStartRequest()
+    .campaignId("...").tenantId("...").redirectUri("..."));
+
+// Complete Callback
+OidcCallbackResponse res = api.completeRespondentOidc("state_val", "code_val");
+System.out.println("Access Code: " + res.getAccessCode());`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// Start Flow
+start, _, _ := client.OIDCRespondentFlowAPI.StartRespondentOidc(ctx).
+    OidcStartRequest(sdk.OidcStartRequest{CampaignId: "..."}).Execute()
+
+// Complete Callback
+res, _, _ := client.OIDCRespondentFlowAPI.CompleteRespondentOidc(ctx).
+    State("...").Code("...").Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.oidc_respondent_flow_api import OIDCRespondentFlowApi
+from openapi_client.models.oidc_start_request import OidcStartRequest
+
+api = OIDCRespondentFlowApi(client)
+
+# Start Flow
+start = api.start_respondent_oidc(oidc_start_request=OidcStartRequest(
+    campaign_id="...", tenant_id="...", redirect_uri="..."))
+
+# Complete Callback
+res = api.complete_respondent_oidc(state="...", code="...")`}
+              />
+            </div>
+          {/if}
+        </div>
+      </div>
+    </section>
+
+    <!-- Plans & Catalog Section -->
+    <section
+      id="plans-catalog"
+      class="space-y-12 pt-16 border-t border-border/20"
+    >
+      <div class="space-y-4">
+        <div class="flex items-center gap-3 text-primary">
+          <Layout class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">Plans & Catalog</h2>
+        </div>
+        <p class="text-muted-foreground text-lg leading-relaxed">
+          The Plan Catalog defines the commercial boundaries of the platform.
+          Super administrators govern global offerings, while tenants discover
+          plans that align with their operational needs.
+        </p>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-12">
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Discovery
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Explore available plans. Each plan definition includes quota
+              limits for campaigns, responses, and users.
+            </p>
+          </div>
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Governance (Super Admin)
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Mutate the global catalog. The `upsertPlan` operation allows
+              platform operators to adjust pricing or limits globally.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Plans API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { PlanCatalogApi, PlanDefinitionRequest } from '@survey-engine/sdk';
+
+const planApi = new PlanCatalogApi(config);
+
+// List Plans
+const plans = await planApi.listPlans();
+
+// Upsert Plan (Super Admin)
+await planApi.upsertPlan({
+  planDefinitionRequest: { code: "ENTERPRISE", maxCampaigns: 50, ... }
+});`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.PlanCatalogApi;
+import org.openapitools.client.model.PlanDefinitionRequest;
+import org.openapitools.client.model.PlanDefinitionResponse;
+
+PlanCatalogApi api = new PlanCatalogApi(client);
+
+// List Plans
+List<PlanDefinitionResponse> plans = api.listPlans();
+
+// Upsert Plan (Super Admin)
+api.upsertPlan(new PlanDefinitionRequest().code("PRO").maxCampaigns(10));`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// List Plans
+plans, _, _ := client.PlanCatalogAPI.ListPlans(ctx).Execute()
+
+// Upsert Plan (Super Admin)
+client.PlanCatalogAPI.UpsertPlan(ctx).
+    PlanDefinitionRequest(sdk.PlanDefinitionRequest{Code: "PRO"}).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.plan_catalog_api import PlanCatalogApi
+from openapi_client.models.plan_definition_request import PlanDefinitionRequest
+
+api = PlanCatalogApi(client)
+
+# List Plans
+plans = api.list_plans()
+
+# Upsert Plan (Super Admin)
+api.upsert_plan(plan_definition_request=PlanDefinitionRequest(
+    code="ULTIMATE", max_campaigns=100))`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
     <!-- Subscriptions Section -->
-    <section id="subscriptions" class="space-y-12 pt-16 border-t border-border/20">
+    <section
+      id="subscriptions"
+      class="space-y-12 pt-16 border-t border-border/20"
+    >
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
+        <div class="flex items-center gap-3 text-primary">
           <CreditCard class="w-10 h-10" />
           <h2 class="text-4xl font-bold tracking-tight">Subscriptions</h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Manage your current plan and billing cycles. Perform plan upgrades and monitor usage against quotas.
+          Manage your current plan and billing cycles. Perform plan upgrades and
+          monitor usage against quotas in real-time.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
         <div class="space-y-12">
           <div class="space-y-4">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Self-Service Upgrades</h3>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Entitlements
+            </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Initiate a checkout flow for a higher-tier plan. Quotas are applied immediately upon successful payment.
+              Retrieve the active subscription details for the tenant. Monitor
+              exhaustion of quotas for campaigns, responses, and user seats.
+            </p>
+          </div>
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Self-Service Checkout
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Initiate an upgrade flow. Provisioning of higher tier quotas is
+              executed immediately upon successful checkout processing.
             </p>
           </div>
         </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Billing</span>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Subscription API</span
+            >
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { SubscriptionsApi } from '@survey-engine/sdk';
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { SubscriptionApi, SubscribeRequest } from '@survey-engine/sdk';
 
-const billingApi = new SubscriptionsApi(config);
-await billingApi.subscribe({ plan: 'PRO' });`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`SubscriptionsApi api = new SubscriptionsApi(client);
-api.subscribe(new SubscribeRequest().plan("PRO"));`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.SubscriptionsAPI.Subscribe(ctx).Plan("PRO").Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api = openapi_client.SubscriptionsApi(client)
-api.subscribe(openapi_client.SubscribeRequest(plan='PRO'))`} />
+const subApi = new SubscriptionApi(config);
+
+// Get My Subscription
+const mySub = await subApi.getMySubscription();
+
+// Checkout / Upgrade
+await subApi.checkoutSubscription({
+  subscribeRequest: { plan: "GROWTH" }
+});`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.SubscriptionApi;
+import org.openapitools.client.model.SubscriptionResponse;
+import org.openapitools.client.model.SubscribeRequest;
+
+SubscriptionApi api = new SubscriptionApi(client);
+
+// Get My Subscription
+SubscriptionResponse mySub = api.getMySubscription();
+
+// Checkout / Upgrade
+api.checkoutSubscription(new SubscribeRequest().plan("PRO"));`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// Get My Subscription
+sub, _, _ := client.SubscriptionAPI.GetMySubscription(ctx).Execute()
+
+// Upgrade
+client.SubscriptionAPI.CheckoutSubscription(ctx).
+    SubscribeRequest(sdk.SubscribeRequest{Plan: "PRO"}).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.subscription_api import SubscriptionApi
+from openapi_client.models.subscribe_request import SubscribeRequest
+
+api = SubscriptionApi(client)
+
+# Get My Subscription
+sub = api.get_my_subscription()
+
+# Upgrade
+api.checkout_subscription(subscribe_request=SubscribeRequest(plan="GROWTH"))`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
     <!-- Question Bank Section -->
-    <section id="question-bank" class="space-y-12 pt-16 border-t border-border/20">
+    <section
+      id="question-bank"
+      class="space-y-12 pt-16 border-t border-border/20"
+    >
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
+        <div class="flex items-center gap-3 text-primary">
           <Database class="w-10 h-10" />
           <h2 class="text-4xl font-bold tracking-tight">Question Bank</h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          The question bank is the foundation of reusable survey content. Teams can add standardized question assets
-          once and reuse them across many surveys.
+          The Question Bank is the foundational library of reusable inquiry
+          assets. Define complex question types, validation rules, and
+          internationalized content to be shared across multiple surveys.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Standardized Assets</h3>
-          <p class="text-muted-foreground leading-relaxed">
-            Create questions with complex validation rules, scale definitions, and multi-language labels.
-          </p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Questions</span>
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Asset Lifecycle
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Create and manage core question definitions. Each question
+              supports rich metadata, including variable names and structural
+              constraints.
+            </p>
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { QuestionsApi } from '@survey-engine/sdk';
-const qApi = new QuestionsApi(config);
-await qApi.createQuestion({ text: "Satisfied?", type: "SCALE" });`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`QuestionsApi api = new QuestionsApi(client);
-api.createQuestion(new QuestionRequest().text("Satisfied?"));`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.QuestionsAPI.CreateQuestion(ctx).Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api.create_question(openapi_client.QuestionRequest(text="Satisfied?"))`} />
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Retirement
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Deactivate obsolete questions without breaking historical response
+              data. Deactivation prevents new survey versions from binding the
+              asset.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Question API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { QuestionsApi, QuestionRequest } from '@survey-engine/sdk';
+
+const questionApi = new QuestionsApi(config);
+
+// CRUD
+const question = await questionApi.createQuestion({
+  questionRequest: { code: "NPS_01", type: "RATING", text: "How likely..." }
+});
+
+const list = await questionApi.listQuestions();
+await questionApi.deactivateQuestion({ id: "..." });`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.QuestionsApi;
+import org.openapitools.client.model.QuestionRequest;
+import org.openapitools.client.model.QuestionResponse;
+
+QuestionsApi api = new QuestionsApi(client);
+
+// CRUD
+QuestionResponse q = api.createQuestion(new QuestionRequest()
+    .code("SAT_01").type("BOOLEAN").text("Satisfied?"));
+
+List<QuestionResponse> questions = api.listQuestions();
+api.deactivateQuestion(UUID.fromString("..."));`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// CRUD
+q, _, _ := client.QuestionsAPI.CreateQuestion(ctx).
+    QuestionRequest(sdk.QuestionRequest{Code: "Q1"}).Execute()
+
+list, _, _ := client.QuestionsAPI.ListQuestions(ctx).Execute()
+client.QuestionsAPI.DeactivateQuestion(ctx, "...").Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.questions_api import QuestionsApi
+from openapi_client.models.question_request import QuestionRequest
+
+api = QuestionsApi(client)
+
+# CRUD
+q = api.create_question(question_request=QuestionRequest(
+    code="Q1", type="TEXT", text="Name?"))
+list = api.list_questions()
+api.deactivate_question(id="...")`}
+              />
+            </div>
           {/if}
         </div>
       </div>
@@ -375,394 +1043,1064 @@ api.createQuestion(new QuestionRequest().text("Satisfied?"));`} />
     <!-- Categories Section -->
     <section id="categories" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
+        <div class="flex items-center gap-3 text-primary">
           <ListOrdered class="w-10 h-10" />
           <h2 class="text-4xl font-bold tracking-tight">Categories</h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Organize questions into logical groups. Categories power the scoring engine and provide segmented 
-          insights during analytics.
-        </p>
-      </div>
-      <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Segmented Content</h3>
-          <p class="text-muted-foreground leading-relaxed">
-            Group questions by topic (e.g., "Support Quality", "Product Fit") to enable granular reporting.
-          </p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Categories</span>
-          </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { CategoriesApi } from '@survey-engine/sdk';
-const catApi = new CategoriesApi(config);
-await catApi.createCategory({ name: "Support", questionIds: ["Q1"] });`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`CategoriesApi api = new CategoriesApi(client);
-api.createCategory(new CategoryRequest().name("Support"));`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.CategoriesAPI.CreateCategory(ctx).Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api.create_category(name="Support")`} />
-          {/if}
-        </div>
-      </div>
-    </section>
-
-    <!-- Survey Lifecycle Section -->
-    <section id="surveys" class="space-y-12 pt-16 border-t border-border/20">
-      <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <History class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Survey Lifecycle</h2>
-        </div>
-        <p class="text-muted-foreground text-lg leading-relaxed">
-          Design multi-page surveys by composing questions into pages. Manage state transitions using the 
-          built-in lifecycle state machine.
+          Categories group question assets into business dimensions. Use
+          categories for structural organization, multi-dimensional analytics,
+          and complex scoring profile design.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
         <div class="space-y-12">
           <div class="space-y-4">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Composition</h3>
-            <p class="text-muted-foreground leading-relaxed">Define survey structure with pages and nested questions.</p>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Dimension Management
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Define analytics buckets. Map specific questions to categories to
+              enable thematic reporting and weighted score aggregation.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Category API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { CategoriesApi, CategoryRequest } from '@survey-engine/sdk';
+
+const categoryApi = new CategoriesApi(config);
+
+// CRUD
+const cat = await categoryApi.createCategory({
+  categoryRequest: { name: "Customer Loyalty", questionIds: [...] }
+});
+
+const list = await categoryApi.listCategories();
+await categoryApi.updateCategory({ id: "...", categoryRequest: { ... } });`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.CategoriesApi;
+import org.openapitools.client.model.CategoryRequest;
+import org.openapitools.client.model.CategoryResponse;
+
+CategoriesApi api = new CategoriesApi(client);
+
+// CRUD
+CategoryResponse cat = api.createCategory(new CategoryRequest()
+    .name("Security").questionIds(List.of(...)));
+
+List<CategoryResponse> list = api.listCategories();`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// CRUD
+cat, _, _ := client.CategoriesAPI.CreateCategory(ctx).
+    CategoryRequest(sdk.CategoryRequest{Name: "Security"}).Execute()
+
+list, _, _ := client.CategoriesAPI.ListCategories(ctx).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.categories_api import CategoriesApi
+from openapi_client.models.category_request import CategoryRequest
+
+api = CategoriesApi(client)
+
+# CRUD
+cat = api.create_category(category_request=CategoryRequest(
+    name="UX", question_ids=["..."]))
+list = api.list_categories()`}
+              />
+            </div>
+          {/if}
+        </div>
+      </div>
+    </section>
+
+    <!-- Survey Authoring Section -->
+    <section id="surveys" class="space-y-12 pt-16 border-t border-border/20">
+      <div class="space-y-4">
+        <div class="flex items-center gap-3 text-primary">
+          <BookOpen class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">Survey Authoring</h2>
+        </div>
+        <p class="text-muted-foreground text-lg leading-relaxed">
+          The Surveys API is the foundation of content creation. Manage complex
+          nested structures of pages and questions, and control the governance
+          via formal lifecycle transitions.
+        </p>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-12">
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Draft Assembly
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Create surveys with hierarchical page structures. Link reusable
+              questions from your bank to assemble a survey draft.
+            </p>
           </div>
           <div class="space-y-4 pt-12">
-            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Lifecycle Actions</h3>
-            <p class="text-muted-foreground leading-relaxed italic">Transitions are validated: a survey must have at least one question to be PUBLISHED.</p>
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Lifecycle Governance
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Transition surveys through states (Draft → Published → Closed).
+              Formal transitions enforce business logic gates before campaigns
+              can be launched.
+            </p>
           </div>
         </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Surveys</span>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Surveys API</span
+            >
           </div>
-          {#if activeTab === 'typescript'}
+          {#if activeTab === "typescript"}
             <div class="space-y-6">
-              <SimpleCodeBlock language="typescript" code={`import { SurveysApi } from '@survey-engine/sdk';
-const surveyApi = new SurveysApi(config);
-await surveyApi.createSurvey({ title: "Q1 Feedback", pages: [] });
-await surveyApi.transitionSurveyLifecycle("S1", { action: "PUBLISH" });`} />
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { SurveysApi, SurveyRequest, LifecycleTransitionRequest } from '@survey-engine/sdk';
+
+const surveysApi = new SurveysApi(config);
+
+// 1. Create a Survey Draft
+const survey = await surveysApi.createSurvey({
+  surveyRequest: {
+    title: "Quarterly Feedback",
+    description: "Employee engagement survey",
+    pages: [
+      {
+        title: "Work-Life Balance",
+        questions: [{ questionId: "Q-UUID-1", orderIndex: 0 }]
+      }
+    ]
+  }
+});
+
+// 2. Publish Survey
+await surveysApi.transitionSurveyLifecycle({
+  id: survey.id,
+  lifecycleTransitionRequest: { 
+    action: "PUBLISH", 
+    reason: "Ready for Q3 rollout" 
+  }
+});`}
+              />
             </div>
-          {:else if activeTab === 'java'}
+          {:else if activeTab === "java"}
             <div class="space-y-6">
-              <SimpleCodeBlock language="java" code={`SurveysApi api = new SurveysApi(client);
-api.createSurvey(new SurveyRequest().title("Q1 Feedback"));
-api.transitionSurveyLifecycle("S1", new LifecycleTransitionRequest().action("PUBLISH"));`} />
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.SurveysApi;
+import org.openapitools.client.model.SurveyRequest;
+import org.openapitools.client.model.LifecycleTransitionRequest;
+import java.util.UUID;
+
+SurveysApi api = new SurveysApi(client);
+
+// 1. Create Draft
+SurveyResponse survey = api.createSurvey(new SurveyRequest()
+    .title("User Research")
+    .addPagesItem(new SurveyPageRequest().title("Intro")));
+
+// 2. Transition State
+api.transitionSurveyLifecycle(
+    survey.getId(), 
+    new LifecycleTransitionRequest().action("PUBLISH")
+);`}
+              />
             </div>
-          {:else if activeTab === 'go'}
+          {:else if activeTab === "go"}
             <div class="space-y-6">
-              <SimpleCodeBlock language="go" code={`client.SurveysAPI.CreateSurvey(ctx).Execute()
-client.SurveysAPI.TransitionSurveyLifecycle(ctx, "S1").Execute()`} />
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// 1. Create
+survey, _, _ := client.SurveysAPI.CreateSurvey(ctx).
+    SurveyRequest(sdk.SurveyRequest{Title: "Go Survey"}).Execute()
+
+// 2. Publish
+client.SurveysAPI.TransitionSurveyLifecycle(ctx, survey.Id).
+    LifecycleTransitionRequest(sdk.LifecycleTransitionRequest{
+        Action: "PUBLISH",
+    }).Execute()`}
+              />
             </div>
-          {:else if activeTab === 'python'}
+          {:else if activeTab === "python"}
             <div class="space-y-6">
-              <SimpleCodeBlock language="python" code={`api.create_survey(title="Q1 Feedback")
-api.transition_survey_lifecycle("S1", action="PUBLISH")`} />
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.surveys_api import SurveysApi
+from openapi_client.models.survey_request import SurveyRequest
+
+api = SurveysApi(client)
+
+# 1. Author Survey
+survey = api.create_survey(survey_request=SurveyRequest(title="Python Survey"))
+
+# 2. Transition
+api.transition_survey_lifecycle(
+    id=survey.id, 
+    lifecycle_transition_request={"action": "PUBLISH"}
+)`}
+              />
             </div>
           {/if}
         </div>
       </div>
     </section>
 
-    <!-- Campaigns Section -->
+    <!-- Campaign Orchestration Section -->
     <section id="campaigns" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <Zap class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Campaigns</h2>
+        <div class="flex items-center gap-3 text-primary">
+          <Send class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">
+            Campaign Orchestration
+          </h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Launch surveys as campaigns. Campaigns manage the distribution window, respondent eligibility, 
-          and data anonymity settings.
+          Campaigns are the delivery units of the platform. Bind surveys to
+          audience policies, manage distribution channels, and control response
+          ingestion windows.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Activation</h3>
-          <p class="text-muted-foreground leading-relaxed">Connect a published survey to a campaign and set distribution flags.</p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Campaigns</span>
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Launch & Activation
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Create campaigns from published surveys. Activation pins the
+              current survey structure and starts the data collection window.
+            </p>
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { CampaignsApi } from '@survey-engine/sdk';
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Distribution Channels
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Generate unique access links and embed codes. Support for public
+              anonymous links or private authenticated responder flows.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Campaigns API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { CampaignsApi, CampaignRequest } from '@survey-engine/sdk';
+
 const campaignApi = new CampaignsApi(config);
-await campaignApi.createCampaign({ surveyId: "S1", name: "Outreach" });`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`CampaignsApi api = new CampaignsApi(client);
-api.createCampaign(new CampaignRequest().surveyId("S1"));`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.CampaignsAPI.CreateCampaign(ctx).Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api.create_campaign(survey_id="S1")`} />
+
+// 1. Create Campaign
+const campaign = await campaignApi.createCampaign({
+  campaignRequest: {
+    name: "Summer 2024 Outreach",
+    surveyId: "SURV-UUID-123",
+    accessMode: "PUBLIC"
+  }
+});
+
+// 2. Activate
+await campaignApi.activateCampaign({ id: campaign.id });
+
+// 3. Generate Links
+const channels = await campaignApi.generateCampaignChannels({ id: campaign.id });`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.CampaignsApi;
+import org.openapitools.client.model.CampaignRequest;
+
+CampaignsApi api = new CampaignsApi(client);
+
+// 1. Launch
+CampaignResponse camp = api.createCampaign(new CampaignRequest()
+    .name("Enterprise Launch")
+    .surveyId(UUID.fromString("...")));
+
+// 2. Activate & Distribute
+api.activateCampaign(camp.getId());
+List<DistributionChannelResponse> links = api.generateCampaignChannels(camp.getId());`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`// 1. Create
+camp, _, _ := client.CampaignsAPI.CreateCampaign(ctx).
+    CampaignRequest(sdk.CampaignRequest{Name: "Go Camp"}).Execute()
+
+// 2. Activate
+client.CampaignsAPI.ActivateCampaign(ctx, camp.Id).Execute()
+
+// 3. Channels
+links, _, _ := client.CampaignsAPI.GenerateCampaignChannels(ctx, camp.Id).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.campaigns_api import CampaignsApi
+
+api = CampaignsApi(client)
+
+# 1. Orchestrate
+camp = api.create_campaign(campaign_request={"name": "Growth Survey", "survey_id": "UUID"})
+
+# 2. Launch
+api.activate_campaign(id=camp.id)
+
+# 3. Get Distribution Links
+channels = api.generate_campaign_channels(id=camp.id)`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
-    <!-- Respondent OIDC Section -->
-    <section id="respondent" class="space-y-12 pt-16 border-t border-border/20">
+    <!-- Response Participation Section -->
+    <section
+      id="response-submission"
+      class="space-y-12 pt-16 border-t border-border/20"
+    >
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <Globe class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Respondent OIDC</h2>
+        <div class="flex items-center gap-3 text-primary">
+          <MousePointerClick class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">
+            Response Participation
+          </h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          For private campaigns, initiate OpenID Connect flows to authenticate respondents against your 
-          identity provider.
+          Capture high-fidelity research data from respondents. The Responses
+          service handles complex answer validation, multi-part payloads, and
+          maintains data integrity against campaign snapshots.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Authorize URL</h3>
-          <p class="text-muted-foreground leading-relaxed">Retrieve the OIDC authorize URL for a specific private campaign.</p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} OIDC</span>
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Data Capture
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Submit structured answer sets. Support for multiple question
+              types, scale-based inputs, and long-form text responses within a
+              single submission transaction.
+            </p>
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { OIDCRespondentFlowApi } from '@survey-engine/sdk';
-const oidcApi = new OIDCRespondentFlowApi(config);
-const { authUrl } = await oidcApi.startOidcFlow("CAMP1");`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`api.startOidcFlow("CAMP1");`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.OIDCRespondentFlowAPI.StartOidcFlow(ctx, "CAMP1").Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api.start_oidc_flow("CAMP1")`} />
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Real-time Persistence
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Submissions are validated and persisted against the specific
+              campaign runtime. Successfully captured responses are indexed for
+              immediate analytics availability.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Participation API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { ResponsesApi, ResponseSubmissionRequest } from '@survey-engine/sdk';
+
+const responseApi = new ResponsesApi(config);
+
+// Submit Answers
+await responseApi.submitResponse({
+  responseSubmissionRequest: {
+    campaignId: "...",
+    answers: [
+      { questionId: "Q1", value: "Highly Satisfied" },
+      { questionId: "Q2", value: "9" }
+    ]
+  }
+});`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.ResponsesApi;
+import org.openapitools.client.model.ResponseSubmissionRequest;
+import org.openapitools.client.model.ResponseSubmissionRequestAnswersInner;
+
+ResponsesApi api = new ResponsesApi(client);
+
+// Submit Answers
+api.submitResponse(new ResponseSubmissionRequest()
+    .campaignId("CAMP-01")
+    .addAnswersItem(new ResponseSubmissionRequestAnswersInner()
+        .questionId("Q1").value("YES")));`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// Submit Answers
+req := sdk.ResponseSubmissionRequest{
+    CampaignId: "CAMP1",
+    Answers: []sdk.ResponseSubmissionRequestAnswersInner{
+        {QuestionId: "Q1", Value: "YES"},
+    },
+}
+client.ResponsesAPI.SubmitResponse(ctx).
+    ResponseSubmissionRequest(req).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.responses_api import ResponsesApi
+from openapi_client.models.response_submission_request import ResponseSubmissionRequest
+
+api = ResponsesApi(client)
+
+# Submit Answers
+api.submit_response(response_submission_request=ResponseSubmissionRequest(
+    campaign_id="...",
+    answers=[{"question_id": "Q1", "value": "A1"}]
+))`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
-    <!-- Response Submissions Section -->
-    <section id="submissions" class="space-y-12 pt-16 border-t border-border/20">
+    <!-- Management & Locking Section -->
+    <section id="management" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <UserCircle class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Response Submissions</h2>
+        <div class="flex items-center gap-3 text-primary">
+          <Lock class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">
+            Management & Locking
+          </h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Collect data from your users. We support multi-part answer payloads with built-in validation 
-          against the original survey schema.
+          Maintain operational control over captured data. The Management
+          service provides administrative overrides for response sessions,
+          enabling granular locking, reopening, and deletion of research assets.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Pushing Answers</h3>
-          <p class="text-muted-foreground leading-relaxed">Submit a flat array of question ID/value pairs for a campaign session.</p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Submissions</span>
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Session Governance
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Lock specific response IDs once they have passed quality control.
+              Locked responses are protected from mutation and marked as
+              "immutable" for downstream audits.
+            </p>
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { ResponsesApi } from '@survey-engine/sdk';
-const respApi = new ResponsesApi(config);
-await respApi.submitResponse({ campaignId: "C1", answers: [] });`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`ResponsesApi api = new ResponsesApi(client);
-api.submitResponse(new ResponseSubmissionRequest().campaignId("C1"));`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.ResponsesAPI.SubmitResponse(ctx).Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api.submit_response(campaign_id="C1")`} />
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Data Erasure
+            </h3>
+            <p class="text-muted-foreground leading-relaxed italic">
+              Complies with global data protection regulations. Soft-deletion
+              and permanent purging mechanisms are available per tenant.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Management API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { ResponsesApi } from '@survey-engine/sdk';
+
+const mgmtApi = new ResponsesApi(config);
+
+// Locking
+await mgmtApi.lockResponse({ id: "RES_001" });
+await mgmtApi.reopenResponse({ id: "RES_001" });
+
+// Removal
+await mgmtApi.deleteResponse({ id: "RES_999" });`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.ResponsesApi;
+import java.util.UUID;
+
+ResponsesApi api = new ResponsesApi(client);
+
+// Locking
+api.lockResponse(UUID.fromString("..."));
+
+// Removal
+api.deleteResponse(UUID.fromString("..."));`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`// Locking
+client.ResponsesAPI.LockResponse(ctx, "RES_ID").Execute()
+
+// Removal
+client.ResponsesAPI.DeleteResponse(ctx, "RES_ID").Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.responses_api import ResponsesApi
+
+api = ResponsesApi(client)
+
+# Locking
+api.lock_response(id="RES_ID")
+
+# Removal
+api.delete_response(id="RES_ID")`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
-    <!-- Analytics Section -->
-    <section id="analytics" class="space-y-12 pt-16 border-t border-border/20">
-      <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <BarChart3 class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Analytics</h2>
-        </div>
-        <p class="text-muted-foreground text-lg leading-relaxed">
-          Extract insights from your survey data. Retrieve campaign-level aggregates, respondent distributions, 
-          and metadata breakdowns.
-        </p>
-      </div>
-      <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Campaign Intelligence</h3>
-          <p class="text-muted-foreground leading-relaxed">Retrieve numerical summaries and question-level frequency counts.</p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Analytics</span>
-          </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`const analytics = await respApi.getCampaignAnalytics("C1");
-console.log("Response Rate:", analytics.responseRate);`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`CampaignAnalyticsResponse res = api.getCampaignAnalytics("C1");`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.ResponsesAPI.GetCampaignAnalytics(ctx, "C1").Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`res = api.get_campaign_analytics("C1")`} />
-          {/if}
-        </div>
-      </div>
-    </section>
-
-    <!-- Scoring Engine Section -->
+    <!-- Scoring Intelligence Section -->
     <section id="scoring" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <Activity class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Scoring Engine</h2>
+        <div class="flex items-center gap-3 text-primary">
+          <PieChart class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">
+            Scoring Intelligence
+          </h2>
         </div>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Perform complex numerical analysis on responses. Configure weight profiles to calculate 
-          weighted scores based on respondent inputs across multiple questions.
+          The Scoring Engine computes complex numerical profiles from raw
+          qualitative inputs. Define weight profiles and coefficients to perform
+          multi-dimensional arithmetic across thousands of data points.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Weight Profiling</h3>
-          <p class="text-muted-foreground leading-relaxed">Map questions to coefficients to compute real-time scores for every response.</p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Scoring</span>
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Weight Profiling
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Create reusable mathematical models. Map question identifiers to
+              weights to generate scores for "Customer Sentiment", "Risk Score",
+              or "Employee Engagement". Profiles are campaign-scoped and support
+              prioritized calculation.
+            </p>
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { ScoringApi } from '@survey-engine/sdk';
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Score Computation
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Execute deterministic arithmetic on raw category inputs. The
+              engine handles normalization, weighting, and produces a totalized
+              ScoreResult with audit-ready breakdowns.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Scoring API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { ScoringApi, WeightProfileRequest } from '@survey-engine/sdk';
+
 const scoreApi = new ScoringApi(config);
-await scoreApi.createWeightProfile({ name: "Global NPS", weights: [...] });`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`ScoringApi api = new ScoringApi(client);
-api.createWeightProfile(new WeightProfileRequest().name("NPS"));`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.ScoringAPI.CreateWeightProfile(ctx).Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api.create_weight_profile(name="NPS")`} />
+
+// 1. Define Weight Profile
+const profile = await scoreApi.createWeightProfile({
+  weightProfileRequest: {
+    name: "Customer Loyalty Index",
+    campaignId: "CAMP-UUID-123",
+    categoryWeights: [
+      { categoryId: "NPS-CAT", weightPercentage: 80 },
+      { categoryId: "CSAT-CAT", weightPercentage: 20 }
+    ]
+  }
+});
+
+// 2. Perform Real-time Calculation
+const result = await scoreApi.calculateWeightedScore({
+  profileId: profile.id,
+  requestBody: {
+    "NPS-CAT": 9.0,
+    "CSAT-CAT": 4.5
+  }
+});`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.ScoringApi;
+import org.openapitools.client.model.WeightProfileRequest;
+import org.openapitools.client.model.CategoryWeightRequest;
+import java.util.UUID;
+import java.util.Map;
+
+ScoringApi api = new ScoringApi(client);
+
+// 1. Create Profile
+WeightProfileResponse profile = api.createWeightProfile(new WeightProfileRequest()
+    .name("Security Audit")
+    .campaignId(UUID.fromString("..."))
+    .addCategoryWeightsItem(new CategoryWeightRequest()
+        .categoryId("Q1").weightPercentage(100.0)));
+
+// 2. Calculate
+ScoreResult result = api.calculateWeightedScore(
+    profile.getId(), 
+    Map.of("Q1", 5.0)
+);`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// 1. Create Profile
+profile, _, _ := client.ScoringAPI.CreateWeightProfile(ctx).
+    WeightProfileRequest(sdk.WeightProfileRequest{
+        Name: "Risk",
+        CampaignId: "UUID",
+        CategoryWeights: []sdk.CategoryWeightRequest{
+            {CategoryId: "cat-1", WeightPercentage: 100.0},
+        },
+    }).Execute()
+
+// 2. Calculate
+scores := map[string]float64{"cat-1": 4.2}
+res, _, _ := client.ScoringAPI.CalculateWeightedScore(ctx, profile.Id).
+    RequestBody(scores).Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.scoring_api import ScoringApi
+from openapi_client.models.weight_profile_request import WeightProfileRequest
+
+api = ScoringApi(client)
+
+# 1. Create Profile
+profile = api.create_weight_profile(weight_profile_request=WeightProfileRequest(
+    name="Risk Profile",
+    campaign_id="UUID",
+    category_weights=[{"category_id": "C1", "weight_percentage": 50}]
+))
+
+# 2. Calculate
+result = api.calculate_weighted_score(
+    profile_id=profile.id,
+    request_body={"C1": 8.5}
+)`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
-    <!-- Platform Governance Section -->
+    <!-- Analytics & Insights Section -->
+    <section id="analytics" class="space-y-12 pt-16 border-t border-border/20">
+      <div class="space-y-4">
+        <div class="flex items-center gap-3 text-primary">
+          <Target class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">
+            Analytics & Insights
+          </h2>
+        </div>
+        <p class="text-muted-foreground text-lg leading-relaxed">
+          Extract high-level intelligence from campaign data. The Analytics
+          service provides real-time aggregates, frequency distributions, and
+          participation metrics to drive business decisions.
+        </p>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-12">
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Real-time Aggregates
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Retrieve campaign-level metrics including response rates,
+              completion counts, and categorical distributions for rapid
+              decision support.
+            </p>
+          </div>
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Comparative Analytics
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Perform side-by-side segment comparisons. Filter by demographic
+              data, question answers, or participation metadata to identify
+              trends.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Analytics API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { ResponsesApi, ComparisonRequest } from '@survey-engine/sdk';
+
+const analyticsApi = new ResponsesApi(config);
+
+// 1. Get Campaign Aggregates
+const analytics = await analyticsApi.getCampaignAnalytics({ 
+  campaignId: "CAMP-123" 
+});
+console.log("Completion Rate:", analytics.completionCount);
+
+// 2. Multi-Segment Comparison
+const comparison = await analyticsApi.compareSegments({
+  campaignId: "CAMP-123",
+  comparisonRequest: {
+    segments: [
+      { name: "Millennials", filters: [{ key: "age_group", value: "18-34" }] },
+      { name: "Gen X", filters: [{ key: "age_group", value: "35-50" }] }
+    ]
+  }
+});`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.ResponsesApi;
+import org.openapitools.client.model.CampaignAnalytics;
+import java.util.UUID;
+
+ResponsesApi api = new ResponsesApi(client);
+
+// 1. Get Aggregates
+CampaignAnalytics stats = api.getCampaignAnalytics(UUID.fromString("..."));
+System.out.println("Responses: " + stats.getResponseCount());
+
+// 2. Get Full Deep Report
+FullCampaignAnalyticsResponse report = api.getFullReport(UUID.fromString("..."));`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`// 1. Get Intelligence
+res, _, _ := client.ResponsesAPI.GetCampaignAnalytics(ctx, "CAMP-UUID").Execute()
+
+// 2. Detailed Report
+report, _, _ := client.ResponsesAPI.GetFullReport(ctx, "CAMP-UUID").Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.responses_api import ResponsesApi
+
+api = ResponsesApi(client)
+
+# 1. Get Intelligence
+stats = api.get_campaign_analytics(campaign_id="CAMP-UUID")
+
+# 2. Get Full Report
+report = api.get_full_report(campaign_id="CAMP-UUID")`}
+              />
+            </div>
+          {/if}
+        </div>
+      </div>
+    </section>
+
+    <!-- System Governance Section -->
     <section id="governance" class="space-y-12 pt-16 border-t border-border/20">
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <Shield class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Platform Governance</h2>
+        <div class="flex items-center gap-3 text-primary">
+          <ShieldAlert class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">System Governance</h2>
         </div>
-        <p class="text-muted-foreground text-lg leading-relaxed italic">Super-Admin Visibility</p>
         <p class="text-muted-foreground text-lg leading-relaxed">
-          Global lifecycle management for all tenants. Monitor platform-wide health, manage tenant activation states, 
-          and perform security impersonation.
+          The Governance & Audit services provide enterprise-level visibility.
+          Platform operators and tenant admins can monitor security events,
+          manage technical debt via deactivations, and oversee tenant isolation.
         </p>
       </div>
       <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Operations</h3>
-          <p class="text-muted-foreground leading-relaxed">Manage tenant suspension, activation, and trial overrides.</p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Governance</span>
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Security Auditing
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Access high-fidelity audit trails. Track administrative actions,
+              user creation, plan modifications, and data access for compliance
+              forensics.
+            </p>
           </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { SuperAdminApi } from '@survey-engine/sdk';
-const superApi = new SuperAdminApi(config);
-await superApi.suspendTenant("TENANT_ID");`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`api.suspendTenant("TENANT_ID");`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.SuperAdminAPI.SuspendTenant(ctx, "ID").Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api.suspend_tenant("ID")`} />
-          {/if}
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. Administrative Operations
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Manage platform-wide health. Admins can perform tenant suspension,
+              audit log exports, and global configuration governed by the
+              `SuperAdmin` policy.
+            </p>
+          </div>
         </div>
-      </div>
-    </section>
+        <div
+          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+        >
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Governance API</span
+            >
+          </div>
+          {#if activeTab === "typescript"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="typescript"
+                code={`import { AuditLogsApi, SuperAdminApi } from '@survey-engine/sdk';
 
-    <!-- Compliance Logs Section -->
-    <section id="audit" class="space-y-12 pt-16 border-t border-border/20">
-      <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary">
-          <ShieldCheck class="w-10 h-10" />
-          <h2 class="text-4xl font-bold tracking-tight">Compliance Logs</h2>
-        </div>
-        <p class="text-muted-foreground text-lg leading-relaxed">
-          Maintain a full audit trail of administrative activities. Track every configuration change 
-          and data export for compliance and security forensics.
-        </p>
-      </div>
-      <div class="grid lg:grid-cols-2 gap-12">
-        <div class="space-y-4">
-          <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">Forensics</h3>
-          <p class="text-muted-foreground leading-relaxed">Retrieve paginated audit logs for any tenant or global event.</p>
-        </div>
-        <div class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit">
-          <div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
-            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeTab} Compliance</span>
-          </div>
-          {#if activeTab === 'typescript'}
-            <SimpleCodeBlock language="typescript" code={`import { AuditLogsApi } from '@survey-engine/sdk';
 const auditApi = new AuditLogsApi(config);
-const logs = await auditApi.getTenantAuditLogs({ page: 0 });`} />
-          {:else if activeTab === 'java'}
-            <SimpleCodeBlock language="java" code={`AuditLogsApi api = new AuditLogsApi(client);
-api.getTenantAuditLogs(0, 20, null);`} />
-          {:else if activeTab === 'go'}
-            <SimpleCodeBlock language="go" code={`client.AuditLogsAPI.GetTenantAuditLogs(ctx).Execute()`} />
-          {:else if activeTab === 'python'}
-            <SimpleCodeBlock language="python" code={`api.get_tenant_audit_logs(page=0)`} />
+const superApi = new SuperAdminApi(config);
+
+// Audit Logs
+const logs = await auditApi.getTenantAuditLogs({ page: 0 });
+
+// Super Admin Mutation
+await superApi.suspendTenant({ id: "..." });`}
+              />
+            </div>
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.AuditLogsApi;
+import org.openapitools.client.api.SuperAdminApi;
+
+AuditLogsApi audit = new AuditLogsApi(client);
+SuperAdminApi admin = new SuperAdminApi(client);
+
+// Audit Logs
+audit.getTenantAuditLogs(0, 100, "CREATED_AT:DESC");
+
+// Super Admin
+admin.suspendTenant("TENANT-X");`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`// Audit Logs
+logs, _, _ := client.AuditLogsAPI.GetTenantAuditLogs(ctx).Execute()
+
+// Super Admin
+client.SuperAdminAPI.SuspendTenant(ctx, "TENANT_ID").Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.audit_logs_api import AuditLogsApi
+from openapi_client.api.super_admin_api import SuperAdminApi
+
+audit = AuditLogsApi(client)
+admin = SuperAdminApi(client)
+
+# Audit logs
+logs = audit.get_tenant_audit_logs(page=0)
+
+# Operations
+admin.suspend_tenant(id="T-001")`}
+              />
+            </div>
           {/if}
         </div>
       </div>
     </section>
 
-    <!-- Best Practices Section -->
-    <section id="error-handling" class="space-y-12 pt-16 border-t border-border/20">
+    <!-- Best Practices Footer -->
+    <section
+      id="error-handling"
+      class="space-y-12 pt-32 border-t border-border/20"
+    >
       <div class="space-y-4">
-         <div class="flex items-center gap-3 text-primary text-green-500">
-          <GraduationCap class="w-8 h-8" />
-          <h2 class="text-3xl font-bold tracking-tight">Best Practices</h2>
+        <div class="flex items-center gap-3 text-primary">
+          <GraduationCap class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">Best Practices</h2>
         </div>
-        <p class="text-muted-foreground leading-relaxed">
-          Guidelines for building resilient integrations with the Survey Engine ecosystem.
+        <p class="text-muted-foreground text-lg leading-relaxed">
+          Guidelines for building resilient, enterprise-grade integrations with
+          the Survey Engine ecosystem.
         </p>
       </div>
-      <div class="grid gap-8">
-        <div class="p-6 rounded-2xl bg-muted/30 border border-border/50">
-          <h4 class="font-bold mb-2 flex items-center gap-2">
-            <AlertCircle class="w-4 h-4 text-primary" />
-            Resilient Error Handling
-          </h4>
-          <p class="text-xs text-muted-foreground italic">Always wrap calls in try-catch/if-err. Use structured exceptions to handle 429 Rate Limits and 400 Validation errors gracefully.</p>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div
+          class="p-8 rounded-2xl bg-muted/30 border border-border/50 space-y-4"
+        >
+          <div
+            class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-2xl font-bold italic"
+          >
+            !
+          </div>
+          <h4 class="text-xl font-bold">Resilient Error Handling</h4>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            Always wrap SDK calls in try-catch blocks. Standardized error models
+            include field-level validation errors and platform-wide rate limit
+            metadata to help you build smart retry logic.
+          </p>
         </div>
-        <div class="p-6 rounded-2xl bg-muted/30 border border-border/50">
-          <h4 class="font-bold mb-2 flex items-center gap-2">
-            <CheckCircle2 class="w-4 h-4 text-green-500" />
-            Type Safety
-          </h4>
-          <p class="text-xs text-muted-foreground italic">Avoid raw maps/dictionaries. Use generated DTOs to benefit from IDE autocomplete and early contract change detection.</p>
+        <div
+          class="p-8 rounded-2xl bg-muted/30 border border-border/50 space-y-4"
+        >
+          <div
+            class="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500"
+          >
+            <CheckCircle2 class="w-6 h-6" />
+          </div>
+          <h4 class="text-xl font-bold">Type Safety & Contracts</h4>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            Leverage native DTOs instead of raw maps. This ensures early
+            detection of contract breaking changes and provides elite IDE
+            autocomplete during complex payload construction.
+          </p>
         </div>
       </div>
     </section>
 
-    <footer class="pt-20 border-t border-border mt-40">
-       <h2 class="text-4xl font-black tracking-tight mb-4">Enterprise Grade by Default</h2>
-       <p class="text-muted-foreground max-w-xl">
-         Survey Engine SDKs are maintained for production scale. For further assistance, contact your 
-         dedicated account manager or visit our Developer Forum.
-       </p>
+    <footer class="pt-32 border-t border-border pb-16 opacity-50 text-center">
+      <p class="text-sm font-medium">
+        Enterprise SDK Documentation &copy; 2026 Survey Engine Platform
+      </p>
     </footer>
   </div>
 </div>
 
 <style>
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  /* Scrollbar utilities if needed */
 </style>

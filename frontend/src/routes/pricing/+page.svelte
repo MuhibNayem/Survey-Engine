@@ -246,6 +246,11 @@
             <div class="flex items-center gap-4">
                 <Button
                     variant="ghost"
+                    href="/docs/api"
+                    class="font-medium hover:bg-white/5">API Docs</Button
+                >
+                <Button
+                    variant="ghost"
                     href="/login"
                     class="font-medium hover:bg-white/5">Sign in</Button
                 >

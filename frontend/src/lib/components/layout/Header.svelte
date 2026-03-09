@@ -60,9 +60,16 @@
                 <ChevronsLeft class="h-5 w-5" />
             {/if}
         </Button>
-        <div class="hidden md:block">
-            <h2 class="text-lg font-semibold text-foreground">Survey Engine</h2>
-        </div>
+        <a
+            href={auth.user?.role === "SUPER_ADMIN"
+                ? "/admin/dashboard"
+                : "/dashboard"}
+            class="hidden md:block"
+        >
+            <h2 class="text-lg font-semibold text-foreground hover:text-primary transition-colors">
+                Survey Engine
+            </h2>
+        </a>
     </div>
 
     <!-- Right side: theme toggle + user menu -->

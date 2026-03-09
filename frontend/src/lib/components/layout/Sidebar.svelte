@@ -60,16 +60,27 @@
         <!-- Logo / Brand -->
         <div class="flex h-16 items-center border-b border-sidebar-border px-4">
             {#if !collapsed}
-                <div class="flex items-center gap-2">
+                <a
+                    href={auth.user?.role === "SUPER_ADMIN"
+                        ? "/admin/dashboard"
+                        : "/dashboard"}
+                    class="flex items-center gap-2"
+                >
                     <img src={logo} alt="Survey Engine Logo" class="h-8 w-8 object-contain" />
                     <span class="text-lg font-semibold text-sidebar-foreground"
                         >Survey Engine</span
                      >
-                </div>
+                </a>
             {:else}
-                <div class="mx-auto">
+                <a
+                    href={auth.user?.role === "SUPER_ADMIN"
+                        ? "/admin/dashboard"
+                        : "/dashboard"}
+                    class="mx-auto"
+                    aria-label="Go to dashboard"
+                >
                     <img src={logo} alt="SE" class="h-8 w-8 object-contain" />
-                </div>
+                </a>
             {/if}
         </div>
 
