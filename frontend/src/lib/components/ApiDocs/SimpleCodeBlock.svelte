@@ -3,7 +3,7 @@
 
 	interface Props {
 		code: string;
-		language?: 'typescript' | 'javascript' | 'json' | 'bash' | 'http';
+		language?: 'typescript' | 'javascript' | 'json' | 'bash' | 'http' | 'java' | 'go' | 'python';
 		filename?: string;
 	}
 
@@ -22,7 +22,10 @@
 			javascript: 'JavaScript',
 			json: 'JSON',
 			bash: 'Bash',
-			http: 'HTTP'
+			http: 'HTTP',
+			java: 'Java',
+			go: 'Go',
+			python: 'Python'
 		};
 		return labels[lang] || lang;
 	};

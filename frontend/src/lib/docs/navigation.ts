@@ -20,6 +20,27 @@ export const docsNavItems: DocsNavItem[] = [
   },
   {
     title: 'SDK',
-    children: [{ title: 'Client SDK', href: '/docs/sdk' }]
+    children: [
+      { 
+        title: 'Developer SDK', 
+        href: '/docs/sdk',
+        children: [
+          { title: 'Foundations', href: '/docs/sdk#foundations' },
+          { title: 'Identity & Access', href: '/docs/sdk#id-access' },
+          { title: 'Auth Profiles', href: '/docs/sdk#auth-profiles' },
+          { title: 'Plans & Catalog', href: '/docs/sdk#plans-catalog' },
+          { title: 'Subscriptions', href: '/docs/sdk#subscriptions' },
+          { title: 'Question Bank', href: '/docs/sdk#question-bank' },
+          { title: 'Categories & Content', href: '/docs/sdk#categories' },
+          { title: 'Survey Lifecycle', href: '/docs/sdk#surveys' },
+          { title: 'Campaigns', href: '/docs/sdk#campaigns' },
+          { title: 'Respondent Experience', href: '/docs/sdk#respondent' },
+          { title: 'Response Submission', href: '/docs/sdk#submissions' },
+          { title: 'Analytics & Scoring', href: '/docs/sdk#analytics' },
+          { title: 'Management & Audit', href: '/docs/sdk#governance' },
+          { title: 'Error Handling', href: '/docs/sdk#error-handling' }
+        ]
+      }
+    ]
   }
 ];
