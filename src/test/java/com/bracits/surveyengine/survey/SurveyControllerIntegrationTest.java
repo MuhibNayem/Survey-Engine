@@ -83,6 +83,6 @@ class SurveyControllerIntegrationTest {
                 .header("Authorization", bearerToken)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(jsonPath("$.content").isArray());
     }
 }
