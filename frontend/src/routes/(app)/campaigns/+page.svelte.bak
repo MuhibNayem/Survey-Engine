@@ -13,7 +13,6 @@
 	import { EmptyState } from '$lib/components/empty-state';
 	import { Confetti } from '$lib/components/confetti';
 	import { ErrorBanner } from '$lib/components/error-banner';
-	import { FeatureTour } from '$lib/components/onboarding';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';

@@ -11,6 +11,7 @@
 	import { EmptyState } from '$lib/components/empty-state';
 	import { Confetti } from '$lib/components/confetti';
 	import { ErrorBanner } from '$lib/components/error-banner';
+	import { FeatureTour } from '$lib/components/onboarding';
 	import {
 		HelpCircle,
 		FolderKanban,
@@ -232,6 +233,35 @@
                 return "outline" as const;
         }
     }
+
+    // Dashboard tour configuration
+    const dashboardTour = {
+        id: 'tour.dashboard',
+        title: 'Dashboard Overview',
+        steps: [
+            {
+                id: 'step1',
+                title: 'Welcome to Your Dashboard',
+                description: 'This is your command center for all survey activities.',
+                targetSelector: '[data-tour="dashboard-stats"]',
+                placement: 'bottom' as const
+            },
+            {
+                id: 'step2',
+                title: 'Recent Campaigns',
+                description: 'See your active and recent campaigns here.',
+                targetSelector: '[data-tour="recent-campaigns"]',
+                placement: 'top' as const
+            },
+            {
+                id: 'step3',
+                title: 'Quick Actions',
+                description: 'Create new surveys, campaigns, or view reports.',
+                targetSelector: '[data-tour="quick-actions"]',
+                placement: 'left' as const
+            }
+        ]
+    };
 </script>
 
 <svelte:head>
@@ -314,7 +344,7 @@
             {/each}
         </div>
     {:else}
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div data-tour="dashboard-stats" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {#each statCards as card}
                 <a href={card.href} class="group">
                     <Card.Root
@@ -349,7 +379,7 @@
 
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <!-- Quick Actions -->
-        <div class="lg:col-span-1">
+        <div data-tour="quick-actions" class="lg:col-span-1">
             <h2 class="mb-4 text-lg font-semibold text-foreground">
                 Quick Actions
             </h2>
@@ -409,7 +439,7 @@
         </div>
 
         <!-- Recent Campaigns -->
-        <div class="md:col-span-1 lg:col-span-2">
+        <div data-tour="recent-campaigns" class="md:col-span-1 lg:col-span-2">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-semibold text-foreground">
                     Recent Campaigns
@@ -546,6 +576,9 @@
         </div>
     </div>
 </div>
+
+<!-- 🎯 Dashboard Tour -->
+<FeatureTour tour={dashboardTour} autoStart={true} />
 
 <!-- 🎉 Confetti Celebration -->
 {#if showConfetti}

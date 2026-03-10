@@ -145,11 +145,12 @@ public class FeatureManagementService {
 
         SubscriptionPlan userPlan = getUserPlan(user.getTenantId());
         String tenantId = user.getTenantId();
+        String planString = userPlan != null ? userPlan.name() : "BASIC";
 
         // Get features accessible by user's plan
         List<FeatureDefinition> features = category != null
-            ? featureDefinitionRepository.findByCategoryAndMinPlanLevelAndEnabledTrue(category, userPlan)
-            : featureDefinitionRepository.findByMinPlanLevelAndEnabledTrue(userPlan);
+            ? featureDefinitionRepository.findByCategoryAndMinPlanLevelAndEnabledTrue(category, planString)
+            : featureDefinitionRepository.findByMinPlanLevelAndEnabledTrue(planString);
 
         // Get user's completed features
         List<UserFeatureAccess> completedAccess = userFeatureAccessRepository.findByUserIdAndCompletedTrue(userId);

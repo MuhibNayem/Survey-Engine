@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { X, Lightbulb, CheckCircle } from 'lucide-svelte';
-	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag';
+	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag.svelte.ts';
 	import api from '$lib/api';
 
 	interface Props {

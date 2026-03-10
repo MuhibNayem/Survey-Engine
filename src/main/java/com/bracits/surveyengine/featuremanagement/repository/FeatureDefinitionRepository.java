@@ -111,12 +111,12 @@ public interface FeatureDefinitionRepository extends JpaRepository<FeatureDefini
            "  WHEN 'PRO' THEN 2 " +
            "  WHEN 'ENTERPRISE' THEN 3 " +
            "END <= " +
-           "CASE :plan " +
+           "CASE :planString " +
            "  WHEN 'BASIC' THEN 1 " +
            "  WHEN 'PRO' THEN 2 " +
            "  WHEN 'ENTERPRISE' THEN 3 " +
            "END")
-    List<FeatureDefinition> findByMinPlanLevel(@Param("plan") SubscriptionPlan plan);
+    List<FeatureDefinition> findByMinPlanLevel(@Param("planString") String planString);
 
     /**
      * Find enabled features accessible by a minimum plan level.
@@ -127,12 +127,12 @@ public interface FeatureDefinitionRepository extends JpaRepository<FeatureDefini
            "  WHEN 'PRO' THEN 2 " +
            "  WHEN 'ENTERPRISE' THEN 3 " +
            "END <= " +
-           "CASE :plan " +
+           "CASE :planString " +
            "  WHEN 'BASIC' THEN 1 " +
            "  WHEN 'PRO' THEN 2 " +
            "  WHEN 'ENTERPRISE' THEN 3 " +
            "END")
-    List<FeatureDefinition> findByMinPlanLevelAndEnabledTrue(@Param("plan") SubscriptionPlan plan);
+    List<FeatureDefinition> findByMinPlanLevelAndEnabledTrue(@Param("planString") String planString);
 
     /**
      * Find features by category accessible by a minimum plan level.
@@ -143,14 +143,14 @@ public interface FeatureDefinitionRepository extends JpaRepository<FeatureDefini
            "  WHEN 'PRO' THEN 2 " +
            "  WHEN 'ENTERPRISE' THEN 3 " +
            "END <= " +
-           "CASE :plan " +
+           "CASE :planString " +
            "  WHEN 'BASIC' THEN 1 " +
            "  WHEN 'PRO' THEN 2 " +
            "  WHEN 'ENTERPRISE' THEN 3 " +
            "END")
     List<FeatureDefinition> findByCategoryAndMinPlanLevel(
-        @Param("category") FeatureCategory category, 
-        @Param("plan") SubscriptionPlan plan);
+        @Param("category") FeatureCategory category,
+        @Param("planString") String planString);
 
     /**
      * Find enabled features by category accessible by a minimum plan level.
@@ -161,14 +161,14 @@ public interface FeatureDefinitionRepository extends JpaRepository<FeatureDefini
            "  WHEN 'PRO' THEN 2 " +
            "  WHEN 'ENTERPRISE' THEN 3 " +
            "END <= " +
-           "CASE :plan " +
+           "CASE :planString " +
            "  WHEN 'BASIC' THEN 1 " +
            "  WHEN 'PRO' THEN 2 " +
            "  WHEN 'ENTERPRISE' THEN 3 " +
            "END")
     List<FeatureDefinition> findByCategoryAndMinPlanLevelAndEnabledTrue(
-        @Param("category") FeatureCategory category, 
-        @Param("plan") SubscriptionPlan plan);
+        @Param("category") FeatureCategory category,
+        @Param("planString") String planString);
 
     /**
      * Find features that contain a specific role in their allowed roles list.

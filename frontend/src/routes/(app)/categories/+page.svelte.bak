@@ -17,7 +17,6 @@
 	import { useKeyboardShortcuts, commonShortcuts } from '$lib/hooks/useKeyboardShortcuts.svelte';
 	import { Confetti } from '$lib/components/confetti';
 	import { ErrorBanner } from '$lib/components/error-banner';
-	import { FeatureTour } from '$lib/components/onboarding';
 	import { Plus, Pencil, Trash2, Search, X, FolderKanban, GripVertical, MoreHorizontal } from 'lucide-svelte';
 	import type {
 		CategoryResponse,

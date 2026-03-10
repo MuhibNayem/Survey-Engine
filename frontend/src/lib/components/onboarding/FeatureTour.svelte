@@ -4,7 +4,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Card from '$lib/components/ui/card';
 	import { X, ChevronLeft, ChevronRight, Lightbulb, CheckCircle2 } from 'lucide-svelte';
-	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag';
+	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag.svelte.ts';
 
 	export interface TourStep {
 		id: string;
@@ -43,13 +43,14 @@
 	let dontShowAgain = $state(false);
 
 	// Use feature flag hook for backend integration
+	// Tour ID already includes prefix (e.g., 'tour.dashboard'), so use it directly
 	const {
 		status,
 		isCompleted,
 		shouldShow,
 		complete: completeFeature,
 		reset: resetFeature
-	} = useFeatureFlag(`tour.${tour.id}`, {
+	} = useFeatureFlag(tour.id, {
 		autoCheck: autoStart,
 		autoRecordAccess: true
 	});

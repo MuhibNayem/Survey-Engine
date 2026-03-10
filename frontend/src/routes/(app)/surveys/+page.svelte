@@ -17,6 +17,7 @@
     import { useKeyboardShortcuts, commonShortcuts } from "$lib/hooks/useKeyboardShortcuts.svelte";
     import { Confetti } from "$lib/components/confetti";
     import { ErrorBanner } from "$lib/components/error-banner";
+    import { FeatureTour } from '$lib/components/onboarding';
     import {
         Plus,
         Pencil,
@@ -39,6 +40,28 @@
         QuestionType,
         PageResponse
     } from "$lib/types";
+
+    // Surveys tour configuration
+    const surveysTour = {
+        id: 'tour.surveys',
+        title: 'Survey Management',
+        steps: [
+            {
+                id: 'step1',
+                title: 'Create New Survey',
+                description: 'Click here to start building your survey.',
+                targetSelector: '[data-tour="new-survey-btn"]',
+                placement: 'bottom' as const
+            },
+            {
+                id: 'step2',
+                title: 'Survey List',
+                description: 'View and manage all your surveys.',
+                targetSelector: '[data-tour="survey-list"]',
+                placement: 'top' as const
+            }
+        ]
+    };
 
     // --- State ---
     let surveys = $state<SurveyResponse[]>([]);
@@ -798,6 +821,7 @@
         actionLabel="New Survey"
         actionIcon={Plus}
         onAction={openCreateDialog}
+        data-tour="new-survey-btn"
     />
 
     <ErrorBanner
@@ -809,7 +833,7 @@
     />
 
     <!-- Filters -->
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div data-tour="survey-list" class="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div class="relative flex-1">
             <Search
                 class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -1835,6 +1859,9 @@
     onConfirm={handleDelete}
     onCancel={() => (deleteTarget = null)}
 />
+
+<!-- 🎯 Surveys Tour -->
+<FeatureTour tour={surveysTour} autoStart={true} />
 
 <!-- 🎉 Confetti Celebration -->
 {#if showConfetti}

@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Alert from '$lib/components/ui/alert';
 	import { X, Megaphone, ExternalLink, CheckCircle } from 'lucide-svelte';
-	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag';
+	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag.svelte.ts';
 
 	export interface BannerConfig {
 		id: string;
