@@ -105,6 +105,25 @@ public class ResponderSessionService {
                 .build();
     }
 
+    @Transactional
+    public ResponseCookie revokeSessionCookie(
+            HttpServletRequest request,
+            String tenantId,
+            UUID campaignId) {
+        String rawToken = readCookieValue(request);
+        if (rawToken != null && !rawToken.isBlank()) {
+            responderSessionRepository.findBySessionHash(hash(rawToken))
+                    .filter(session -> session.getRevokedAt() == null)
+                    .filter(session -> Objects.equals(session.getTenantId(), tenantId))
+                    .filter(session -> Objects.equals(session.getCampaignId(), campaignId))
+                    .ifPresent(session -> {
+                        session.setRevokedAt(Instant.now());
+                        responderSessionRepository.save(session);
+                    });
+        }
+        return clearSessionCookie(request);
+    }
+
     private Duration sessionTimeout(UUID campaignId) {
         return campaignSettingsRepository.findByCampaignId(campaignId)
                 .map(CampaignSettings::getSessionTimeoutMinutes)

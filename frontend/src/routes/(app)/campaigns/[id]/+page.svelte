@@ -86,6 +86,7 @@
     let settingsSaved = $state(false);
     let proThemeMode = $state(false);
     let fontStackSelection = $state<string[]>([]);
+    let logoLoadFailed = $state(false);
     const THEME_TEMPLATES = [
         { key: "aurora-premium", label: "Aurora Premium" },
         { key: "executive-ink", label: "Executive Ink" },
@@ -233,6 +234,7 @@
     function ensureTheme(): SurveyThemeConfig {
         if (!settings.theme) {
             settings.theme = createDefaultTheme();
+            syncFontStackSelection(settings.theme.branding.fontFamily);
         }
         return settings.theme;
     }
@@ -284,13 +286,12 @@
             .filter(Boolean);
     }
 
-    $effect(() => {
-        const theme = ensureTheme();
-        const nextSelection = selectedFontFamilies(theme.branding.fontFamily);
+    function syncFontStackSelection(fontFamily?: string) {
+        const nextSelection = selectedFontFamilies(fontFamily);
         if (JSON.stringify(fontStackSelection) !== JSON.stringify(nextSelection)) {
             fontStackSelection = nextSelection;
         }
-    });
+    }
 
     $effect(() => {
         const theme = ensureTheme();
@@ -329,6 +330,13 @@
 
     const campaignId = $derived(page.params.id);
     const currentTheme = $derived.by(() => ensureTheme());
+    const activeLogoUrl = $derived(currentTheme.branding.logoUrl?.trim() || "");
+    const shouldRenderLogo = $derived(Boolean(activeLogoUrl) && !logoLoadFailed);
+
+    $effect(() => {
+        activeLogoUrl;
+        logoLoadFailed = false;
+    });
 
     function statusBadgeVariant(status: CampaignStatus) {
         switch (status) {
@@ -468,6 +476,7 @@
                 collectAddress: data.collectAddress ?? false,
                 dataCollectionFields: data.dataCollectionFields ?? [],
             };
+            syncFontStackSelection(settings.theme?.branding.fontFamily);
         } catch {
             // keep defaults
         }
@@ -1409,8 +1418,15 @@
                                         </div>
                                     {:else if currentTheme.header.enabled}
                                         <div class={`theme-studio-preview__header theme-studio-preview__header--${currentTheme.layout.headerStyle}`} data-align={currentTheme.layout.headerAlignment} data-logo-position={currentTheme.branding.logoPosition}>
-                                            {#if currentTheme.branding.logoUrl}
-                                                <img src={currentTheme.branding.logoUrl} alt="Brand logo" class="theme-studio-preview__logo" />
+                                            {#if shouldRenderLogo}
+                                                <img
+                                                    src={activeLogoUrl}
+                                                    alt="Brand logo"
+                                                    class="theme-studio-preview__logo"
+                                                    onerror={() => {
+                                                        logoLoadFailed = true;
+                                                    }}
+                                                />
                                             {/if}
                                             <div class="theme-studio-preview__eyebrow">{currentTheme.header.eyebrow || currentTheme.branding.brandLabel}</div>
                                             <h3>{currentTheme.header.title}</h3>

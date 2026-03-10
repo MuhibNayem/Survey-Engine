@@ -13,6 +13,7 @@ import com.bracits.surveyengine.response.service.ResponseService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +52,24 @@ public class PublicCampaignController {
                 .authenticated(identity.isPresent())
                 .email(identity.map(com.bracits.surveyengine.auth.dto.ResponderAccessIdentity::getEmail).orElse(null))
                 .build());
+    }
+
+    @PostMapping("/{id}/auth/logout")
+    public ResponseEntity<Void> logoutResponderSession(
+            @PathVariable UUID id,
+            HttpServletRequest request) {
+        Campaign campaign = campaignRepository.findById(id).orElse(null);
+        if (campaign == null || campaign.getAuthMode() != com.bracits.surveyengine.campaign.entity.AuthMode.PRIVATE) {
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.noContent()
+                .header(
+                        HttpHeaders.SET_COOKIE,
+                        responderSessionService
+                                .revokeSessionCookie(request, campaign.getTenantId(), campaign.getId())
+                                .toString())
+                .build();
     }
 
     @PostMapping("/{id}/responses/draft")

@@ -51,6 +51,7 @@
     let remarks = $state<Record<string, string>>({});
     let errors = $state<Record<string, string>>({});
     let respondentMetadata = $state<Record<string, string | number | null | undefined>>({});
+    let logoLoadFailed = $state(false);
 
     const resolvedPages = $derived(
         campaign
@@ -206,6 +207,14 @@
             `--preview-font:${theme.branding.fontFamily || DEFAULT_THEME.branding.fontFamily}`,
         ].join(";");
     }
+
+    const activeLogoUrl = $derived(getTheme().branding.logoUrl?.trim() || "");
+    const shouldRenderLogo = $derived(Boolean(activeLogoUrl) && !logoLoadFailed);
+
+    $effect(() => {
+        activeLogoUrl;
+        logoLoadFailed = false;
+    });
 
     function previewShellClass(): string {
         const theme = getTheme();
@@ -577,8 +586,15 @@
                     data-align={getTheme().layout.headerAlignment}
                     data-logo-position={getTheme().branding.logoPosition}
                 >
-                    {#if getTheme().branding.logoUrl}
-                        <img src={getTheme().branding.logoUrl} alt="Brand logo" class="theme-studio-preview__logo" />
+                    {#if shouldRenderLogo}
+                        <img
+                            src={activeLogoUrl}
+                            alt="Brand logo"
+                            class="theme-studio-preview__logo"
+                            onerror={() => {
+                                logoLoadFailed = true;
+                            }}
+                        />
                     {/if}
                     <div class="theme-studio-preview__eyebrow">{getTheme().header.eyebrow || getTheme().branding.brandLabel}</div>
                     <h3>{getTheme().header.title || campaign.campaignName}</h3>

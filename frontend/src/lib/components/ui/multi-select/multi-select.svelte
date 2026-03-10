@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Input } from "$lib/components/ui/input";
 	import * as Popover from "$lib/components/ui/popover";
-	import { Badge } from "$lib/components/ui/badge";
 	import { Button } from "$lib/components/ui/button";
 	import { Label } from "$lib/components/ui/label";
 	import { Check, ChevronDown, Search, X, ArrowUp, ArrowDown } from "lucide-svelte";
@@ -102,7 +101,7 @@
 			<button
 				type="button"
 				class={cn(
-					"flex w-full items-start justify-between gap-3 rounded-2xl border border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] px-4 py-3 text-left shadow-[0_18px_50px_-36px_rgba(15,23,42,0.35)] transition hover:border-primary/35 hover:bg-white disabled:pointer-events-none disabled:opacity-60",
+					"flex w-full items-start justify-between gap-3 rounded-2xl border border-border/80 bg-background px-4 py-3 text-left shadow-[0_18px_50px_-36px_rgba(15,23,42,0.35)] transition hover:border-primary/35 hover:bg-accent/30 disabled:pointer-events-none disabled:opacity-60 dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
 				)}
 				aria-expanded={open}
 				disabled={disabled}
@@ -110,10 +109,10 @@
 				<div class="min-w-0 flex-1 space-y-2">
 					<div class="text-sm font-semibold text-foreground">Selected Options</div>
 					{#if selectedOptions.length > 0}
-						<div class="flex flex-wrap gap-2">
+						<div class="flex flex-wrap gap-2.5">
 							{#each selectedOptions as option, index}
 								<span
-									class="inline-flex max-w-full items-center gap-2 rounded-full border border-border/80 bg-white/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
+									class="inline-flex max-w-full items-center gap-2.5 rounded-full border border-border/80 bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm dark:border-input dark:bg-input/40"
 								>
 									{#if showOrder}
 										<span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/10 px-1 text-[10px] font-semibold text-primary">
@@ -133,27 +132,29 @@
 		</Popover.Trigger>
 
 		<Popover.Content
-			class="w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border/80 bg-white/96 p-0 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)] backdrop-blur-xl"
+			class="w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border/80 bg-popover p-0 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-input dark:bg-popover"
 			align="start"
 		>
 			<div class="border-b border-border/70 p-3">
-				<div class="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/30 px-3">
-					<Search class="h-4 w-4 shrink-0 text-muted-foreground" />
+				<div class="relative">
+					<Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						bind:value={search}
-						class="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+						class="h-11 rounded-xl border-border/70 bg-muted/30 pl-10 pr-3 shadow-none transition focus-visible:border-primary/45 focus-visible:ring-2 focus-visible:ring-primary/15 dark:border-input dark:bg-input/30 dark:focus-visible:border-ring dark:focus-visible:ring-ring/30"
 						placeholder={searchPlaceholder}
 					/>
 				</div>
 			</div>
-			<div class="max-h-80 overflow-y-auto p-2">
+			<div class="flex max-h-80 flex-col gap-2.5 overflow-y-auto p-2">
 				{#if filteredOptions.length > 0}
 					{#each filteredOptions as option}
 						<button
 							type="button"
 							class={cn(
 								"flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left transition",
-								isSelected(option.value) ? "bg-primary/8 text-foreground" : "hover:bg-muted/50",
+								isSelected(option.value)
+									? "bg-primary/8 text-foreground dark:bg-primary/18"
+									: "hover:bg-muted/50 dark:hover:bg-input/45",
 								option.disabled && "pointer-events-none opacity-50",
 							)}
 							onclick={() => toggle(option.value)}
@@ -183,28 +184,64 @@
 			{#if selectedHelperText}
 				<p class="text-xs leading-5 text-muted-foreground">{selectedHelperText}</p>
 			{/if}
-			<div class="flex flex-wrap gap-2">
+			<div class="space-y-2.5">
 				{#each selectedOptions as option, index}
-					<div class="flex max-w-full items-center gap-2 rounded-full border border-border/80 bg-white/95 px-3 py-2 shadow-sm">
-						{#if showOrder}
-							<div class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary/10 px-1 text-[10px] font-semibold text-primary">
-								{index + 1}
+					<div class="flex min-w-0 items-center gap-3 rounded-2xl border border-border/80 bg-background px-3 py-2.5 shadow-sm dark:border-input dark:bg-input/30">
+						<div class="flex min-w-0 flex-1 items-center gap-2.5">
+							{#if showOrder}
+								<div class="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 px-1 text-[10px] font-semibold text-primary">
+									{index + 1}
+								</div>
+							{/if}
+							<div class="min-w-0 flex-1">
+								<div class="truncate text-sm font-medium">{option.label}</div>
+								{#if option.description}
+									<div class="truncate pt-0.5 text-xs text-muted-foreground">{option.description}</div>
+								{/if}
 							</div>
-						{/if}
-						<div class="min-w-0 max-w-[12rem] truncate text-sm font-medium">{option.label}</div>
-						{#if sortable}
-							<div class="flex items-center gap-0.5">
-								<Button type="button" size="sm" variant="ghost" class="h-7 w-7 p-0" disabled={index === 0} onclick={() => move(option.value, "up")}>
+						</div>
+						<div class="flex shrink-0 items-center gap-1 rounded-full bg-muted/35 p-1 dark:bg-input/60">
+							{#if sortable}
+								<Button
+									type="button"
+									size="sm"
+									variant="ghost"
+									class="h-8 w-8 rounded-full p-0"
+									disabled={index === 0}
+									onclick={(event) => {
+										event.stopPropagation();
+										move(option.value, "up");
+									}}
+								>
 									<ArrowUp class="h-3.5 w-3.5" />
 								</Button>
-								<Button type="button" size="sm" variant="ghost" class="h-7 w-7 p-0" disabled={index === selectedOptions.length - 1} onclick={() => move(option.value, "down")}>
+								<Button
+									type="button"
+									size="sm"
+									variant="ghost"
+									class="h-8 w-8 rounded-full p-0"
+									disabled={index === selectedOptions.length - 1}
+									onclick={(event) => {
+										event.stopPropagation();
+										move(option.value, "down");
+									}}
+								>
 									<ArrowDown class="h-3.5 w-3.5" />
 								</Button>
-							</div>
-						{/if}
-						<Button type="button" size="sm" variant="ghost" class="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onclick={() => remove(option.value)}>
-							<X class="h-3.5 w-3.5" />
-						</Button>
+							{/if}
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								class="h-8 w-8 rounded-full p-0 text-muted-foreground hover:text-destructive"
+								onclick={(event) => {
+									event.stopPropagation();
+									remove(option.value);
+								}}
+							>
+								<X class="h-3.5 w-3.5" />
+							</Button>
+						</div>
 					</div>
 				{/each}
 			</div>

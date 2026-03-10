@@ -10,7 +10,7 @@
     import { Textarea } from "$lib/components/ui/textarea";
     import * as StarRating from "$lib/components/ui/star-rating";
     import { Skeleton } from "$lib/components/ui/skeleton";
-    import { ChevronLeft, ChevronRight, Play, Save } from "lucide-svelte";
+    import { ChevronLeft, ChevronRight, LogOut, Play, Save } from "lucide-svelte";
     import "$lib/styles/survey-theme.css";
     import type {
         CampaignPreviewResponse,
@@ -77,6 +77,7 @@
     let submitError = $state<string | null>(null);
     let authLoading = $state(false);
     let authError = $state<string | null>(null);
+    let logoutLoading = $state(false);
     let currentPageIndex = $state(0);
     let campaign = $state<CampaignPreviewResponse | null>(null);
     let draftResponseId = $state<string | null>(null);
@@ -85,6 +86,7 @@
     let responderToken = $state<string | null>(null);
     let responderAccessCode = $state<string | null>(null);
     let privateSessionAuthenticated = $state(false);
+    let logoLoadFailed = $state(false);
     let answers = $state<Record<string, AnswerValue>>({});
     let remarks = $state<Record<string, string>>({});
     let errors = $state<Record<string, string>>({});
@@ -299,6 +301,14 @@
             )
             .filter((v) => v.length > 0);
     }
+
+    const activeLogoUrl = $derived(getTheme().branding.logoUrl?.trim() || "");
+    const shouldRenderLogo = $derived(Boolean(activeLogoUrl) && !logoLoadFailed);
+
+    $effect(() => {
+        activeLogoUrl;
+        logoLoadFailed = false;
+    });
 
     function getRatingValues(question: PreviewQuestion): number[] {
         const config = parseAnswerConfig(question.answerConfig);
@@ -921,7 +931,7 @@
 
     async function startPrivateAuth(): Promise<boolean> {
         if (!campaign || campaign.authMode !== "PRIVATE") return true;
-        if (hasPrivateCredential) return true;
+        if (hasPrivateAccess) return true;
         if (!campaign.tenantId) {
             authError = "Unable to start private authentication.";
             return false;
@@ -957,6 +967,34 @@
             return false;
         } finally {
             authLoading = false;
+        }
+    }
+
+    async function logoutPrivateSession(): Promise<void> {
+        if (!campaign || campaign.authMode !== "PRIVATE" || !privateSessionAuthenticated) {
+            return;
+        }
+
+        logoutLoading = true;
+        authError = null;
+        submitError = null;
+        draftMessage = null;
+        try {
+            await api.post(`/public/campaigns/${campaignId}/auth/logout`);
+        } catch (err: unknown) {
+            const axiosErr = err as {
+                response?: { data?: { message?: string } };
+            };
+            authError =
+                axiosErr?.response?.data?.message ??
+                "Failed to end the private survey session.";
+        } finally {
+            privateSessionAuthenticated = false;
+            responderAccessCode = null;
+            responderToken = null;
+            clearConsumedAccessCode();
+            stage = "intro";
+            logoutLoading = false;
         }
     }
 
@@ -1194,8 +1232,15 @@
                     data-logo-position={getTheme().branding.logoPosition}
                     >
                         {#if !hasCustomHeader()}
-                            {#if getTheme().branding.logoUrl}
-                                <img src={getTheme().branding.logoUrl} alt="Brand logo" class="theme-studio-preview__logo" />
+                            {#if shouldRenderLogo}
+                                <img
+                                    src={activeLogoUrl}
+                                    alt="Brand logo"
+                                    class="theme-studio-preview__logo"
+                                    onerror={() => {
+                                        logoLoadFailed = true;
+                                    }}
+                                />
                             {/if}
                             <div class="theme-studio-preview__eyebrow">
                                 {getTheme().header.eyebrow || getTheme().branding.brandLabel}
@@ -1663,7 +1708,7 @@
                                 </div>
                             </div>
 
-                            <div class="mx-6 mt-6 mb-6 flex items-center justify-between sm:mx-8 sm:mb-8">
+                            <div class="mx-6 mt-6 mb-6 flex items-center justify-between gap-4 sm:mx-8 sm:mb-8">
                                 {#if campaign.allowBackButton}
                                     <Button
                                         type="button"
@@ -1677,6 +1722,18 @@
                                     <span></span>
                                 {/if}
                                 <div class="flex items-center gap-2">
+                                    {#if isPrivateCampaign && privateSessionAuthenticated}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            class="survey-secondary-button survey-logout-button"
+                                            onclick={logoutPrivateSession}
+                                            disabled={logoutLoading || submitLoading || draftSaving}
+                                        >
+                                            <LogOut class="mr-2 h-4 w-4" />
+                                            {logoutLoading ? "Signing out..." : "Sign out"}
+                                        </Button>
+                                    {/if}
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -1757,6 +1814,18 @@
         filter: blur(70px);
         opacity: 0.6;
         pointer-events: none;
+    }
+
+    .survey-logout-button {
+        color: color-mix(in srgb, var(--survey-text) 92%, #fff);
+        border-color: color-mix(in srgb, var(--survey-border) 86%, transparent);
+        background: color-mix(in srgb, var(--survey-card) 78%, var(--survey-shell) 22%);
+    }
+
+    .survey-logout-button:hover:not(:disabled) {
+        color: var(--survey-text);
+        border-color: color-mix(in srgb, var(--survey-primary) 28%, var(--survey-border) 72%);
+        background: color-mix(in srgb, var(--survey-accent-soft) 56%, var(--survey-card) 44%);
     }
 
     .survey-page__ambient--left {

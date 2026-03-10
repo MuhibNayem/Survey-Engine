@@ -53,10 +53,14 @@
 
 .theme-studio-preview__header[data-logo-position="center"] .theme-studio-preview__logo {
     align-self: center;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .theme-studio-preview__header[data-logo-position="right"] .theme-studio-preview__logo {
     align-self: flex-end;
+    margin-left: auto;
+    margin-right: 0;
 }
 
 .theme-studio-preview__header--banner {
@@ -74,12 +78,15 @@
 }
 
 .theme-studio-preview__logo {
-    width: 2.5rem;
-    height: 2.5rem;
-    object-fit: cover;
+    width: 3.25rem;
+    height: 3.25rem;
+    object-fit: contain;
     border-radius: 9999px;
     margin-bottom: 0.75rem;
     border: 1px solid color-mix(in srgb, var(--preview-header-text) 18%, transparent);
+    background: color-mix(in srgb, var(--preview-shell) 92%, white);
+    padding: 0.35rem;
+    display: block;
 }
 
 .theme-studio-preview__eyebrow {
