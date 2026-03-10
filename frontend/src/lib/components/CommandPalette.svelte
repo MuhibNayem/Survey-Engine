@@ -231,7 +231,7 @@
 		onclick={close}
 		aria-label="Close command palette"
 		tabindex="-1"
-	/>
+	></button>
 
 	<!-- Command Palette Modal -->
 	<div 
@@ -252,10 +252,10 @@
 						placeholder="Type a command or search..."
 						class="flex-1 bg-transparent border-0 outline-none text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 text-sm"
 						onkeydown={handleKeyDown}
-						autoFocus
-						autoComplete="off"
-						autoCapitalize="off"
-						spellCheck="false"
+						autofocus
+						autocomplete="off"
+						autocapitalize="off"
+						spellcheck="false"
 					/>
 					{#if query}
 						<button

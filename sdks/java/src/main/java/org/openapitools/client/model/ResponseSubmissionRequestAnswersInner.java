@@ -50,7 +50,7 @@ import org.openapitools.client.JSON;
 /**
  * ResponseSubmissionRequestAnswersInner
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-09T15:26:32.980599292+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class ResponseSubmissionRequestAnswersInner {
   public static final String SERIALIZED_NAME_QUESTION_ID = "questionId";
   @SerializedName(SERIALIZED_NAME_QUESTION_ID)

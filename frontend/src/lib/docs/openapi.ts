@@ -36,49 +36,18 @@ function uniqueById(ops: OpenApiOperation[]) {
   return ops.filter((op, idx) => ops.findIndex((x) => x.id === op.id) === idx);
 }
 
-export function getAuthOperations() {
-  return uniqueById(byPrefix(['/api/v1/admin/auth', '/api/v1/auth']));
+export function slugifyTag(tag: string): string {
+  return tag.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
-export function getSurveyOperations() {
-  return uniqueById(byPrefix(['/api/v1/surveys']));
+export function getOperationsByTagSlug(slug: string) {
+  return uniqueById(allOpenApiOperations.filter(op => 
+    op.tags.some(t => slugifyTag(t) === slug)
+  ));
 }
 
-export function getCampaignOperations() {
-  return uniqueById(byPrefix(['/api/v1/campaigns', '/api/v1/public/campaigns']));
-}
-
-export function getResponseOperations() {
-  return uniqueById(
-    allOpenApiOperations.filter(
-      (op) => op.path.startsWith('/api/v1/responses') && !op.path.startsWith('/api/v1/responses/analytics')
-    )
-  );
-}
-
-export function getAnalyticsOperations() {
-  return uniqueById(
-    allOpenApiOperations.filter(
-      (op) =>
-        op.path.startsWith('/api/v1/analytics') ||
-        op.path.startsWith('/api/v1/responses/analytics')
-    )
-  );
-}
-
-export function getScoringOperations() {
-  return uniqueById(byPrefix(['/api/v1/scoring']));
-}
-
-export function getSubscriptionOperations() {
-  return uniqueById(
-    allOpenApiOperations.filter(
-      (op) =>
-        op.path.startsWith('/api/v1/admin/subscriptions') ||
-        op.path.startsWith('/api/v1/admin/plans') ||
-        op.path.includes('/subscriptions/override')
-    )
-  );
+export function getTagBySlug(slug: string) {
+  return openApiTags.find(t => slugifyTag(t.name) === slug);
 }
 
 export function toResponseExample(value: unknown): string | undefined {

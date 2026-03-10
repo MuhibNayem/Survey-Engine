@@ -131,6 +131,14 @@ async function main() {
       const method = methodKey.toUpperCase();
       if (!METHOD_ORDER.includes(method)) continue;
 
+      // Exclude super admin APIs completely from frontend docs
+      if (pathPattern.includes('/superadmin/')) continue;
+      
+      const isSuperAdmin = (op.tags || []).some(t => 
+        t.toLowerCase() === 'super admin'
+      );
+      if (isSuperAdmin) continue;
+
       const parameters = collectParameters(op, pathItem);
 
       const pathParams = ensurePathParams(
@@ -198,7 +206,9 @@ async function main() {
 
   const payload = {
     info: spec.info,
-    tags: spec.tags || [],
+    tags: (spec.tags || []).filter(t => 
+      t.name.toLowerCase() !== 'super admin'
+    ),
     operations
   };
 

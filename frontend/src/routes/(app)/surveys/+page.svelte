@@ -821,7 +821,6 @@
         actionLabel="New Survey"
         actionIcon={Plus}
         onAction={openCreateDialog}
-        data-tour="new-survey-btn"
     />
 
     <ErrorBanner

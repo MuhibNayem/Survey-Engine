@@ -82,6 +82,12 @@ All URIs are relative to *http://localhost*
 *CategoriesApi* | [**getCategory**](docs/CategoriesApi.md#getcategory) | **GET** /api/v1/categories/{id} | Get one category by id
 *CategoriesApi* | [**listCategories**](docs/CategoriesApi.md#listcategories) | **GET** /api/v1/categories | List active categories
 *CategoriesApi* | [**updateCategory**](docs/CategoriesApi.md#updatecategory) | **PUT** /api/v1/categories/{id} | Update category and mappings
+*FeatureManagementApi* | [**configureFeatureForTenant**](docs/FeatureManagementApi.md#configurefeaturefortenant) | **POST** /api/v1/admin/features/{featureKey}/tenants/{tenantId}/configure | Configure feature for a specific tenant
+*FeatureManagementApi* | [**createFeature**](docs/FeatureManagementApi.md#createfeatureoperation) | **POST** /api/v1/admin/features | Create a new feature definition
+*FeatureManagementApi* | [**deleteFeature**](docs/FeatureManagementApi.md#deletefeature) | **DELETE** /api/v1/admin/features/{featureKey} | Delete a feature definition
+*FeatureManagementApi* | [**getFeatureAnalytics**](docs/FeatureManagementApi.md#getfeatureanalytics) | **GET** /api/v1/admin/features/{featureKey}/analytics | Get usage analytics for a feature
+*FeatureManagementApi* | [**listFeatures**](docs/FeatureManagementApi.md#listfeatures) | **GET** /api/v1/admin/features | List all feature definitions
+*FeatureManagementApi* | [**updateFeature**](docs/FeatureManagementApi.md#updatefeatureoperation) | **PUT** /api/v1/admin/features/{featureKey} | Update an existing feature definition
 *OIDCRespondentFlowApi* | [**completeRespondentOidc**](docs/OIDCRespondentFlowApi.md#completerespondentoidc) | **GET** /api/v1/auth/respondent/oidc/callback | Complete OIDC callback and issue one-time responder access code
 *OIDCRespondentFlowApi* | [**startRespondentOidc**](docs/OIDCRespondentFlowApi.md#startrespondentoidc) | **POST** /api/v1/auth/respondent/oidc/start | Start private responder OIDC flow
 *PlanCatalogApi* | [**listPlans**](docs/PlanCatalogApi.md#listplans) | **GET** /api/v1/admin/plans | List active plan definitions
@@ -121,6 +127,9 @@ All URIs are relative to *http://localhost*
 *SurveysApi* | [**listSurveys**](docs/SurveysApi.md#listsurveys) | **GET** /api/v1/surveys | List active surveys
 *SurveysApi* | [**transitionSurveyLifecycle**](docs/SurveysApi.md#transitionsurveylifecycle) | **POST** /api/v1/surveys/{id}/lifecycle | Transition survey lifecycle state
 *SurveysApi* | [**updateSurvey**](docs/SurveysApi.md#updatesurvey) | **PUT** /api/v1/surveys/{id} | Update survey draft content
+*UserFeaturesApi* | [**completeFeature**](docs/UserFeaturesApi.md#completefeatureoperation) | **POST** /api/v1/features/{featureKey}/complete | Mark a feature as completed
+*UserFeaturesApi* | [**getAvailableFeatures**](docs/UserFeaturesApi.md#getavailablefeatures) | **GET** /api/v1/features/available | Get features available to current user
+*UserFeaturesApi* | [**getFeatureStatus**](docs/UserFeaturesApi.md#getfeaturestatus) | **GET** /api/v1/features/{featureKey}/status | Get feature status for current user
 
 
 ### Models
@@ -132,6 +141,8 @@ All URIs are relative to *http://localhost*
 - [AuthProfileResponseClaimMappingsInner](docs/AuthProfileResponseClaimMappingsInner.md)
 - [AuthResponse](docs/AuthResponse.md)
 - [AuthUserResponse](docs/AuthUserResponse.md)
+- [BulkFeatureResponse](docs/BulkFeatureResponse.md)
+- [BulkFeatureResponseErrorsInner](docs/BulkFeatureResponseErrorsInner.md)
 - [CampaignAnalytics](docs/CampaignAnalytics.md)
 - [CampaignPreviewResponse](docs/CampaignPreviewResponse.md)
 - [CampaignPreviewResponsePagesInner](docs/CampaignPreviewResponsePagesInner.md)
@@ -146,10 +157,17 @@ All URIs are relative to *http://localhost*
 - [CategoryResponseQuestionMappingsInner](docs/CategoryResponseQuestionMappingsInner.md)
 - [CategoryWeightRequest](docs/CategoryWeightRequest.md)
 - [ClaimMappingRequest](docs/ClaimMappingRequest.md)
+- [CompleteFeatureRequest](docs/CompleteFeatureRequest.md)
+- [CreateFeatureRequest](docs/CreateFeatureRequest.md)
 - [CsrfTokenResponse](docs/CsrfTokenResponse.md)
 - [DistributionChannelResponse](docs/DistributionChannelResponse.md)
 - [ErrorResponse](docs/ErrorResponse.md)
 - [ErrorResponseFieldErrorsInner](docs/ErrorResponseFieldErrorsInner.md)
+- [FeatureAnalyticsDTO](docs/FeatureAnalyticsDTO.md)
+- [FeatureCategory](docs/FeatureCategory.md)
+- [FeatureDefinitionDTO](docs/FeatureDefinitionDTO.md)
+- [FeatureStatusDTO](docs/FeatureStatusDTO.md)
+- [FeatureType](docs/FeatureType.md)
 - [LifecycleTransitionRequest](docs/LifecycleTransitionRequest.md)
 - [LoginRequest](docs/LoginRequest.md)
 - [OidcCallbackResponse](docs/OidcCallbackResponse.md)
@@ -183,8 +201,10 @@ All URIs are relative to *http://localhost*
 - [SurveyResponsePagesInnerQuestionsInner](docs/SurveyResponsePagesInnerQuestionsInner.md)
 - [SurveyResponseResponse](docs/SurveyResponseResponse.md)
 - [SurveyResponseResponseAnswersInner](docs/SurveyResponseResponseAnswersInner.md)
+- [TenantFeatureConfigDTO](docs/TenantFeatureConfigDTO.md)
 - [TenantOverviewResponse](docs/TenantOverviewResponse.md)
 - [TokenValidationResult](docs/TokenValidationResult.md)
+- [UpdateFeatureRequest](docs/UpdateFeatureRequest.md)
 - [WeightProfileRequest](docs/WeightProfileRequest.md)
 - [WeightProfileResponse](docs/WeightProfileResponse.md)
 - [WeightProfileResponseCategoryWeightsInner](docs/WeightProfileResponseCategoryWeightsInner.md)

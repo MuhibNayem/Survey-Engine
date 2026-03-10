@@ -51,7 +51,7 @@ import org.openapitools.client.JSON;
 /**
  * ProviderTemplateResponse
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-09T15:26:32.980599292+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class ProviderTemplateResponse {
   public static final String SERIALIZED_NAME_PROVIDER_CODE = "providerCode";
   @SerializedName(SERIALIZED_NAME_PROVIDER_CODE)

@@ -22,12 +22,26 @@
 	}: Props = $props();
 </script>
 
-<Accordion.Root
-	{type}
-	{value}
-	{onValueChange}
-	{collapsible}
-	class={cn("w-full", className)}
->
-	{@render children?.()}
-</Accordion.Root>
+{#if type === "single"}
+	{@const Root = Accordion.Root as any}
+	<!-- @ts-expect-error -->
+	<Root
+		type="single"
+		value={value as string | undefined}
+		onValueChange={onValueChange as any}
+		{collapsible}
+		class={cn("w-full", className)}
+	>
+		{@render children?.()}
+	</Root>
+{:else}
+	{@const Root = Accordion.Root as any}
+	<Root
+		type="multiple"
+		value={value as string[] | undefined}
+		onValueChange={onValueChange as any}
+		class={cn("w-full", className)}
+	>
+		{@render children?.()}
+	</Root>
+{/if}

@@ -23,6 +23,7 @@ __all__ = [
     "AuthProfilesApi",
     "CampaignsApi",
     "CategoriesApi",
+    "FeatureManagementApi",
     "OIDCRespondentFlowApi",
     "PlanCatalogApi",
     "QuestionsApi",
@@ -31,6 +32,7 @@ __all__ = [
     "SubscriptionApi",
     "SuperAdminApi",
     "SurveysApi",
+    "UserFeaturesApi",
     "ApiResponse",
     "ApiClient",
     "Configuration",
@@ -47,6 +49,8 @@ __all__ = [
     "AuthProfileResponseClaimMappingsInner",
     "AuthResponse",
     "AuthUserResponse",
+    "BulkFeatureResponse",
+    "BulkFeatureResponseErrorsInner",
     "CampaignAnalytics",
     "CampaignPreviewResponse",
     "CampaignPreviewResponsePagesInner",
@@ -61,10 +65,17 @@ __all__ = [
     "CategoryResponseQuestionMappingsInner",
     "CategoryWeightRequest",
     "ClaimMappingRequest",
+    "CompleteFeatureRequest",
+    "CreateFeatureRequest",
     "CsrfTokenResponse",
     "DistributionChannelResponse",
     "ErrorResponse",
     "ErrorResponseFieldErrorsInner",
+    "FeatureAnalyticsDTO",
+    "FeatureCategory",
+    "FeatureDefinitionDTO",
+    "FeatureStatusDTO",
+    "FeatureType",
     "LifecycleTransitionRequest",
     "LoginRequest",
     "OidcCallbackResponse",
@@ -98,8 +109,10 @@ __all__ = [
     "SurveyResponsePagesInnerQuestionsInner",
     "SurveyResponseResponse",
     "SurveyResponseResponseAnswersInner",
+    "TenantFeatureConfigDTO",
     "TenantOverviewResponse",
     "TokenValidationResult",
+    "UpdateFeatureRequest",
     "WeightProfileRequest",
     "WeightProfileResponse",
     "WeightProfileResponseCategoryWeightsInner",
@@ -111,6 +124,7 @@ from openapi_client.api.audit_logs_api import AuditLogsApi as AuditLogsApi
 from openapi_client.api.auth_profiles_api import AuthProfilesApi as AuthProfilesApi
 from openapi_client.api.campaigns_api import CampaignsApi as CampaignsApi
 from openapi_client.api.categories_api import CategoriesApi as CategoriesApi
+from openapi_client.api.feature_management_api import FeatureManagementApi as FeatureManagementApi
 from openapi_client.api.oidc_respondent_flow_api import OIDCRespondentFlowApi as OIDCRespondentFlowApi
 from openapi_client.api.plan_catalog_api import PlanCatalogApi as PlanCatalogApi
 from openapi_client.api.questions_api import QuestionsApi as QuestionsApi
@@ -119,6 +133,7 @@ from openapi_client.api.scoring_api import ScoringApi as ScoringApi
 from openapi_client.api.subscription_api import SubscriptionApi as SubscriptionApi
 from openapi_client.api.super_admin_api import SuperAdminApi as SuperAdminApi
 from openapi_client.api.surveys_api import SurveysApi as SurveysApi
+from openapi_client.api.user_features_api import UserFeaturesApi as UserFeaturesApi
 
 # import ApiClient
 from openapi_client.api_response import ApiResponse as ApiResponse
@@ -139,6 +154,8 @@ from openapi_client.models.auth_profile_response import AuthProfileResponse as A
 from openapi_client.models.auth_profile_response_claim_mappings_inner import AuthProfileResponseClaimMappingsInner as AuthProfileResponseClaimMappingsInner
 from openapi_client.models.auth_response import AuthResponse as AuthResponse
 from openapi_client.models.auth_user_response import AuthUserResponse as AuthUserResponse
+from openapi_client.models.bulk_feature_response import BulkFeatureResponse as BulkFeatureResponse
+from openapi_client.models.bulk_feature_response_errors_inner import BulkFeatureResponseErrorsInner as BulkFeatureResponseErrorsInner
 from openapi_client.models.campaign_analytics import CampaignAnalytics as CampaignAnalytics
 from openapi_client.models.campaign_preview_response import CampaignPreviewResponse as CampaignPreviewResponse
 from openapi_client.models.campaign_preview_response_pages_inner import CampaignPreviewResponsePagesInner as CampaignPreviewResponsePagesInner
@@ -153,10 +170,17 @@ from openapi_client.models.category_response import CategoryResponse as Category
 from openapi_client.models.category_response_question_mappings_inner import CategoryResponseQuestionMappingsInner as CategoryResponseQuestionMappingsInner
 from openapi_client.models.category_weight_request import CategoryWeightRequest as CategoryWeightRequest
 from openapi_client.models.claim_mapping_request import ClaimMappingRequest as ClaimMappingRequest
+from openapi_client.models.complete_feature_request import CompleteFeatureRequest as CompleteFeatureRequest
+from openapi_client.models.create_feature_request import CreateFeatureRequest as CreateFeatureRequest
 from openapi_client.models.csrf_token_response import CsrfTokenResponse as CsrfTokenResponse
 from openapi_client.models.distribution_channel_response import DistributionChannelResponse as DistributionChannelResponse
 from openapi_client.models.error_response import ErrorResponse as ErrorResponse
 from openapi_client.models.error_response_field_errors_inner import ErrorResponseFieldErrorsInner as ErrorResponseFieldErrorsInner
+from openapi_client.models.feature_analytics_dto import FeatureAnalyticsDTO as FeatureAnalyticsDTO
+from openapi_client.models.feature_category import FeatureCategory as FeatureCategory
+from openapi_client.models.feature_definition_dto import FeatureDefinitionDTO as FeatureDefinitionDTO
+from openapi_client.models.feature_status_dto import FeatureStatusDTO as FeatureStatusDTO
+from openapi_client.models.feature_type import FeatureType as FeatureType
 from openapi_client.models.lifecycle_transition_request import LifecycleTransitionRequest as LifecycleTransitionRequest
 from openapi_client.models.login_request import LoginRequest as LoginRequest
 from openapi_client.models.oidc_callback_response import OidcCallbackResponse as OidcCallbackResponse
@@ -190,8 +214,10 @@ from openapi_client.models.survey_response_pages_inner import SurveyResponsePage
 from openapi_client.models.survey_response_pages_inner_questions_inner import SurveyResponsePagesInnerQuestionsInner as SurveyResponsePagesInnerQuestionsInner
 from openapi_client.models.survey_response_response import SurveyResponseResponse as SurveyResponseResponse
 from openapi_client.models.survey_response_response_answers_inner import SurveyResponseResponseAnswersInner as SurveyResponseResponseAnswersInner
+from openapi_client.models.tenant_feature_config_dto import TenantFeatureConfigDTO as TenantFeatureConfigDTO
 from openapi_client.models.tenant_overview_response import TenantOverviewResponse as TenantOverviewResponse
 from openapi_client.models.token_validation_result import TokenValidationResult as TokenValidationResult
+from openapi_client.models.update_feature_request import UpdateFeatureRequest as UpdateFeatureRequest
 from openapi_client.models.weight_profile_request import WeightProfileRequest as WeightProfileRequest
 from openapi_client.models.weight_profile_response import WeightProfileResponse as WeightProfileResponse
 from openapi_client.models.weight_profile_response_category_weights_inner import WeightProfileResponseCategoryWeightsInner as WeightProfileResponseCategoryWeightsInner

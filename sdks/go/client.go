@@ -59,6 +59,8 @@ type APIClient struct {
 
 	CategoriesAPI *CategoriesAPIService
 
+	FeatureManagementAPI *FeatureManagementAPIService
+
 	OIDCRespondentFlowAPI *OIDCRespondentFlowAPIService
 
 	PlanCatalogAPI *PlanCatalogAPIService
@@ -74,6 +76,8 @@ type APIClient struct {
 	SuperAdminAPI *SuperAdminAPIService
 
 	SurveysAPI *SurveysAPIService
+
+	UserFeaturesAPI *UserFeaturesAPIService
 }
 
 type service struct {
@@ -97,6 +101,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.AuthProfilesAPI = (*AuthProfilesAPIService)(&c.common)
 	c.CampaignsAPI = (*CampaignsAPIService)(&c.common)
 	c.CategoriesAPI = (*CategoriesAPIService)(&c.common)
+	c.FeatureManagementAPI = (*FeatureManagementAPIService)(&c.common)
 	c.OIDCRespondentFlowAPI = (*OIDCRespondentFlowAPIService)(&c.common)
 	c.PlanCatalogAPI = (*PlanCatalogAPIService)(&c.common)
 	c.QuestionsAPI = (*QuestionsAPIService)(&c.common)
@@ -105,6 +110,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.SubscriptionAPI = (*SubscriptionAPIService)(&c.common)
 	c.SuperAdminAPI = (*SuperAdminAPIService)(&c.common)
 	c.SurveysAPI = (*SurveysAPIService)(&c.common)
+	c.UserFeaturesAPI = (*UserFeaturesAPIService)(&c.common)
 
 	return c
 }

@@ -4,7 +4,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Card from '$lib/components/ui/card';
 	import { X, ChevronLeft, ChevronRight, Lightbulb, CheckCircle2 } from 'lucide-svelte';
-	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag.svelte.ts';
+	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag.svelte';
 
 	export interface TourStep {
 		id: string;
@@ -47,11 +47,10 @@
 	const {
 		status,
 		isCompleted,
-		shouldShow,
 		complete: completeFeature,
 		reset: resetFeature
-	} = useFeatureFlag(tour.id, {
-		autoCheck: autoStart,
+	} = useFeatureFlag(() => tour.id, {
+		get autoCheck() { return autoStart; },
 		autoRecordAccess: true
 	});
 
@@ -90,11 +89,6 @@
 
 		try {
 			await completeFeature();
-			
-			// Save "don't show again" preference if checked
-			if (dontShowAgain) {
-				// Already handled by completeFeature
-			}
 		} catch (error) {
 			console.error('Failed to save tour completion:', error);
 		} finally {
@@ -107,15 +101,16 @@
 
 	async function skip(): Promise<void> {
 		open = false;
-		loading = true;
 
-		try {
-			// Mark as completed even if skipped
-			await completeFeature();
-		} catch (error) {
-			console.error('Failed to save tour skip:', error);
-		} finally {
-			loading = false;
+		if (dontShowAgain) {
+			loading = true;
+			try {
+				await completeFeature();
+			} catch (error) {
+				console.error('Failed to save tour skip:', error);
+			} finally {
+				loading = false;
+			}
 		}
 
 		removeHighlight();

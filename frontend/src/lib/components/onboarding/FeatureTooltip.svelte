@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { X, Lightbulb, CheckCircle } from 'lucide-svelte';
-	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag.svelte.ts';
+	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag.svelte';
 	import api from '$lib/api';
 
 	interface Props {
@@ -28,15 +28,13 @@
 	let visible = $state(false);
 	let loading = $state(false);
 	let position = $state({ top: 0, left: 0 });
-	let dontShowAgain = $state(false);
 
 	// Use feature flag hook for backend integration
 	const {
 		status,
 		isCompleted,
-		shouldShow,
 		complete: completeFeature
-	} = useFeatureFlag(`tooltip.${tooltipId}`, {
+	} = useFeatureFlag(() => `tooltip.${tooltipId}`, {
 		autoCheck: true,
 		autoRecordAccess: false
 	});

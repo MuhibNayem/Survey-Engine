@@ -129,6 +129,12 @@ Class | Method | HTTP request | Description
 *CategoriesAPI* | [**GetCategory**](docs/CategoriesAPI.md#getcategory) | **Get** /api/v1/categories/{id} | Get one category by id
 *CategoriesAPI* | [**ListCategories**](docs/CategoriesAPI.md#listcategories) | **Get** /api/v1/categories | List active categories
 *CategoriesAPI* | [**UpdateCategory**](docs/CategoriesAPI.md#updatecategory) | **Put** /api/v1/categories/{id} | Update category and mappings
+*FeatureManagementAPI* | [**ConfigureFeatureForTenant**](docs/FeatureManagementAPI.md#configurefeaturefortenant) | **Post** /api/v1/admin/features/{featureKey}/tenants/{tenantId}/configure | Configure feature for a specific tenant
+*FeatureManagementAPI* | [**CreateFeature**](docs/FeatureManagementAPI.md#createfeature) | **Post** /api/v1/admin/features | Create a new feature definition
+*FeatureManagementAPI* | [**DeleteFeature**](docs/FeatureManagementAPI.md#deletefeature) | **Delete** /api/v1/admin/features/{featureKey} | Delete a feature definition
+*FeatureManagementAPI* | [**GetFeatureAnalytics**](docs/FeatureManagementAPI.md#getfeatureanalytics) | **Get** /api/v1/admin/features/{featureKey}/analytics | Get usage analytics for a feature
+*FeatureManagementAPI* | [**ListFeatures**](docs/FeatureManagementAPI.md#listfeatures) | **Get** /api/v1/admin/features | List all feature definitions
+*FeatureManagementAPI* | [**UpdateFeature**](docs/FeatureManagementAPI.md#updatefeature) | **Put** /api/v1/admin/features/{featureKey} | Update an existing feature definition
 *OIDCRespondentFlowAPI* | [**CompleteRespondentOidc**](docs/OIDCRespondentFlowAPI.md#completerespondentoidc) | **Get** /api/v1/auth/respondent/oidc/callback | Complete OIDC callback and issue one-time responder access code
 *OIDCRespondentFlowAPI* | [**StartRespondentOidc**](docs/OIDCRespondentFlowAPI.md#startrespondentoidc) | **Post** /api/v1/auth/respondent/oidc/start | Start private responder OIDC flow
 *PlanCatalogAPI* | [**ListPlans**](docs/PlanCatalogAPI.md#listplans) | **Get** /api/v1/admin/plans | List active plan definitions
@@ -168,6 +174,9 @@ Class | Method | HTTP request | Description
 *SurveysAPI* | [**ListSurveys**](docs/SurveysAPI.md#listsurveys) | **Get** /api/v1/surveys | List active surveys
 *SurveysAPI* | [**TransitionSurveyLifecycle**](docs/SurveysAPI.md#transitionsurveylifecycle) | **Post** /api/v1/surveys/{id}/lifecycle | Transition survey lifecycle state
 *SurveysAPI* | [**UpdateSurvey**](docs/SurveysAPI.md#updatesurvey) | **Put** /api/v1/surveys/{id} | Update survey draft content
+*UserFeaturesAPI* | [**CompleteFeature**](docs/UserFeaturesAPI.md#completefeature) | **Post** /api/v1/features/{featureKey}/complete | Mark a feature as completed
+*UserFeaturesAPI* | [**GetAvailableFeatures**](docs/UserFeaturesAPI.md#getavailablefeatures) | **Get** /api/v1/features/available | Get features available to current user
+*UserFeaturesAPI* | [**GetFeatureStatus**](docs/UserFeaturesAPI.md#getfeaturestatus) | **Get** /api/v1/features/{featureKey}/status | Get feature status for current user
 
 
 ## Documentation For Models
@@ -179,6 +188,8 @@ Class | Method | HTTP request | Description
  - [AuthProfileResponseClaimMappingsInner](docs/AuthProfileResponseClaimMappingsInner.md)
  - [AuthResponse](docs/AuthResponse.md)
  - [AuthUserResponse](docs/AuthUserResponse.md)
+ - [BulkFeatureResponse](docs/BulkFeatureResponse.md)
+ - [BulkFeatureResponseErrorsInner](docs/BulkFeatureResponseErrorsInner.md)
  - [CampaignAnalytics](docs/CampaignAnalytics.md)
  - [CampaignPreviewResponse](docs/CampaignPreviewResponse.md)
  - [CampaignPreviewResponsePagesInner](docs/CampaignPreviewResponsePagesInner.md)
@@ -193,10 +204,17 @@ Class | Method | HTTP request | Description
  - [CategoryResponseQuestionMappingsInner](docs/CategoryResponseQuestionMappingsInner.md)
  - [CategoryWeightRequest](docs/CategoryWeightRequest.md)
  - [ClaimMappingRequest](docs/ClaimMappingRequest.md)
+ - [CompleteFeatureRequest](docs/CompleteFeatureRequest.md)
+ - [CreateFeatureRequest](docs/CreateFeatureRequest.md)
  - [CsrfTokenResponse](docs/CsrfTokenResponse.md)
  - [DistributionChannelResponse](docs/DistributionChannelResponse.md)
  - [ErrorResponse](docs/ErrorResponse.md)
  - [ErrorResponseFieldErrorsInner](docs/ErrorResponseFieldErrorsInner.md)
+ - [FeatureAnalyticsDTO](docs/FeatureAnalyticsDTO.md)
+ - [FeatureCategory](docs/FeatureCategory.md)
+ - [FeatureDefinitionDTO](docs/FeatureDefinitionDTO.md)
+ - [FeatureStatusDTO](docs/FeatureStatusDTO.md)
+ - [FeatureType](docs/FeatureType.md)
  - [LifecycleTransitionRequest](docs/LifecycleTransitionRequest.md)
  - [LoginRequest](docs/LoginRequest.md)
  - [OidcCallbackResponse](docs/OidcCallbackResponse.md)
@@ -230,8 +248,10 @@ Class | Method | HTTP request | Description
  - [SurveyResponsePagesInnerQuestionsInner](docs/SurveyResponsePagesInnerQuestionsInner.md)
  - [SurveyResponseResponse](docs/SurveyResponseResponse.md)
  - [SurveyResponseResponseAnswersInner](docs/SurveyResponseResponseAnswersInner.md)
+ - [TenantFeatureConfigDTO](docs/TenantFeatureConfigDTO.md)
  - [TenantOverviewResponse](docs/TenantOverviewResponse.md)
  - [TokenValidationResult](docs/TokenValidationResult.md)
+ - [UpdateFeatureRequest](docs/UpdateFeatureRequest.md)
  - [WeightProfileRequest](docs/WeightProfileRequest.md)
  - [WeightProfileResponse](docs/WeightProfileResponse.md)
  - [WeightProfileResponseCategoryWeightsInner](docs/WeightProfileResponseCategoryWeightsInner.md)
