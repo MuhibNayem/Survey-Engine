@@ -4,6 +4,7 @@ import com.bracits.surveyengine.admin.context.TenantContext;
 import com.bracits.surveyengine.admin.entity.AdminRole;
 import com.bracits.surveyengine.featuremanagement.dto.*;
 import com.bracits.surveyengine.featuremanagement.entity.FeatureCategory;
+import com.bracits.surveyengine.featuremanagement.entity.FeatureEventType;
 import com.bracits.surveyengine.featuremanagement.entity.FeatureType;
 import com.bracits.surveyengine.featuremanagement.service.FeatureManagementService;
 import com.bracits.surveyengine.tenant.dto.TenantDTO;
@@ -406,22 +407,23 @@ public class FeatureManagementController {
             @Parameter(description = "Feature key", required = true)
             @PathVariable String featureKey,
             @Parameter(description = "Completion status")
-            @RequestParam(defaultValue = "true") boolean completed) {
+            @RequestParam(required = false) Boolean completed,
+            @RequestBody(required = false) Map<String, Object> body) {
         
         UUID userId = getCurrentUserId();
-        log.info("Marking feature {} as completed={} for user {}", featureKey, completed, userId);
+        boolean completionValue = resolveCompleted(completed, body);
+        log.info("Marking feature {} as completed={} for user {}", featureKey, completionValue, userId);
         
-        if (completed) {
+        if (completionValue) {
             FeatureStatusDTO status = featureService.completeFeature(userId, featureKey);
             return ResponseEntity.ok(status);
         } else {
             featureService.resetFeature(userId, featureKey);
-            return ResponseEntity.ok(Map.of("reset", true)) != null ? 
-                ResponseEntity.ok(FeatureStatusDTO.builder()
-                    .featureKey(featureKey)
-                    .completed(false)
-                    .shouldShow(true)
-                    .build()) : ResponseEntity.ok().build();
+            return ResponseEntity.ok(FeatureStatusDTO.builder()
+                .featureKey(featureKey)
+                .completed(false)
+                .shouldShow(true)
+                .build());
         }
     }
 
@@ -467,6 +469,40 @@ public class FeatureManagementController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Get runtime-resolved features for frontend orchestration.
+     */
+    @GetMapping("/features/runtime")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
+    public ResponseEntity<RuntimeFeaturesResponse> getRuntimeFeatures(
+            @RequestParam(value = "pagePath", required = false) String pagePath,
+            @RequestParam(value = "platform", defaultValue = "WEB") String platform,
+            @RequestParam(value = "max", defaultValue = "20") Integer maxItems) {
+        UUID userId = getCurrentUserId();
+        return ResponseEntity.ok(featureService.getRuntimeFeatures(userId, pagePath, platform, maxItems));
+    }
+
+    /**
+     * Record frontend runtime events for orchestration and analytics.
+     */
+    @PostMapping("/features/{featureKey}/events")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
+    public ResponseEntity<Void> recordFeatureEvent(
+            @PathVariable String featureKey,
+            @Valid @RequestBody FeatureEventRequest request) {
+        UUID userId = getCurrentUserId();
+        FeatureEventType eventType;
+        try {
+            eventType = FeatureEventType.valueOf(request.getEventType().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new com.bracits.surveyengine.common.exception.BusinessException(
+                com.bracits.surveyengine.common.exception.ErrorCode.VALIDATION_FAILED,
+                "Invalid eventType: " + request.getEventType());
+        }
+        featureService.recordFeatureEvent(userId, featureKey, eventType, request.getMetadata());
+        return ResponseEntity.accepted().build();
+    }
+
     // ========================================================================
     // Helper Methods
     // ========================================================================
@@ -495,6 +531,20 @@ public class FeatureManagementController {
             return "UNKNOWN";
         }
         return context.email();
+    }
+
+    private boolean resolveCompleted(Boolean completed, Map<String, Object> body) {
+        if (completed != null) {
+            return completed;
+        }
+        if (body != null && body.containsKey("completed")) {
+            Object raw = body.get("completed");
+            if (raw instanceof Boolean b) {
+                return b;
+            }
+            return Boolean.parseBoolean(String.valueOf(raw));
+        }
+        return true;
     }
 
     // ========================================================================

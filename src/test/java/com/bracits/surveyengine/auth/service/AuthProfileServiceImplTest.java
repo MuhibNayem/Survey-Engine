@@ -3,6 +3,7 @@ package com.bracits.surveyengine.auth.service;
 import com.bracits.surveyengine.auth.dto.AuthProfileRequest;
 import com.bracits.surveyengine.auth.entity.AuthProfile;
 import com.bracits.surveyengine.auth.entity.AuthenticationMode;
+import com.bracits.surveyengine.auth.entity.ClaimMapping;
 import com.bracits.surveyengine.auth.entity.FallbackPolicy;
 import com.bracits.surveyengine.auth.repository.AuthConfigAuditRepository;
 import com.bracits.surveyengine.auth.repository.AuthProfileRepository;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -90,5 +92,47 @@ class AuthProfileServiceImplTest {
                                 .evictMetadataCache("https://old.example.com/.well-known/openid-configuration");
                 verify(oidcResponderAuthService)
                                 .evictMetadataCache("https://new.example.com/.well-known/openid-configuration");
+        }
+
+        @Test
+        void shouldFlushAfterClearingClaimMappingsDuringUpdate() {
+                UUID profileId = UUID.randomUUID();
+                AuthProfile existing = AuthProfile.builder()
+                                .id(profileId)
+                                .tenantId("tenant-auth-1")
+                                .authMode(AuthenticationMode.EXTERNAL_SSO_TRUST)
+                                .fallbackPolicy(FallbackPolicy.SSO_REQUIRED)
+                                .build();
+                existing.getClaimMappings().add(ClaimMapping.builder()
+                                .authProfile(existing)
+                                .externalClaim("name")
+                                .internalField("displayName")
+                                .required(false)
+                                .build());
+
+                when(authProfileRepository.findById(profileId)).thenReturn(Optional.of(existing));
+                when(authProfileRepository.save(any(AuthProfile.class)))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
+
+                AuthProfileRequest request = AuthProfileRequest.builder()
+                                .tenantId("tenant-auth-1")
+                                .authMode(AuthenticationMode.EXTERNAL_SSO_TRUST)
+                                .fallbackPolicy(FallbackPolicy.SSO_REQUIRED)
+                                .claimMappings(List.of(
+                                                AuthProfileRequest.ClaimMappingRequest.builder()
+                                                                .externalClaim("sub")
+                                                                .internalField("respondentId")
+                                                                .required(true)
+                                                                .build(),
+                                                AuthProfileRequest.ClaimMappingRequest.builder()
+                                                                .externalClaim("display_name")
+                                                                .internalField("displayName")
+                                                                .required(false)
+                                                                .build()))
+                                .build();
+
+                service.update(profileId, request);
+
+                verify(authProfileRepository).flush();
         }
 }

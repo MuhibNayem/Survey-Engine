@@ -1,25 +1,44 @@
 package com.bracits.surveyengine.search.service;
 
 import com.bracits.surveyengine.admin.context.TenantContext;
+import com.bracits.surveyengine.common.exception.BusinessException;
+import com.bracits.surveyengine.common.exception.ErrorCode;
+import com.bracits.surveyengine.search.config.SearchProperties;
 import com.bracits.surveyengine.search.dto.GlobalSearchItemResponse;
 import com.bracits.surveyengine.search.dto.GlobalSearchResponse;
-import lombok.RequiredArgsConstructor;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class GlobalSearchServiceImpl implements GlobalSearchService {
 
     private static final String SEARCH_SQL = """
             WITH input AS (
                 SELECT
                     lower(trim(:query)) AS q_norm,
-                    '%' || lower(trim(:query)) || '%' AS q_like,
+                    '%' || :queryLike || '%' AS q_like,
                     websearch_to_tsquery('english', :query) AS q_ts,
                     :tenantId::varchar AS tenant_id
             ),
@@ -37,9 +56,9 @@ public class GlobalSearchServiceImpl implements GlobalSearchService {
                 FROM survey s
                 JOIN input i ON s.tenant_id = i.tenant_id
                 WHERE s.active = TRUE
-            
+
                 UNION ALL
-            
+
                 SELECT
                     c.id::text AS id,
                     'campaign'::text AS type,
@@ -53,9 +72,9 @@ public class GlobalSearchServiceImpl implements GlobalSearchService {
                 FROM campaign c
                 JOIN input i ON c.tenant_id = i.tenant_id
                 WHERE c.active = TRUE
-            
+
                 UNION ALL
-            
+
                 SELECT
                     q.id::text AS id,
                     'question'::text AS type,
@@ -68,9 +87,9 @@ public class GlobalSearchServiceImpl implements GlobalSearchService {
                 FROM question q
                 JOIN input i ON q.tenant_id = i.tenant_id
                 WHERE q.active = TRUE
-            
+
                 UNION ALL
-            
+
                 SELECT
                     c.id::text AS id,
                     'category'::text AS type,
@@ -84,75 +103,294 @@ public class GlobalSearchServiceImpl implements GlobalSearchService {
                 FROM category c
                 JOIN input i ON c.tenant_id = i.tenant_id
                 WHERE c.active = TRUE
+            ),
+            ranked AS (
+                SELECT
+                    d.id,
+                    d.type,
+                    d.title,
+                    ts_headline(
+                        'english',
+                        d.title || ' ' || d.body,
+                        i.q_ts,
+                        'StartSel=[[[,StopSel=]]],MaxFragments=2,FragmentDelimiter= … ,MaxWords=16,MinWords=5,ShortWord=2'
+                    ) AS snippet,
+                    d.route,
+                    CASE WHEN d.document @@ i.q_ts THEN 1 ELSE 0 END AS fts_match,
+                    round((
+                        ts_rank_cd(d.document, i.q_ts) * 2.0
+                        + GREATEST(
+                            similarity(d.title_norm, i.q_norm),
+                            similarity(d.body_norm, i.q_norm),
+                            word_similarity(i.q_norm, d.title_norm),
+                            word_similarity(i.q_norm, d.body_norm)
+                        )
+                        + CASE WHEN d.title_norm LIKE i.q_like ESCAPE '\\' THEN 0.80 ELSE 0 END
+                        + CASE WHEN d.body_norm LIKE i.q_like ESCAPE '\\' THEN 0.25 ELSE 0 END
+                    )::numeric, 8) AS score
+                FROM docs d
+                CROSS JOIN input i
+                WHERE
+                    d.document @@ i.q_ts
+                    OR similarity(d.title_norm, i.q_norm) >= :titleSimilarityThreshold
+                    OR similarity(d.body_norm, i.q_norm) >= :bodySimilarityThreshold
+                    OR word_similarity(i.q_norm, d.title_norm) >= :titleWordSimilarityThreshold
+                    OR word_similarity(i.q_norm, d.body_norm) >= :bodyWordSimilarityThreshold
+                    OR d.title_norm LIKE i.q_like ESCAPE '\\'
+                    OR d.body_norm LIKE i.q_like ESCAPE '\\'
             )
             SELECT
-                d.id,
-                d.type,
-                d.title,
-                ts_headline(
-                    'english',
-                    d.title || ' ' || d.body,
-                    i.q_ts,
-                    'StartSel=[[[,StopSel=]]],MaxFragments=2,FragmentDelimiter= … ,MaxWords=16,MinWords=5,ShortWord=2'
-                ) AS snippet,
-                d.route,
-                (
-                    ts_rank_cd(d.document, i.q_ts) * 2.0
-                    + GREATEST(
-                        similarity(d.title_norm, i.q_norm),
-                        similarity(d.body_norm, i.q_norm),
-                        word_similarity(i.q_norm, d.title_norm),
-                        word_similarity(i.q_norm, d.body_norm)
-                    )
-                    + CASE WHEN d.title_norm LIKE i.q_like THEN 0.80 ELSE 0 END
-                    + CASE WHEN d.body_norm LIKE i.q_like THEN 0.25 ELSE 0 END
-                ) AS score
-            FROM docs d
-            CROSS JOIN input i
+                r.id,
+                r.type,
+                r.title,
+                r.snippet,
+                r.route,
+                r.fts_match,
+                r.score
+            FROM ranked r
             WHERE
-                d.document @@ i.q_ts
-                OR similarity(d.title_norm, i.q_norm) >= 0.24
-                OR similarity(d.body_norm, i.q_norm) >= 0.18
-                OR word_similarity(i.q_norm, d.title_norm) >= 0.45
-                OR word_similarity(i.q_norm, d.body_norm) >= 0.35
-                OR d.title_norm LIKE i.q_like
-                OR d.body_norm LIKE i.q_like
+                :cursorPresent = FALSE
+                OR (r.fts_match < :cursorFtsMatch)
+                OR (r.fts_match = :cursorFtsMatch AND r.score < :cursorScore)
+                OR (r.fts_match = :cursorFtsMatch AND r.score = :cursorScore AND r.title > :cursorTitle)
+                OR (r.fts_match = :cursorFtsMatch AND r.score = :cursorScore AND r.title = :cursorTitle AND r.type > :cursorType)
+                OR (r.fts_match = :cursorFtsMatch AND r.score = :cursorScore AND r.title = :cursorTitle AND r.type = :cursorType AND r.id > :cursorId)
             ORDER BY
-                CASE WHEN d.document @@ i.q_ts THEN 1 ELSE 0 END DESC,
-                score DESC,
-                d.title ASC
-            LIMIT :limit
+                r.fts_match DESC,
+                r.score DESC,
+                r.title ASC,
+                r.type ASC,
+                r.id ASC
+            LIMIT :limitPlusOne
             """;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final SearchProperties properties;
+    private final CircuitBreaker circuitBreaker;
+    private final Counter requestCounter;
+    private final Counter errorCounter;
+    private final Counter rateLimitedCounter;
+    private final Timer searchLatencyTimer;
+
+    private final Map<String, RateLimitWindow> rateLimitWindows = new ConcurrentHashMap<>();
+
+    public GlobalSearchServiceImpl(
+            NamedParameterJdbcTemplate jdbcTemplate,
+            SearchProperties properties,
+            MeterRegistry meterRegistry) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.properties = properties;
+        this.circuitBreaker = CircuitBreaker.of("globalSearch", CircuitBreakerConfig.custom()
+                .failureRateThreshold(properties.getCircuitBreakerFailureRateThreshold())
+                .slidingWindowSize(properties.getCircuitBreakerSlidingWindowSize())
+                .minimumNumberOfCalls(properties.getCircuitBreakerMinimumCalls())
+                .waitDurationInOpenState(Duration.ofSeconds(properties.getCircuitBreakerOpenStateSeconds()))
+                .permittedNumberOfCallsInHalfOpenState(properties.getCircuitBreakerHalfOpenCalls())
+                .recordException(throwable -> true)
+                .build());
+        this.requestCounter = meterRegistry.counter("surveyengine.search.requests");
+        this.errorCounter = meterRegistry.counter("surveyengine.search.errors");
+        this.rateLimitedCounter = meterRegistry.counter("surveyengine.search.rate_limited");
+        this.searchLatencyTimer = meterRegistry.timer("surveyengine.search.latency");
+    }
 
     @Override
     @Transactional(readOnly = true)
-    public GlobalSearchResponse search(String query, int limit) {
+    public GlobalSearchResponse search(String query, int limit, String cursor) {
         String tenantId = TenantContext.getTenantId();
-        String normalized = query == null ? "" : query.trim();
-        int cappedLimit = Math.min(Math.max(limit, 1), 30);
+        String userId = TenantContext.getUserId() == null ? "anonymous" : TenantContext.getUserId();
+        String normalized = normalizeQuery(query);
 
-        if (tenantId == null || normalized.length() < 2) {
-            return new GlobalSearchResponse(normalized, 0, List.of());
+        if (tenantId == null || normalized.length() < properties.getMinQueryLength()) {
+            return new GlobalSearchResponse(normalized, 0, List.of(), null);
         }
+        if (normalized.length() > properties.getMaxQueryLength()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "Search query cannot exceed " + properties.getMaxQueryLength() + " characters");
+        }
+
+        requestCounter.increment();
+        enforceRateLimit(tenantId, userId);
+
+        int requestedLimit = limit > 0 ? limit : properties.getDefaultLimit();
+        int cappedLimit = Math.min(Math.max(requestedLimit, 1), properties.getMaxResults());
+
+        SearchCursor decodedCursor = decodeCursor(cursor);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("query", normalized)
+                .addValue("queryLike", escapeLikePattern(normalized.toLowerCase(Locale.ROOT)))
                 .addValue("tenantId", tenantId)
-                .addValue("limit", cappedLimit);
+                .addValue("titleSimilarityThreshold", properties.getTitleSimilarityThreshold())
+                .addValue("bodySimilarityThreshold", properties.getBodySimilarityThreshold())
+                .addValue("titleWordSimilarityThreshold", properties.getTitleWordSimilarityThreshold())
+                .addValue("bodyWordSimilarityThreshold", properties.getBodyWordSimilarityThreshold())
+                .addValue("limitPlusOne", cappedLimit + 1)
+                .addValue("cursorPresent", decodedCursor != null)
+                .addValue("cursorFtsMatch", decodedCursor != null ? decodedCursor.ftsMatch() : 0)
+                .addValue("cursorScore", decodedCursor != null ? decodedCursor.score() : BigDecimal.ZERO)
+                .addValue("cursorTitle", decodedCursor != null ? decodedCursor.title() : "")
+                .addValue("cursorType", decodedCursor != null ? decodedCursor.type() : "")
+                .addValue("cursorId", decodedCursor != null ? decodedCursor.id() : "");
 
-        List<GlobalSearchItemResponse> items = jdbcTemplate.query(
+        long started = System.nanoTime();
+        Supplier<List<SearchRow>> supplier = CircuitBreaker.decorateSupplier(
+                circuitBreaker,
+                () -> executeSearchQuery(params));
+        try {
+            List<SearchRow> rows = supplier.get();
+            boolean hasMore = rows.size() > cappedLimit;
+            List<SearchRow> pageRows = hasMore ? rows.subList(0, cappedLimit) : rows;
+            List<GlobalSearchItemResponse> items = pageRows.stream()
+                    .map(row -> new GlobalSearchItemResponse(
+                            row.id(),
+                            row.type(),
+                            row.title(),
+                            row.snippet(),
+                            row.route(),
+                            row.score().doubleValue()))
+                    .toList();
+
+            String nextCursor = hasMore && !pageRows.isEmpty()
+                    ? encodeCursor(pageRows.get(pageRows.size() - 1))
+                    : null;
+
+            long elapsedNanos = System.nanoTime() - started;
+            searchLatencyTimer.record(Duration.ofNanos(elapsedNanos));
+            long elapsedMs = Duration.ofNanos(elapsedNanos).toMillis();
+            if (elapsedMs >= properties.getSlowQueryThresholdMs()) {
+                log.warn("Slow global search query detected: {} ms, tenant={}, query='{}'",
+                        elapsedMs, tenantId, normalized);
+            }
+            return new GlobalSearchResponse(normalized, items.size(), items, nextCursor);
+        } catch (CallNotPermittedException ex) {
+            errorCounter.increment();
+            log.error("Global search blocked by circuit breaker for query='{}'", normalized, ex);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Global search is temporarily unavailable");
+        } catch (DataAccessException ex) {
+            errorCounter.increment();
+            log.error("Global search failed due to database error for query='{}'", normalized, ex);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Global search is temporarily unavailable");
+        } catch (RuntimeException ex) {
+            errorCounter.increment();
+            log.error("Global search failed unexpectedly for query='{}'", normalized, ex);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Global search is temporarily unavailable");
+        }
+    }
+
+    private List<SearchRow> executeSearchQuery(MapSqlParameterSource params) {
+        JdbcTemplate classicJdbc = jdbcTemplate.getJdbcTemplate();
+        classicJdbc.execute("SET LOCAL statement_timeout = " + properties.getQueryTimeoutMs());
+        return jdbcTemplate.query(
                 SEARCH_SQL,
                 params,
-                (rs, rowNum) -> new GlobalSearchItemResponse(
+                (rs, rowNum) -> new SearchRow(
                         rs.getString("id"),
                         rs.getString("type"),
                         rs.getString("title"),
                         rs.getString("snippet"),
                         rs.getString("route"),
-                        rs.getDouble("score")));
+                        rs.getInt("fts_match"),
+                        rs.getBigDecimal("score")));
+    }
 
-        return new GlobalSearchResponse(normalized, items.size(), items);
+    private SearchCursor decodeCursor(String cursor) {
+        if (cursor == null || cursor.isBlank()) {
+            return null;
+        }
+        try {
+            String decoded = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+            String[] parts = decoded.split("\\|", -1);
+            if (parts.length != 5) {
+                throw new IllegalArgumentException("Invalid cursor format");
+            }
+            return new SearchCursor(
+                    Integer.parseInt(parts[0]),
+                    new BigDecimal(parts[1]),
+                    urlDecode(parts[2]),
+                    urlDecode(parts[3]),
+                    urlDecode(parts[4]));
+        } catch (Exception ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Invalid search cursor");
+        }
+    }
+
+    private String encodeCursor(SearchRow row) {
+        String raw = row.ftsMatch()
+                + "|" + row.score().toPlainString()
+                + "|" + urlEncode(row.title())
+                + "|" + urlEncode(row.type())
+                + "|" + urlEncode(row.id());
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String urlEncode(String value) {
+        return java.net.URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    private String urlDecode(String value) {
+        return java.net.URLDecoder.decode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    private void enforceRateLimit(String tenantId, String userId) {
+        long minuteBucket = System.currentTimeMillis() / 60000L;
+        String key = tenantId + "|" + userId;
+        RateLimitWindow updated = rateLimitWindows.compute(key, (k, existing) -> {
+            if (existing == null || existing.minuteBucket() != minuteBucket) {
+                return new RateLimitWindow(minuteBucket, 1);
+            }
+            return new RateLimitWindow(existing.minuteBucket(), existing.count() + 1);
+        });
+        cleanupRateLimitWindows(minuteBucket);
+        if (updated != null && updated.count() > properties.getRateLimitPerMinute()) {
+            rateLimitedCounter.increment();
+            throw new BusinessException(
+                    ErrorCode.QUOTA_EXCEEDED,
+                    "Search rate limit exceeded. Please retry in a minute.");
+        }
+    }
+
+    private void cleanupRateLimitWindows(long currentMinuteBucket) {
+        if (rateLimitWindows.size() < 4096) {
+            return;
+        }
+        rateLimitWindows.entrySet()
+                .removeIf(entry -> entry.getValue().minuteBucket() < currentMinuteBucket - 1);
+    }
+
+    private String normalizeQuery(String query) {
+        if (query == null) {
+            return "";
+        }
+        String noControlChars = query.replaceAll("\\p{Cntrl}", " ");
+        return noControlChars.trim().replaceAll("\\s{2,}", " ");
+    }
+
+    private String escapeLikePattern(String query) {
+        return query
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+    }
+
+    private record SearchCursor(
+            int ftsMatch,
+            BigDecimal score,
+            String title,
+            String type,
+            String id) {
+    }
+
+    private record SearchRow(
+            String id,
+            String type,
+            String title,
+            String snippet,
+            String route,
+            int ftsMatch,
+            BigDecimal score) {
+    }
+
+    private record RateLimitWindow(long minuteBucket, int count) {
     }
 }

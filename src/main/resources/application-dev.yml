@@ -52,3 +52,23 @@ survey-engine:
       same-site: Strict
   links:
     public-base-url: ${SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL:http://localhost:5173}
+  search:
+    min-query-length: 2
+    max-query-length: 120
+    default-limit: 12
+    max-results: 30
+    title-similarity-threshold: 0.24
+    body-similarity-threshold: 0.18
+    title-word-similarity-threshold: 0.45
+    body-word-similarity-threshold: 0.35
+    query-timeout-ms: 3000
+    rate-limit-per-minute: 30
+    cache-ttl-seconds: 300
+    fallback-cache-grace-seconds: 900
+    cache-max-entries: 2000
+    slow-query-threshold-ms: 500
+    circuit-breaker-sliding-window-size: 20
+    circuit-breaker-minimum-calls: 10
+    circuit-breaker-failure-rate-threshold: 50
+    circuit-breaker-open-state-seconds: 30
+    circuit-breaker-half-open-calls: 3

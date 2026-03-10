@@ -14,6 +14,7 @@ import com.bracits.surveyengine.questionbank.repository.QuestionRepository;
 import com.bracits.surveyengine.questionbank.repository.QuestionVersionRepository;
 import com.bracits.surveyengine.response.service.ResponseLockingService;
 import com.bracits.surveyengine.scoring.service.WeightProfileService;
+import com.bracits.surveyengine.search.service.SearchCacheInvalidationService;
 import com.bracits.surveyengine.subscription.service.PlanQuotaService;
 import com.bracits.surveyengine.tenant.service.TenantService;
 import com.bracits.surveyengine.survey.entity.Survey;
@@ -51,6 +52,7 @@ public class CampaignServiceImpl implements CampaignService {
     private final PlanQuotaService planQuotaService;
     private final TenantService tenantService;
     private final ResponseLockingService responseLockingService;
+    private final SearchCacheInvalidationService searchCacheInvalidationService;
 
     @Override
     @Transactional
@@ -77,6 +79,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .campaignId(campaign.getId())
                 .build();
         settingsRepository.save(settings);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(tenantId);
 
         return toResponse(campaign);
     }
@@ -106,6 +109,7 @@ public class CampaignServiceImpl implements CampaignService {
             campaign.setAuthMode(normalizeAccessMode(request.getAuthMode()));
         }
         campaign = campaignRepository.save(campaign);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(campaign.getTenantId());
 
         return toResponse(campaign);
     }
@@ -117,6 +121,7 @@ public class CampaignServiceImpl implements CampaignService {
         Campaign campaign = findOrThrow(id);
         campaign.setActive(false);
         campaignRepository.save(campaign);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(campaign.getTenantId());
     }
 
     @Override

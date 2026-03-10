@@ -267,6 +267,142 @@ public class FeatureManagementService {
         userFeatureAccessRepository.save(access);
     }
 
+    /**
+     * Runtime delivery API for frontend onboarding orchestration.
+     * Applies scheduling, targeting, platform/page filters, priority ordering, and
+     * impression throttling.
+     */
+    @Transactional(readOnly = true)
+    public RuntimeFeaturesResponse getRuntimeFeatures(
+        UUID userId,
+        String pagePath,
+        String platform,
+        Integer maxItems
+    ) {
+        AdminUser user = adminUserRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                "User not found: " + userId));
+
+        String tenantId = user.getTenantId();
+        String planString = getUserPlan(tenantId).name();
+        Instant now = Instant.now();
+        int cap = Math.min(Math.max(maxItems != null ? maxItems : 20, 1), 100);
+        String normalizedPlatform = StringUtils.hasText(platform) ? platform.toUpperCase(Locale.ROOT) : "WEB";
+        String normalizedPath = normalizePath(pagePath);
+
+        List<FeatureDefinition> features = featureDefinitionRepository.findByMinPlanLevelAndEnabledTrue(planString);
+        Map<UUID, UserFeatureAccess> accessByFeatureId = userFeatureAccessRepository.findByUserId(userId).stream()
+            .collect(Collectors.toMap(a -> a.getFeature().getId(), a -> a, (a, b) -> a));
+
+        List<RuntimeFeatureItemDTO> candidates = new ArrayList<>();
+        for (FeatureDefinition feature : features) {
+            if (!feature.isRoleAllowed(user.getRole())) {
+                continue;
+            }
+            if (!feature.isPlatformSupported(normalizedPlatform)) {
+                continue;
+            }
+            Optional<TenantFeatureConfig> tenantConfig = tenantFeatureConfigRepository.findByTenantIdAndFeatureId(
+                tenantId, feature.getId());
+            if (tenantConfig.isPresent() && !tenantConfig.get().isEnabled()) {
+                continue;
+            }
+            if (!isInRollout(userId, tenantConfig.map(TenantFeatureConfig::getEffectiveRolloutPercentage)
+                .orElse(feature.getRolloutPercentage()))) {
+                continue;
+            }
+
+            UserFeatureAccess access = accessByFeatureId.get(feature.getId());
+            if (access != null && access.isCompleted()) {
+                continue;
+            }
+
+            Map<String, Object> metadata = safeMetadata(feature.getMetadata());
+            if (!isPublished(metadata)) {
+                continue;
+            }
+            if (!isWithinSchedule(metadata, now)) {
+                continue;
+            }
+            if (!matchesPath(metadata, normalizedPath)) {
+                continue;
+            }
+            if (!matchesTargeting(metadata, user, tenantId)) {
+                continue;
+            }
+            if (!passesFrequencyControls(metadata, access, now)) {
+                continue;
+            }
+
+            candidates.add(RuntimeFeatureItemDTO.builder()
+                .featureId(feature.getId())
+                .featureKey(feature.getFeatureKey())
+                .name(feature.getName())
+                .description(feature.getDescription())
+                .featureType(feature.getFeatureType())
+                .surface(resolveSurface(feature.getFeatureType(), metadata))
+                .priority(parseInt(metadata.get("priority"), 1000))
+                .blocking(parseBoolean(metadata.get("blocking"), feature.getFeatureType() == FeatureType.TOUR))
+                .shouldShow(true)
+                .metadata(metadata)
+                .build());
+        }
+
+        candidates.sort(Comparator
+            .comparing((RuntimeFeatureItemDTO i) -> i.getPriority() != null ? i.getPriority() : 1000)
+            .thenComparing(RuntimeFeatureItemDTO::getFeatureKey));
+
+        List<RuntimeFeatureItemDTO> orchestrated = orchestrateSurfaces(candidates, cap);
+
+        return RuntimeFeaturesResponse.builder()
+            .items(orchestrated)
+            .generatedAt(now)
+            .build();
+    }
+
+    @Transactional
+    public void recordFeatureEvent(UUID userId, String featureKey, FeatureEventType eventType, Map<String, Object> payload) {
+        FeatureDefinition feature = featureDefinitionRepository.findByFeatureKey(featureKey)
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                "Feature not found: " + featureKey));
+
+        AdminUser user = adminUserRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                "User not found: " + userId));
+
+        UserFeatureAccess access = userFeatureAccessRepository.findByUserIdAndFeatureId(userId, feature.getId())
+            .orElseGet(() -> UserFeatureAccess.builder()
+                .userId(userId)
+                .tenantId(user.getTenantId())
+                .feature(feature)
+                .accessed(false)
+                .completed(false)
+                .accessCount(0)
+                .metadata(new HashMap<>())
+                .build());
+
+        access.recordAccess();
+        Map<String, Object> metadata = access.getMetadata() != null ? access.getMetadata() : new HashMap<>();
+        metadata.put("lastEventAt", Instant.now().toString());
+        metadata.put("lastEventType", eventType.name());
+        if (payload != null && !payload.isEmpty()) {
+            metadata.put("lastEventPayload", payload);
+            if (payload.get("stepIndex") instanceof Number stepIndex) {
+                metadata.put("currentStep", stepIndex.intValue());
+            }
+        }
+        incrementEventCounter(metadata, eventType.name());
+        access.setMetadata(metadata);
+
+        if (eventType == FeatureEventType.COMPLETE || eventType == FeatureEventType.DISMISS) {
+            access.markCompleted();
+        } else if (eventType == FeatureEventType.RESET) {
+            access.reset();
+        }
+
+        userFeatureAccessRepository.save(access);
+    }
+
     // ------------------------------------------------------------------------
     // Tenant Configuration
     // ------------------------------------------------------------------------
@@ -696,6 +832,193 @@ public class FeatureManagementService {
         }
         int hash = Math.abs(userId.hashCode() % 100);
         return hash < rolloutPercentage;
+    }
+
+    private String normalizePath(String pagePath) {
+        if (!StringUtils.hasText(pagePath)) {
+            return "/";
+        }
+        String normalized = pagePath.trim();
+        return normalized.startsWith("/") ? normalized : "/" + normalized;
+    }
+
+    private Map<String, Object> safeMetadata(Map<String, Object> metadata) {
+        return metadata != null ? metadata : new HashMap<>();
+    }
+
+    private boolean isPublished(Map<String, Object> metadata) {
+        String state = String.valueOf(metadata.getOrDefault("state", "LIVE")).toUpperCase(Locale.ROOT);
+        return !"DRAFT".equals(state) && !"PAUSED".equals(state);
+    }
+
+    private boolean isWithinSchedule(Map<String, Object> metadata, Instant now) {
+        Instant startAt = parseInstant(metadata.get("startAt"));
+        Instant endAt = parseInstant(metadata.get("endAt"));
+        if (startAt != null && now.isBefore(startAt)) {
+            return false;
+        }
+        if (endAt != null && now.isAfter(endAt)) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean matchesPath(Map<String, Object> metadata, String pagePath) {
+        Object rawPagePaths = metadata.get("pagePaths");
+        if (rawPagePaths instanceof List<?> list && !list.isEmpty()) {
+            boolean matched = list.stream()
+                .map(Object::toString)
+                .map(this::normalizePath)
+                .anyMatch(path -> path.equals(pagePath) || pagePath.startsWith(path + "/"));
+            if (!matched) {
+                return false;
+            }
+        }
+        Object pathPrefix = metadata.get("pathPrefix");
+        if (pathPrefix != null) {
+            String prefix = normalizePath(String.valueOf(pathPrefix));
+            return pagePath.startsWith(prefix);
+        }
+        return true;
+    }
+
+    private boolean matchesTargeting(Map<String, Object> metadata, AdminUser user, String tenantId) {
+        Object rawTargeting = metadata.get("targeting");
+        if (!(rawTargeting instanceof Map<?, ?> targeting)) {
+            return true;
+        }
+
+        if (!matchesStringList(targeting.get("tenantIds"), tenantId)) {
+            return false;
+        }
+        if (!matchesStringList(targeting.get("userIds"), user.getId().toString())) {
+            return false;
+        }
+        if (!matchesStringList(targeting.get("roles"), user.getRole().name())) {
+            return false;
+        }
+        if (targeting.get("emailDomains") instanceof List<?> domains && !domains.isEmpty()) {
+            String email = user.getEmail() != null ? user.getEmail().toLowerCase(Locale.ROOT) : "";
+            boolean domainMatch = domains.stream()
+                .map(Object::toString)
+                .map(String::toLowerCase)
+                .anyMatch(domain -> email.endsWith("@" + domain));
+            if (!domainMatch) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean matchesStringList(Object rawList, String value) {
+        if (!(rawList instanceof List<?> list) || list.isEmpty()) {
+            return true;
+        }
+        return list.stream().map(Object::toString).anyMatch(v -> Objects.equals(v, value));
+    }
+
+    private boolean passesFrequencyControls(Map<String, Object> metadata, UserFeatureAccess access, Instant now) {
+        if (access == null) {
+            return true;
+        }
+        int maxImpressions = parseInt(metadata.get("maxImpressions"), Integer.MAX_VALUE);
+        if (access.getAccessCount() != null && access.getAccessCount() >= maxImpressions) {
+            return false;
+        }
+        int cooldownSeconds = parseInt(metadata.get("cooldownSeconds"), 0);
+        if (cooldownSeconds > 0 && access.getLastAccessedAt() != null) {
+            if (access.getLastAccessedAt().plusSeconds(cooldownSeconds).isAfter(now)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String resolveSurface(FeatureType featureType, Map<String, Object> metadata) {
+        Object explicit = metadata.get("surface");
+        if (explicit != null) {
+            return explicit.toString();
+        }
+        return switch (featureType) {
+            case TOUR -> "modal";
+            case BANNER, ANNOUNCEMENT -> "banner";
+            case TOOLTIP -> "inline";
+            case FEATURE_FLAG -> "flag";
+        };
+    }
+
+    private List<RuntimeFeatureItemDTO> orchestrateSurfaces(List<RuntimeFeatureItemDTO> candidates, int cap) {
+        List<RuntimeFeatureItemDTO> modal = candidates.stream()
+            .filter(i -> "modal".equalsIgnoreCase(i.getSurface()))
+            .toList();
+        List<RuntimeFeatureItemDTO> banner = candidates.stream()
+            .filter(i -> "banner".equalsIgnoreCase(i.getSurface()))
+            .toList();
+        List<RuntimeFeatureItemDTO> inline = candidates.stream()
+            .filter(i -> "inline".equalsIgnoreCase(i.getSurface()))
+            .toList();
+        List<RuntimeFeatureItemDTO> flags = candidates.stream()
+            .filter(i -> "flag".equalsIgnoreCase(i.getSurface()))
+            .toList();
+
+        List<RuntimeFeatureItemDTO> result = new ArrayList<>();
+        if (!modal.isEmpty()) {
+            result.add(modal.get(0));
+        }
+        if (!banner.isEmpty()) {
+            result.add(banner.get(0));
+        }
+        result.addAll(inline);
+        result.addAll(flags);
+        if (result.size() > cap) {
+            return result.subList(0, cap);
+        }
+        return result;
+    }
+
+    private Instant parseInstant(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(raw.toString());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private int parseInt(Object raw, int defaultValue) {
+        if (raw instanceof Number n) {
+            return n.intValue();
+        }
+        if (raw == null) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(raw.toString());
+        } catch (NumberFormatException ex) {
+            return defaultValue;
+        }
+    }
+
+    private boolean parseBoolean(Object raw, boolean defaultValue) {
+        if (raw instanceof Boolean b) {
+            return b;
+        }
+        if (raw == null) {
+            return defaultValue;
+        }
+        return Boolean.parseBoolean(raw.toString());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void incrementEventCounter(Map<String, Object> metadata, String eventType) {
+        Map<String, Object> counters = metadata.get("eventCounts") instanceof Map<?, ?> existing
+            ? new HashMap<>((Map<String, Object>) existing)
+            : new HashMap<>();
+        int current = parseInt(counters.get(eventType), 0);
+        counters.put(eventType, current + 1);
+        metadata.put("eventCounts", counters);
     }
 
     /**

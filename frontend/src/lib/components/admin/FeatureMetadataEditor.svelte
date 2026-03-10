@@ -515,7 +515,7 @@
 	{#if enableJsonMode}
 		<Tabs.Root value={activeTab} onValueChange={(v) => (activeTab = v as 'editor' | 'json')} class="flex-1 flex flex-col min-h-0">
 			<Tabs.List class="grid w-full grid-cols-2 mb-4">
-				<Tabs.Trigger value="editor" data-disabled={disabled} class={disabled ? 'opacity-50 pointer-events-none' : ''}>
+				<Tabs.Trigger value="editor" class={disabled ? 'opacity-50 pointer-events-none' : ''}>
 					<div class="flex items-center gap-2">
 						{#if true}
 							{@const TypeIcon = getFeatureTypeIcon(featureType)}
@@ -524,7 +524,7 @@
 						Editor
 					</div>
 				</Tabs.Trigger>
-				<Tabs.Trigger value="json" data-disabled={disabled} class={disabled ? 'opacity-50 pointer-events-none' : ''}>
+				<Tabs.Trigger value="json" class={disabled ? 'opacity-50 pointer-events-none' : ''}>
 					<div class="flex items-center gap-2">
 						<Code2 class="h-4 w-4" />
 						JSON

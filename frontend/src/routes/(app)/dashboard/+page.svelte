@@ -11,7 +11,6 @@
 	import { EmptyState } from '$lib/components/empty-state';
 	import { Confetti } from '$lib/components/confetti';
 	import { ErrorBanner } from '$lib/components/error-banner';
-	import { FeatureTour } from '$lib/components/onboarding';
 	import {
 		HelpCircle,
 		FolderKanban,
@@ -234,34 +233,6 @@
         }
     }
 
-    // Dashboard tour configuration
-    const dashboardTour = {
-        id: 'tour.dashboard',
-        title: 'Dashboard Overview',
-        steps: [
-            {
-                id: 'step1',
-                title: 'Welcome to Your Dashboard',
-                description: 'This is your command center for all survey activities.',
-                targetSelector: '[data-tour="dashboard-stats"]',
-                placement: 'bottom' as const
-            },
-            {
-                id: 'step2',
-                title: 'Recent Campaigns',
-                description: 'See your active and recent campaigns here.',
-                targetSelector: '[data-tour="recent-campaigns"]',
-                placement: 'top' as const
-            },
-            {
-                id: 'step3',
-                title: 'Quick Actions',
-                description: 'Create new surveys, campaigns, or view reports.',
-                targetSelector: '[data-tour="quick-actions"]',
-                placement: 'left' as const
-            }
-        ]
-    };
 </script>
 
 <svelte:head>
@@ -576,9 +547,6 @@
         </div>
     </div>
 </div>
-
-<!-- 🎯 Dashboard Tour -->
-<FeatureTour tour={dashboardTour} autoStart={true} />
 
 <!-- 🎉 Confetti Celebration -->
 {#if showConfetti}

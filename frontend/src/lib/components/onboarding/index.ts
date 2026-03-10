@@ -5,6 +5,7 @@ export { default as FeatureTour } from './FeatureTour.svelte';
 export { default as FeatureTooltip } from './FeatureTooltip.svelte';
 export { default as FeatureBanner } from './FeatureBanner.svelte';
 export { default as TooltipWithDismiss } from './TooltipWithDismiss.svelte';
+export { default as OnboardingOrchestrator } from './OnboardingOrchestrator.svelte';
 
 export type { TourStep, TourConfig } from './FeatureTour.svelte';
 export type { BannerConfig } from './FeatureBanner.svelte';

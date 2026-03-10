@@ -28,6 +28,7 @@ import com.bracits.surveyengine.survey.entity.SurveyQuestion;
 import com.bracits.surveyengine.survey.entity.SurveySnapshot;
 import com.bracits.surveyengine.survey.repository.SurveyRepository;
 import com.bracits.surveyengine.survey.repository.SurveySnapshotRepository;
+import com.bracits.surveyengine.search.service.SearchCacheInvalidationService;
 import com.bracits.surveyengine.tenant.service.TenantService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -85,6 +86,7 @@ public class SurveyServiceImpl implements SurveyService {
     private final CategoryVersionRepository categoryVersionRepository;
     private final TenantService tenantService;
     private final ObjectMapper objectMapper;
+    private final SearchCacheInvalidationService searchCacheInvalidationService;
 
     @Override
     @Transactional
@@ -101,6 +103,7 @@ public class SurveyServiceImpl implements SurveyService {
 
         rebuildDraftStructure(survey, request.getPages());
         survey = surveyRepository.save(survey);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(tenantId);
         return toResponse(survey);
     }
 
@@ -129,6 +132,7 @@ public class SurveyServiceImpl implements SurveyService {
         rebuildDraftStructure(survey, request.getPages());
 
         survey = surveyRepository.save(survey);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(survey.getTenantId());
         return toResponse(survey);
     }
 
@@ -139,6 +143,7 @@ public class SurveyServiceImpl implements SurveyService {
         Survey survey = findOrThrow(id);
         survey.setActive(false);
         surveyRepository.save(survey);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(survey.getTenantId());
     }
 
     @Override

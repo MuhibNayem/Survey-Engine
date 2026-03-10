@@ -41,8 +41,12 @@
 	let isClosing = $state(false);
 	let remoteCommands = $state<CommandItem[]>([]);
 	let searchingRemote = $state(false);
+	let loadingMoreRemote = $state(false);
 	let remoteError = $state<string | null>(null);
+	let remoteNextCursor = $state<string | null>(null);
+	let remoteRequestSeq = 0;
 	let searchInputEl = $state<HTMLInputElement | null>(null);
+	let resultsEl = $state<HTMLDivElement | null>(null);
 
 	// Define all available commands
 	const allCommands: CommandItem[] = [
@@ -210,30 +214,75 @@
 		return parts.filter((p) => p.text.length > 0);
 	}
 
+	async function fetchRemotePage(reset: boolean) {
+		const q = query.trim();
+		if (q.length < 2) return;
+		if (!reset && (!remoteNextCursor || loadingMoreRemote || searchingRemote)) return;
+
+		const requestId = ++remoteRequestSeq;
+		if (reset) {
+			searchingRemote = true;
+			remoteError = null;
+			remoteNextCursor = null;
+		} else {
+			loadingMoreRemote = true;
+		}
+
+		try {
+			const response = await api.get('/search/global', {
+				params: {
+					q,
+					limit: 12,
+					cursor: reset ? undefined : remoteNextCursor ?? undefined
+				}
+			});
+			if (requestId !== remoteRequestSeq) {
+				return;
+			}
+
+			const items: CommandItem[] = (response?.data?.items ?? []).map(toRemoteCommand);
+			remoteNextCursor = response?.data?.nextCursor ?? null;
+			if (reset) {
+				remoteCommands = items;
+			} else {
+				const seen = new Set(remoteCommands.map((item) => item.id));
+				remoteCommands = [...remoteCommands, ...items.filter((item) => !seen.has(item.id))];
+			}
+		} catch (error) {
+			console.error('Global search failed', error);
+			if (reset) {
+				remoteCommands = [];
+			}
+			remoteError = 'Search is temporarily unavailable';
+		} finally {
+			if (requestId === remoteRequestSeq) {
+				searchingRemote = false;
+				loadingMoreRemote = false;
+			}
+		}
+	}
+
+	function onResultsScroll() {
+		if (!resultsEl || !remoteNextCursor) return;
+		const remaining = resultsEl.scrollHeight - (resultsEl.scrollTop + resultsEl.clientHeight);
+		if (remaining < 80) {
+			void fetchRemotePage(false);
+		}
+	}
+
 	$effect(() => {
 		const q = query.trim();
 		remoteError = null;
 		if (q.length < 2) {
 			remoteCommands = [];
+			remoteNextCursor = null;
 			searchingRemote = false;
+			loadingMoreRemote = false;
 			return;
 		}
 
-		searchingRemote = true;
-		const timeout = setTimeout(async () => {
-			try {
-				const response = await api.get('/search/global', {
-					params: { q, limit: 12 }
-				});
-				const items = response?.data?.items ?? [];
-				remoteCommands = items.map(toRemoteCommand);
-			} catch (error) {
-				console.error('Global search failed', error);
-				remoteCommands = [];
-				remoteError = 'Search is temporarily unavailable';
-			} finally {
-				searchingRemote = false;
-			}
+		const timeout = setTimeout(() => {
+			void fetchRemotePage(true);
 		}, 180);
 
 		return () => clearTimeout(timeout);
@@ -242,7 +291,9 @@
 	let items = $derived(mergeItems(getLocalFilteredItems(), remoteCommands));
 
 	$effect(() => {
-		selectedId = items[0]?.id ?? null;
+		if (!selectedId || !items.some((item) => item.id === selectedId)) {
+			selectedId = items[0]?.id ?? null;
+		}
 	});
 
 	function handleKeyDown(e: KeyboardEvent) {
@@ -374,7 +425,7 @@
 					</div>
 
 				<!-- Results List -->
-				<div class="cmd-results max-h-[420px] overflow-y-auto p-2">
+				<div bind:this={resultsEl} onscroll={onResultsScroll} class="cmd-results max-h-[420px] overflow-y-auto p-2">
 					{#if searchingRemote}
 						<div class="px-3 py-2 text-xs text-zinc-500">Searching everything...</div>
 					{/if}
@@ -459,6 +510,9 @@
 								{/each}
 							</div>
 						{/each}
+						{#if loadingMoreRemote}
+							<div class="px-3 py-2 text-xs text-zinc-500">Loading more results...</div>
+						{/if}
 					{/if}
 				</div>
 

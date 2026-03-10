@@ -11,6 +11,7 @@ import com.bracits.surveyengine.questionbank.entity.QuestionType;
 import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import com.bracits.surveyengine.questionbank.repository.QuestionRepository;
 import com.bracits.surveyengine.questionbank.repository.QuestionVersionRepository;
+import com.bracits.surveyengine.search.service.SearchCacheInvalidationService;
 import com.bracits.surveyengine.tenant.service.TenantService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,6 +40,7 @@ public class QuestionServiceImpl implements QuestionService {
     private final QuestionVersionRepository questionVersionRepository;
     private final TenantService tenantService;
     private final ObjectMapper objectMapper;
+    private final SearchCacheInvalidationService searchCacheInvalidationService;
 
     @Override
     @Transactional
@@ -58,6 +60,7 @@ public class QuestionServiceImpl implements QuestionService {
         question = questionRepository.save(question);
 
         upsertLiveVersion(question);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(tenantId);
 
         return toResponse(question);
     }
@@ -88,6 +91,7 @@ public class QuestionServiceImpl implements QuestionService {
         question = questionRepository.save(question);
 
         upsertLiveVersion(question);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(question.getTenantId());
 
         return toResponse(question);
     }
@@ -99,6 +103,7 @@ public class QuestionServiceImpl implements QuestionService {
         Question question = findOrThrow(id);
         question.setActive(false);
         questionRepository.save(question);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(question.getTenantId());
     }
 
     @Override

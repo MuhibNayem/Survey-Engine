@@ -20,6 +20,7 @@ import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +50,8 @@ public class OidcResponderAuthService {
     private final ResponderAccessCodeRepository responderAccessCodeRepository;
     private final TokenValidationService tokenValidationService;
     private final AuthRemoteCacheService authRemoteCacheService;
+    @Value("${survey-engine.links.public-base-url:https://survey.example.com}")
+    private String publicBaseUrl;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -179,7 +182,7 @@ public class OidcResponderAuthService {
 
         String redirectUrl = null;
         if (authState.getReturnPath() != null) {
-            redirectUrl = baseUrl + authState.getReturnPath()
+            redirectUrl = resolveUiBaseUrl(baseUrl) + authState.getReturnPath()
                     + (authState.getReturnPath().contains("?") ? "&" : "?")
                     + "auth_code=" + enc(accessCode);
         }
@@ -284,6 +287,22 @@ public class OidcResponderAuthService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "returnPath must start with '/'");
         }
         return path;
+    }
+
+    private String resolveUiBaseUrl(String fallbackBaseUrl) {
+        String configured = normalizeBaseUrl(publicBaseUrl);
+        return configured != null ? configured : normalizeBaseUrl(fallbackBaseUrl);
+    }
+
+    private String normalizeBaseUrl(String rawBaseUrl) {
+        if (rawBaseUrl == null) {
+            return null;
+        }
+        String value = rawBaseUrl.trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 
     private String resolveRedirectUri(AuthProfile profile, String baseUrl) {

@@ -19,6 +19,7 @@
 	}
 
 	interface Props {
+		featureKey?: string;
 		banner: BannerConfig;
 		position?: 'top' | 'bottom';
 		onDismiss?: () => void;
@@ -26,6 +27,7 @@
 	}
 
 	let {
+		featureKey,
 		banner,
 		position = 'top',
 		onDismiss,
@@ -40,7 +42,7 @@
 		status,
 		isCompleted,
 		complete: completeFeature
-	} = useFeatureFlag(() => `announcement.${banner.id}`, {
+	} = useFeatureFlag(() => featureKey ?? `announcement.${banner.id}`, {
 		autoCheck: true,
 		autoRecordAccess: true
 	});
@@ -123,6 +125,8 @@
 				return Megaphone;
 		}
 	}
+
+	const priorityIcon = $derived(getPriorityIcon());
 </script>
 
 {#if visible}
@@ -135,10 +139,10 @@
 				<div class="flex items-start gap-3 flex-1">
 					<!-- Priority Indicator -->
 					<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background/50">
-						{#if typeof getPriorityIcon() === 'string'}
-							<span class="text-sm">{getPriorityIcon()}</span>
+						{#if typeof priorityIcon === 'string'}
+							<span class="text-sm">{priorityIcon}</span>
 						{:else}
-							<svelte:component this={getPriorityIcon()} class="h-4 w-4" />
+							<priorityIcon class="h-4 w-4"></priorityIcon>
 						{/if}
 					</div>
 

@@ -5,5 +5,6 @@ import java.util.List;
 public record GlobalSearchResponse(
         String query,
         int total,
-        List<GlobalSearchItemResponse> items) {
+        List<GlobalSearchItemResponse> items,
+        String nextCursor) {
 }

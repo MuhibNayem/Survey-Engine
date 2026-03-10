@@ -115,12 +115,9 @@ class FeatureManagementServiceTest {
         // Arrange
         FeatureDefinition feature = createTestFeature();
         feature.setEnabled(false);
-        AdminUser user = createTestUser();
 
         given(featureDefinitionRepository.findByFeatureKey(testFeatureKey))
             .willReturn(Optional.of(feature));
-        given(adminUserRepository.findById(testUserId))
-            .willReturn(Optional.of(user));
 
         // Act
         FeatureStatusDTO status = featureService.isFeatureAvailable(testUserId, testFeatureKey);
@@ -194,12 +191,8 @@ class FeatureManagementServiceTest {
 
         given(featureDefinitionRepository.findByFeatureKey(testFeatureKey))
             .willReturn(Optional.of(feature));
-        given(adminUserRepository.findById(testUserId))
-            .willReturn(Optional.of(user));
         given(userFeatureAccessRepository.findByUserIdAndFeatureId(testUserId, feature.getId()))
             .willReturn(Optional.of(access));
-        given(userFeatureAccessRepository.save(any(UserFeatureAccess.class)))
-            .willAnswer(invocation -> invocation.getArgument(0));
 
         // Act
         FeatureStatusDTO status = featureService.completeFeature(testUserId, testFeatureKey);
@@ -327,10 +320,21 @@ class FeatureManagementServiceTest {
             .willReturn(Optional.of(user));
         given(subscriptionRepository.findByTenantId(testTenantId))
             .willReturn(Optional.of(subscription));
-        given(featureDefinitionRepository.findByMinPlanLevelAndEnabledTrue(SubscriptionPlan.BASIC))
+        given(featureDefinitionRepository.findByMinPlanLevelAndEnabledTrue(SubscriptionPlan.BASIC.name()))
             .willReturn(List.of(feature1, feature2));
+        given(tenantFeatureConfigRepository.findByTenantIdAndFeatureId(anyString(), any(UUID.class)))
+            .willReturn(Optional.empty());
         given(userFeatureAccessRepository.findByUserIdAndCompletedTrue(testUserId))
             .willReturn(List.of());
+        given(modelMapper.map(any(FeatureDefinition.class), eq(FeatureDefinitionDTO.class)))
+            .willAnswer(invocation -> {
+                FeatureDefinition feature = invocation.getArgument(0);
+                return FeatureDefinitionDTO.builder()
+                    .id(feature.getId())
+                    .featureKey(feature.getFeatureKey())
+                    .name(feature.getName())
+                    .build();
+            });
 
         // Act
         List<FeatureDefinitionDTO> available = featureService.getAvailableFeatures(testUserId, null);

@@ -84,6 +84,7 @@ export function useFeatureFlag(featureKey: string | (() => string), options?: {
   async function recordAccess(key: string): Promise<void> {
     try {
       await api.post(`/features/${key}/access`);
+      await trackEvent(key, 'IMPRESSION');
     } catch (err) {
       console.warn('Failed to record feature access:', err);
     }
@@ -92,7 +93,10 @@ export function useFeatureFlag(featureKey: string | (() => string), options?: {
   async function markComplete(): Promise<void> {
     try {
       const currentFeatureKey = typeof featureKey === 'function' ? featureKey() : featureKey;
-      await api.post(`/features/${currentFeatureKey}/complete`, { completed: true });
+      await api.post(`/features/${currentFeatureKey}/complete`, null, {
+        params: { completed: true }
+      });
+      await trackEvent(currentFeatureKey, 'COMPLETE');
       completed = true;
       options?.onComplete?.();
     } catch (err) {
@@ -103,10 +107,24 @@ export function useFeatureFlag(featureKey: string | (() => string), options?: {
   async function resetState(): Promise<void> {
     try {
       const currentFeatureKey = typeof featureKey === 'function' ? featureKey() : featureKey;
-      await api.post(`/features/${currentFeatureKey}/complete`, { completed: false });
+      await api.post(`/features/${currentFeatureKey}/complete`, null, {
+        params: { completed: false }
+      });
+      await trackEvent(currentFeatureKey, 'RESET');
       completed = false;
     } catch (err) {
       console.error('Failed to reset feature state:', err);
+    }
+  }
+
+  async function trackEvent(key: string, eventType: string, metadata?: Record<string, unknown>): Promise<void> {
+    try {
+      await api.post(`/features/${key}/events`, {
+        eventType,
+        metadata: metadata ?? {}
+      });
+    } catch (err) {
+      console.warn(`Failed to track feature event ${eventType}:`, err);
     }
   }
 

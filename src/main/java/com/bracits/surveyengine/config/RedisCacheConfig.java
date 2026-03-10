@@ -2,6 +2,8 @@ package com.bracits.surveyengine.config;
 
 import com.bracits.surveyengine.auth.config.AuthCacheNames;
 import com.bracits.surveyengine.auth.config.AuthCacheProperties;
+import com.bracits.surveyengine.search.config.SearchCacheNames;
+import com.bracits.surveyengine.search.config.SearchProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -18,13 +21,14 @@ import java.util.Map;
 
 @Configuration
 @EnableCaching
-@EnableConfigurationProperties(AuthCacheProperties.class)
+@EnableConfigurationProperties({ AuthCacheProperties.class, SearchProperties.class })
 public class RedisCacheConfig {
 
     @Bean
     public RedisCacheManager redisCacheManager(
             RedisConnectionFactory redisConnectionFactory,
-            AuthCacheProperties authCacheProperties) {
+            AuthCacheProperties authCacheProperties,
+            SearchProperties searchProperties) {
 
         RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
                 .disableCachingNullValues()
@@ -39,6 +43,13 @@ public class RedisCacheConfig {
         cacheConfigurations.put(
                 AuthCacheNames.JWKS,
                 buildCacheConfig(defaults, authCacheProperties.getJwks(), Duration.ofMinutes(15)));
+        cacheConfigurations.put(
+                SearchCacheNames.GLOBAL_SEARCH,
+                defaults
+                        .entryTtl(Duration.ofSeconds(searchProperties.getCacheTtlSeconds()))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair
+                                .fromSerializer(new GenericJackson2JsonRedisSerializer()))
+                        .computePrefixWith(cacheName -> "survey-engine:search-cache:" + cacheName + ":"));
 
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaults)

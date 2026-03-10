@@ -11,6 +11,7 @@ import com.bracits.surveyengine.questionbank.entity.CategoryVersion;
 import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import com.bracits.surveyengine.questionbank.repository.CategoryRepository;
 import com.bracits.surveyengine.questionbank.repository.CategoryVersionRepository;
+import com.bracits.surveyengine.search.service.SearchCacheInvalidationService;
 import com.bracits.surveyengine.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryVersionRepository categoryVersionRepository;
     private final QuestionService questionService;
     private final TenantService tenantService;
+    private final SearchCacheInvalidationService searchCacheInvalidationService;
 
     @Override
     @Transactional
@@ -53,6 +55,7 @@ public class CategoryServiceImpl implements CategoryService {
         category = categoryRepository.save(category);
 
         CategoryVersion liveVersion = upsertLiveVersion(category, request.getQuestionMappings());
+        searchCacheInvalidationService.invalidateTenantAfterCommit(tenantId);
 
         return toResponse(category, liveVersion);
     }
@@ -83,6 +86,7 @@ public class CategoryServiceImpl implements CategoryService {
         category = categoryRepository.save(category);
 
         CategoryVersion liveVersion = upsertLiveVersion(category, request.getQuestionMappings());
+        searchCacheInvalidationService.invalidateTenantAfterCommit(category.getTenantId());
 
         return toResponse(category, liveVersion);
     }
@@ -94,6 +98,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = findOrThrow(id);
         category.setActive(false);
         categoryRepository.save(category);
+        searchCacheInvalidationService.invalidateTenantAfterCommit(category.getTenantId());
     }
 
     @Override

@@ -3,9 +3,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { X, Lightbulb, CheckCircle } from 'lucide-svelte';
 	import { useFeatureFlag } from '$lib/hooks/useFeatureFlag.svelte';
-	import api from '$lib/api';
 
 	interface Props {
+		featureKey?: string;
 		tooltipId: string;
 		title: string;
 		content: string;
@@ -16,6 +16,7 @@
 	}
 
 	let {
+		featureKey,
 		tooltipId,
 		title,
 		content,
@@ -34,9 +35,9 @@
 		status,
 		isCompleted,
 		complete: completeFeature
-	} = useFeatureFlag(() => `tooltip.${tooltipId}`, {
+	} = useFeatureFlag(() => featureKey ?? `tooltip.${tooltipId}`, {
 		autoCheck: true,
-		autoRecordAccess: false
+		autoRecordAccess: true
 	});
 
 	onMount(async () => {

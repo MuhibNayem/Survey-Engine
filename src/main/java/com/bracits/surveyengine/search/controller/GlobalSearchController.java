@@ -21,7 +21,8 @@ public class GlobalSearchController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER')")
     public ResponseEntity<GlobalSearchResponse> globalSearch(
             @RequestParam("q") String query,
-            @RequestParam(value = "limit", defaultValue = "12") int limit) {
-        return ResponseEntity.ok(globalSearchService.search(query, limit));
+            @RequestParam(value = "limit", defaultValue = "0") int limit,
+            @RequestParam(value = "cursor", required = false) String cursor) {
+        return ResponseEntity.ok(globalSearchService.search(query, limit, cursor));
     }
 }

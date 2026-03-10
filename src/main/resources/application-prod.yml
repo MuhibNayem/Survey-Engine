@@ -40,3 +40,25 @@ logging:
     com.bracits.surveyengine: INFO
     org.springframework.web: WARN
     org.hibernate.SQL: WARN
+
+survey-engine:
+  search:
+    min-query-length: ${SEARCH_MIN_QUERY_LENGTH:2}
+    max-query-length: ${SEARCH_MAX_QUERY_LENGTH:120}
+    default-limit: ${SEARCH_DEFAULT_LIMIT:12}
+    max-results: ${SEARCH_MAX_RESULTS:30}
+    title-similarity-threshold: ${SEARCH_TITLE_SIMILARITY_THRESHOLD:0.24}
+    body-similarity-threshold: ${SEARCH_BODY_SIMILARITY_THRESHOLD:0.18}
+    title-word-similarity-threshold: ${SEARCH_TITLE_WORD_SIMILARITY_THRESHOLD:0.45}
+    body-word-similarity-threshold: ${SEARCH_BODY_WORD_SIMILARITY_THRESHOLD:0.35}
+    query-timeout-ms: ${SEARCH_QUERY_TIMEOUT_MS:3000}
+    rate-limit-per-minute: ${SEARCH_RATE_LIMIT_PER_MINUTE:30}
+    cache-ttl-seconds: ${SEARCH_CACHE_TTL_SECONDS:300}
+    fallback-cache-grace-seconds: ${SEARCH_FALLBACK_CACHE_GRACE_SECONDS:900}
+    cache-max-entries: ${SEARCH_CACHE_MAX_ENTRIES:2000}
+    slow-query-threshold-ms: ${SEARCH_SLOW_QUERY_THRESHOLD_MS:500}
+    circuit-breaker-sliding-window-size: ${SEARCH_CB_SLIDING_WINDOW_SIZE:20}
+    circuit-breaker-minimum-calls: ${SEARCH_CB_MINIMUM_CALLS:10}
+    circuit-breaker-failure-rate-threshold: ${SEARCH_CB_FAILURE_RATE_THRESHOLD:50}
+    circuit-breaker-open-state-seconds: ${SEARCH_CB_OPEN_STATE_SECONDS:30}
+    circuit-breaker-half-open-calls: ${SEARCH_CB_HALF_OPEN_CALLS:3}

@@ -3,6 +3,7 @@
     import Sidebar from "$lib/components/layout/Sidebar.svelte";
     import Header from "$lib/components/layout/Header.svelte";
     import CommandPalette from "$lib/components/CommandPalette.svelte";
+    import { OnboardingOrchestrator } from "$lib/components/onboarding";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
 
@@ -63,5 +64,6 @@
 
         <!-- Global Command Palette -->
         <CommandPalette bind:open={commandPaletteOpen} />
+        <OnboardingOrchestrator />
     </div>
 {/if}

@@ -65,6 +65,7 @@
     let oidcClientId = $state("");
     let oidcClientSecret = $state("");
     let oidcDiscoveryUrl = $state("");
+    let jwksEndpoint = $state("");
     let oidcScopes = $state("");
     let claimMappings = $state<ClaimMappingRequest[]>([]);
 
@@ -115,6 +116,7 @@
         audience = p.audience || "";
         oidcClientId = p.oidcClientId || "";
         oidcDiscoveryUrl = p.oidcDiscoveryUrl || "";
+        jwksEndpoint = p.jwksEndpoint || "";
         oidcScopes = p.oidcScopes || "";
         claimMappings = p.claimMappings.map((c) => ({
             externalClaim: c.externalClaim,
@@ -170,6 +172,7 @@
             oidcClientId: oidcClientId || undefined,
             oidcClientSecret: oidcClientSecret || undefined,
             oidcDiscoveryUrl: oidcDiscoveryUrl || undefined,
+            jwksEndpoint: jwksEndpoint || undefined,
             oidcScopes: oidcScopes || undefined,
             claimMappings,
         };
@@ -441,6 +444,14 @@
                                     placeholder="https://your-tenant.auth0.com/.well-known/openid-configuration"
                                 />
                             </div>
+                            <div class="space-y-1.5 md:col-span-2">
+                                <Label>JWKS Endpoint *</Label>
+                                <Input
+                                    bind:value={jwksEndpoint}
+                                    required
+                                    placeholder="https://your-tenant.auth0.com/.well-known/jwks.json"
+                                />
+                            </div>
                             <div class="space-y-1.5">
                                 <Label>Issuer URI (Optional Override)</Label>
                                 <Input
@@ -668,6 +679,15 @@
                             <span
                                 class="font-mono bg-muted/50 px-2 py-0.5 rounded break-all"
                                 >{profile.oidcClientId}</span
+                            >
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground block mb-1"
+                                >JWKS Endpoint</span
+                            >
+                            <span
+                                class="font-mono bg-muted/50 px-2 py-0.5 rounded break-all"
+                                >{profile.jwksEndpoint}</span
                             >
                         </div>
                         {#if profile.issuer}

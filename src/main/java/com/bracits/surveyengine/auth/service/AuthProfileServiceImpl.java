@@ -132,6 +132,9 @@ public class AuthProfileServiceImpl implements AuthProfileService {
 
         if (claimMappings != null) {
             profile.getClaimMappings().clear();
+            // Flush orphan-removal deletes before inserting replacement mappings.
+            // This avoids transient unique-key collisions on (auth_profile_id, internal_field).
+            authProfileRepository.flush();
             applyClaimMappings(profile, claimMappings);
         }
 
