@@ -4,6 +4,7 @@
     import Header from "$lib/components/layout/Header.svelte";
     import CommandPalette from "$lib/components/CommandPalette.svelte";
     import { OnboardingOrchestrator } from "$lib/components/onboarding";
+    import { themePreferences } from "$lib/stores/theme.svelte";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
 
@@ -16,7 +17,9 @@
     onMount(() => {
         if (!auth.isAuthenticated) {
             goto("/login");
+            return;
         }
+        themePreferences.hydrateFromBackend();
     });
 </script>
 

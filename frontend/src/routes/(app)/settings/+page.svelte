@@ -1,11 +1,11 @@
 <script lang="ts">
     import { auth } from "$lib/stores/auth.svelte";
+    import { themePreferences, type ThemeMode } from "$lib/stores/theme.svelte";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
     import * as Card from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
     import { Separator } from "$lib/components/ui/separator";
-    import { Switch } from "$lib/components/ui/switch";
     import { Label } from "$lib/components/ui/label";
     import {
         CreditCard,
@@ -14,14 +14,8 @@
         ArrowRight,
         Moon,
         Sun,
+        Monitor,
     } from "lucide-svelte";
-
-    // Theme toggle state
-    let isDarkMode = $state(
-        typeof document !== "undefined"
-            ? document.documentElement.classList.contains("dark")
-            : false,
-    );
 
     // Confetti celebration for profile completion (only show once per session)
     let showConfetti = $state(false);
@@ -29,13 +23,8 @@
     let confettiMessage = $state('');
     let hasShownConfetti = $state(false);
 
-    function toggleTheme() {
-        isDarkMode = !isDarkMode;
-        if (isDarkMode) {
-            document.documentElement.classList.add("dark");
-        } else {
-            document.documentElement.classList.remove("dark");
-        }
+    function applyThemeMode(nextMode: ThemeMode) {
+        themePreferences.setThemeMode(nextMode);
     }
 
     onMount(() => {
@@ -184,20 +173,68 @@
                         </div>
                     </div>
                     <Separator class="my-6" />
-                    <div class="flex items-center justify-between">
+                    <div class="space-y-4">
                         <div class="space-y-0.5">
-                            <Label class="text-base">Dark Mode</Label>
+                            <Label class="text-base">Appearance</Label>
                             <p class="text-sm text-muted-foreground">
-                                Switch UI color scheme.
+                                Persist your preferred admin theme locally and across signed-in sessions.
                             </p>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <Sun class="h-4 w-4 text-muted-foreground" />
-                            <Switch
-                                checked={isDarkMode}
-                                onCheckedChange={toggleTheme}
-                            />
-                            <Moon class="h-4 w-4 text-muted-foreground" />
+                        <div class="grid gap-2 sm:grid-cols-3">
+                            <Button
+                                type="button"
+                                variant={themePreferences.modePreference === "light" ? "default" : "outline"}
+                                class="justify-start gap-3"
+                                onclick={() => applyThemeMode("light")}
+                            >
+                                <Sun class="h-4 w-4" />
+                                Light
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={themePreferences.modePreference === "dark" ? "default" : "outline"}
+                                class="justify-start gap-3"
+                                onclick={() => applyThemeMode("dark")}
+                            >
+                                <Moon class="h-4 w-4" />
+                                Dark
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={themePreferences.modePreference === "system" ? "default" : "outline"}
+                                class="justify-start gap-3"
+                                onclick={() => applyThemeMode("system")}
+                            >
+                                <Monitor class="h-4 w-4" />
+                                System
+                            </Button>
+                        </div>
+                        <div class="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 p-3">
+                            {#if themePreferences.modePreference === "system"}
+                                <Monitor class="h-5 w-5 text-primary" />
+                                <div>
+                                    <p class="text-sm font-medium text-foreground">System Theme</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Following the operating system preference. Current appearance: {themePreferences.resolvedMode}.
+                                    </p>
+                                </div>
+                            {:else if themePreferences.isDark}
+                                <Moon class="h-5 w-5 text-primary" />
+                                <div>
+                                    <p class="text-sm font-medium text-foreground">Dark Mode</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Persisted locally and synced to your user preferences.
+                                    </p>
+                                </div>
+                            {:else}
+                                <Sun class="h-5 w-5 text-primary" />
+                                <div>
+                                    <p class="text-sm font-medium text-foreground">Light Mode</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Persisted locally and synced to your user preferences.
+                                    </p>
+                                </div>
+                            {/if}
                         </div>
                     </div>
                 </Card.Content>

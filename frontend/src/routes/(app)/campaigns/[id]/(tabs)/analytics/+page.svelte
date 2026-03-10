@@ -239,42 +239,16 @@
 </svelte:head>
 
 <div class="space-y-6">
-    <!-- Header -->
+    <!-- Controls Header -->
     <div
         class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
     >
-        <div class="flex items-center gap-3">
-            <Button
-                variant="ghost"
-                size="sm"
-                onclick={() => goto("/campaigns")}
-            >
-                <ArrowLeft class="h-4 w-4" />
-            </Button>
-            <div>
-                {#if loading}
-                    <div class="h-8 w-48 animate-pulse rounded bg-muted"></div>
-                    <div
-                        class="mt-1 h-4 w-32 animate-pulse rounded bg-muted"
-                    ></div>
-                {:else if campaign}
-                    <div class="flex items-center gap-2">
-                        <h1
-                            class="text-2xl font-bold tracking-tight text-foreground"
-                        >
-                            {campaign.name}
-                        </h1>
-                        <Badge variant={statusBadgeVariant(campaign.status)}>
-                            {campaign.status}
-                        </Badge>
-                    </div>
-                    <p
-                        class="mt-0.5 text-sm text-muted-foreground flex items-center gap-2"
-                    >
-                        <BarChart3 class="h-3.5 w-3.5" /> Analytics Overview
-                    </p>
-                {/if}
-            </div>
+        <div>
+            <h2 class="text-lg font-semibold tracking-tight flex items-center gap-2">
+                <BarChart3 class="h-5 w-5 text-muted-foreground" />
+                Analytics Overview
+            </h2>
+            <p class="text-sm text-muted-foreground">Analyze responses, filter data, and export reports.</p>
         </div>
         <div class="flex gap-2">
             <!-- Date Range Picker -->
@@ -316,15 +290,6 @@
                     </DropdownMenu.Item>
                 </DropdownMenu.Content>
             </DropdownMenu.Root>
-
-            {#if campaign}
-                <Button
-                    variant="secondary"
-                    onclick={() => campaign && goto(`/campaigns/${campaign.id}`)}
-                >
-                    Campaign Settings
-                </Button>
-            {/if}
         </div>
     </div>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { auth } from "$lib/stores/auth.svelte";
+    import { themePreferences } from "$lib/stores/theme.svelte";
     import {
         Menu,
         Moon,
@@ -22,14 +23,6 @@
         onToggleDesktopSidebar = () => {},
         desktopSidebarHidden = false,
     }: Props = $props();
-    let isDark = $state(false);
-
-    function toggleDarkMode() {
-        isDark = !isDark;
-        if (typeof document !== "undefined") {
-            document.documentElement.classList.toggle("dark", isDark);
-        }
-    }
 </script>
 
 <header
@@ -74,8 +67,8 @@
 
     <!-- Right side: theme toggle + user menu -->
     <div class="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onclick={toggleDarkMode}>
-            {#if isDark}
+        <Button variant="ghost" size="icon" onclick={themePreferences.toggleDarkMode}>
+            {#if themePreferences.isDark}
                 <Sun class="h-5 w-5" />
             {:else}
                 <Moon class="h-5 w-5" />
