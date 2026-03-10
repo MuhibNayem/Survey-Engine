@@ -16,6 +16,7 @@
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { useKeyboardShortcuts, commonShortcuts } from "$lib/hooks/useKeyboardShortcuts.svelte";
     import { Confetti } from "$lib/components/confetti";
+    import { ErrorBanner } from "$lib/components/error-banner";
     import {
         Plus,
         Pencil,
@@ -83,6 +84,15 @@
     >({});
     let formLoading = $state(false);
     let formError = $state<string | null>(null);
+
+    // API Error Banner - only for 500-level errors
+    type ApiErrorState = {
+        show: boolean;
+        type: 'error';
+        title: string;
+        message: string;
+    };
+    let apiError = $state<ApiErrorState>({ show: false, type: 'error', title: '', message: '' });
 
     // Delete
     let deleteTarget = $state<SurveyResponse | null>(null);
@@ -654,6 +664,7 @@
         e.preventDefault();
         formLoading = true;
         formError = null;
+        apiError = { show: false, type: 'error', title: '', message: '' };
         try {
             const weightError = validateCategoryWeights();
             if (weightError) {
@@ -691,10 +702,23 @@
             await loadData();
         } catch (err: unknown) {
             const axiosErr = err as {
-                response?: { data?: { message?: string } };
+                response?: { data?: { message?: string }; status?: number };
             };
-            formError =
-                axiosErr?.response?.data?.message ?? "Something went wrong.";
+            const status = axiosErr?.response?.status;
+            const message = axiosErr?.response?.data?.message ?? "Something went wrong.";
+            
+            // Show banner only for 500-level errors
+            if (status && status >= 500) {
+                apiError = {
+                    show: true,
+                    type: 'error',
+                    title: '🔴 Server Error',
+                    message: 'Our servers are experiencing issues. Please try again later.'
+                };
+            } else {
+                // Keep inline for 400-level (validation/auth)
+                formError = message;
+            }
         } finally {
             formLoading = false;
         }
@@ -723,6 +747,7 @@
     async function handleLifecycleTransition() {
         if (!lifecycleTarget) return;
         lifecycleLoading = true;
+        apiError = { show: false, type: 'error', title: '', message: '' };
         try {
             await api.post(`/surveys/${lifecycleTarget.id}/lifecycle`, {
                 targetState: lifecycleState,
@@ -736,8 +761,8 @@
             }
             lifecycleTarget = null;
             await loadData();
-        } catch {
-            // silent
+        } catch (err: any) {
+            apiError = err?.response?.data?.message || 'Failed to update survey lifecycle.';
         } finally {
             lifecycleLoading = false;
         }
@@ -751,7 +776,15 @@
         });
     }
 
-    onMount(loadData);
+    onMount(() => {
+        loadData();
+        // Check for #new hash to open create dialog
+        if (typeof window !== 'undefined' && window.location.hash === '#new') {
+            openCreateDialog();
+            // Clear hash without triggering navigation
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+    });
 </script>
 
 <svelte:head>
@@ -765,6 +798,14 @@
         actionLabel="New Survey"
         actionIcon={Plus}
         onAction={openCreateDialog}
+    />
+
+    <ErrorBanner
+        show={apiError.show}
+        type="failure"
+        title={apiError.title}
+        message={apiError.message}
+        onDismiss={() => (apiError = { show: false, type: 'error', title: '', message: '' })}
     />
 
     <!-- Filters -->

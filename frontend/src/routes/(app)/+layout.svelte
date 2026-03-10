@@ -2,6 +2,7 @@
     import { auth } from "$lib/stores/auth.svelte";
     import Sidebar from "$lib/components/layout/Sidebar.svelte";
     import Header from "$lib/components/layout/Header.svelte";
+    import CommandPalette from "$lib/components/CommandPalette.svelte";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
 
@@ -9,6 +10,7 @@
     let sidebarCollapsed = $state(false);
     let desktopSidebarHidden = $state(false);
     let mobileSidebarOpen = $state(false);
+    let commandPaletteOpen = $state(false);
 
     onMount(() => {
         if (!auth.isAuthenticated) {
@@ -58,5 +60,8 @@
                 {@render children()}
             </main>
         </div>
+
+        <!-- Global Command Palette -->
+        <CommandPalette bind:open={commandPaletteOpen} />
     </div>
 {/if}

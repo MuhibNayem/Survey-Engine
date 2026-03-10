@@ -12,6 +12,7 @@ interface User {
     fullName?: string;
     tenantId: string;
     role: string;
+    firstLogin?: boolean;
 }
 
 function createAuthStore() {
@@ -20,7 +21,7 @@ function createAuthStore() {
     let error = $state<string | null>(null);
     let isImpersonating = $state(false);
 
-    // Hydrate from sessionStorage on init (user info only, not tokens)
+    // Hydrate from sessionStorage on init
     if (typeof window !== 'undefined') {
         const stored = sessionStorage.getItem('user');
         if (stored) {
@@ -50,7 +51,8 @@ function createAuthStore() {
             email: data.email,
             fullName: data.fullName,
             tenantId: data.tenantId,
-            role: data.role
+            role: data.role,
+            firstLogin: data.firstLogin
         });
         error = null;
     }
@@ -64,10 +66,7 @@ function createAuthStore() {
             return true;
         } catch (err) {
             if (err instanceof AxiosError) {
-                error =
-                    err.response?.status === 401
-                        ? 'Invalid email or password'
-                        : 'Login failed. Please try again.';
+                error = err.response?.status === 401 ? 'Invalid email or password' : 'Login failed. Please try again.';
             } else {
                 error = 'Network error. Please check your connection.';
             }
@@ -101,7 +100,7 @@ function createAuthStore() {
         try {
             await api.post('/admin/auth/logout');
         } catch {
-            // Server may be unreachable — clear client state anyway
+            // Ignore
         }
         persistUser(null);
         if (typeof window !== 'undefined') {
@@ -139,10 +138,6 @@ function createAuthStore() {
         }
     }
 
-    /**
-     * Hydrate user from server. Use on page load to verify
-     * session is still valid when sessionStorage has cached user.
-     */
     async function fetchCurrentUser() {
         try {
             const { data } = await api.get<AuthUserResponse>('/admin/auth/me');
@@ -155,24 +150,12 @@ function createAuthStore() {
     }
 
     return {
-        get user() {
-            return user;
-        },
-        get isAuthenticated() {
-            return user !== null;
-        },
-        get isLoading() {
-            return isLoading;
-        },
-        get error() {
-            return error;
-        },
-        get isImpersonating() {
-            return isImpersonating;
-        },
-        set error(v: string | null) {
-            error = v;
-        },
+        get user() { return user; },
+        get isAuthenticated() { return user !== null; },
+        get isLoading() { return isLoading; },
+        get error() { return error; },
+        get isImpersonating() { return isImpersonating; },
+        set error(v: string | null) { error = v; },
         login,
         register,
         logout,

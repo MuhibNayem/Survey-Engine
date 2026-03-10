@@ -33,11 +33,21 @@
     import { toast } from "svelte-sonner";
     import { auth } from "$lib/stores/auth.svelte";
     import { Confetti } from "$lib/components/confetti";
+    import { ErrorBanner } from "$lib/components/error-banner";
 
     let profile = $state<AuthProfileResponse | null>(null);
     let templates = $state<ProviderTemplateResponse[]>([]);
     let loading = $state(true);
     let error = $state<string | null>(null);
+
+    // API Error Banner - only for 500-level errors
+    type ApiErrorState = {
+        show: boolean;
+        type: 'error';
+        title: string;
+        message: string;
+    };
+    let apiError = $state<ApiErrorState>({ show: false, type: 'error', title: '', message: '' });
 
     // Confetti celebration
     let showConfetti = $state(false);
@@ -143,6 +153,7 @@
         e.preventDefault();
         formLoading = true;
         error = null;
+        apiError = { show: false, type: 'error', title: '', message: '' };
         const tenantId = auth.user?.tenantId;
         if (!tenantId) {
             error = "No tenant ID found in session.";
@@ -185,7 +196,21 @@
             toast.success("Authentication profile saved successfully.");
             isEditing = false;
         } catch (err: any) {
-            error = err?.response?.data?.message || "Failed to save profile.";
+            const status = err?.response?.status;
+            const message = err?.response?.data?.message || "Failed to save profile.";
+            
+            // Show banner only for 500-level errors
+            if (status && status >= 500) {
+                apiError = {
+                    show: true,
+                    type: 'error',
+                    title: '🔴 Server Error',
+                    message: 'Our servers are experiencing issues. Please try again later.'
+                };
+            } else {
+                // Keep inline for 400-level (validation/auth)
+                error = message;
+            }
             toast.error(error ?? "Failed to save profile.");
         } finally {
             formLoading = false;
@@ -242,14 +267,13 @@
         {/if}
     </div>
 
-    {#if error && !isEditing}
-        <div
-            class="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
-        >
-            <AlertCircle class="h-4 w-4 shrink-0 mt-0.5" />
-            <p>{error}</p>
-        </div>
-    {/if}
+    <ErrorBanner
+        show={apiError.show}
+        type="error"
+        title={apiError.title}
+        message={apiError.message}
+        onDismiss={() => (apiError = { show: false, type: 'error', title: '', message: '' })}
+    />
 
     {#if loading}
         <Card.Root class="border-indigo-500/30 shadow-md">

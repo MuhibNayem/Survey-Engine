@@ -1,7 +1,7 @@
 # Survey Engine MVP Architecture Flows
 ## Product: Headless Multi-Tenant Survey Engine (MVP Implemented)
-## Version: 1.0
-## Date: March 4, 2026
+## Version: 2.0 - Enterprise Feature Management Added
+## Date: March 10, 2026
 
 ## 1. Purpose
 This document describes implementation-facing MVP system flows using ASCII and Mermaid diagrams.
@@ -9,6 +9,7 @@ This document describes implementation-facing MVP system flows using ASCII and M
 It aligns with:
 1. `docs/mvp/survey-engine-mvp-srs.md`
 2. Implemented controllers/services/migrations in the current codebase
+3. **NEW: Enterprise Feature Management System (V28)**
 
 MVP scope covered:
 1. Tenant onboarding via admin auth and subscription bootstrap
@@ -21,6 +22,9 @@ MVP scope covered:
 8. Response submission, locking/reopen, analytics
 9. Scoring profile management and score calculation
 10. Subscription quota enforcement path
+11. **NEW: Enterprise Feature Management (tours, tooltips, banners, feature flags)**
+12. **NEW: First-time user tracking and onboarding flows**
+13. **NEW: Guided help system with backend persistence**
 
 ---
 
@@ -700,6 +704,149 @@ Data integrity notes:
 1. Tenant ID is enforced on core domain tables.
 2. Composite tenant-consistency foreign keys protect cross-tenant linkage mistakes.
 3. Replay/state/access-code tables are time-bound and cleaned during auth operations.
+
+---
+
+## 19. Enterprise Feature Management System (NEW - V28)
+
+### 19.1 Overview
+The Enterprise Feature Management System provides comprehensive control over feature availability, guided tours, tooltips, banners, and announcements across the platform.
+
+### 19.2 Architecture Components
+```text
++------------------+     +---------------------+     +------------------+
+| Super Admin UI   |     | Feature Management  |     |  PostgreSQL      |
+| /admin/features  |<--->|  Controller         |<--->|  feature_def     |
++------------------+     +----------+----------+     |  tenant_config   |
+                                        |            |  user_access     |
+                                        v            +------------------+
+                              +---------------------+
+                              | Feature Management  |
+                              |  Service            |
+                              +----------+----------+
+                                         |
+                    +--------------------+--------------------+
+                    |                    |                    |
+          +---------v---------+ +--------v--------+ +---------v---------+
+          | Feature Tour      | | Feature Tooltip | | Feature Banner    |
+          | Component         | | Component       | | Component         |
+          +-------------------+ +-----------------+ +-------------------+
+```
+
+### 19.3 Key Features
+1. **Feature Registry** - Central metadata store for all features
+2. **Multi-Layer Access Control**:
+   - Global enable/disable
+   - Tenant-level overrides
+   - Plan-based gating (BASIC/PRO/ENTERPRISE)
+   - Role-based access (ADMIN/EDITOR/VIEWER)
+   - Rollout percentage (0-100%)
+3. **Guided Help Components**:
+   - Multi-step feature tours
+   - Contextual tooltips with dismiss
+   - Announcement banners
+4. **User Progress Tracking** - Backend-persisted completion status
+5. **Analytics** - Usage statistics and adoption metrics
+
+### 19.4 Database Schema (V28 Migration)
+```sql
+-- Feature definition registry
+CREATE TABLE feature_definition (
+    id UUID PRIMARY KEY,
+    feature_key VARCHAR(255) UNIQUE NOT NULL,
+    feature_type VARCHAR(50) NOT NULL,  -- TOUR, TOOLTIP, BANNER, etc.
+    category VARCHAR(100) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    rollout_percentage INTEGER NOT NULL DEFAULT 100,
+    min_plan VARCHAR(50) NOT NULL DEFAULT 'BASIC',
+    roles JSONB NOT NULL DEFAULT '["ADMIN", "EDITOR", "VIEWER"]',
+    platforms JSONB NOT NULL DEFAULT '["WEB"]',
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_by VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_by VARCHAR(255),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Tenant-level overrides
+CREATE TABLE tenant_feature_config (
+    id UUID PRIMARY KEY,
+    tenant_id VARCHAR(255) NOT NULL,
+    feature_id UUID NOT NULL REFERENCES feature_definition(id),
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    rollout_percentage INTEGER,
+    custom_metadata JSONB NOT NULL DEFAULT '{}',
+    created_by VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_by VARCHAR(255),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE(tenant_id, feature_id)
+);
+
+-- User progress tracking
+CREATE TABLE user_feature_access (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    tenant_id VARCHAR(255) NOT NULL,
+    feature_id UUID NOT NULL REFERENCES feature_definition(id),
+    accessed BOOLEAN NOT NULL DEFAULT false,
+    completed BOOLEAN NOT NULL DEFAULT false,
+    access_count INTEGER NOT NULL DEFAULT 0,
+    last_accessed_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, feature_id)
+);
+```
+
+### 19.5 API Endpoints
+**Super Admin APIs** (`/api/v1/admin/features`):
+- `GET /` - List all features
+- `POST /` - Create new feature
+- `PUT /{featureKey}` - Update feature
+- `DELETE /{featureKey}` - Delete feature
+- `POST /{featureKey}/tenants/{tenantId}/configure` - Configure for tenant
+- `GET /{featureKey}/analytics` - Get usage analytics
+- `POST /bulk` - Bulk create/update features
+
+**User APIs** (`/api/v1/features`):
+- `GET /available` - Get available features for current user
+- `POST /{featureKey}/complete` - Mark feature as completed
+- `GET /{featureKey}/status` - Check feature status
+
+### 19.6 Frontend Integration
+```typescript
+// Hook usage
+const dashboardTour = useFeatureFlag('tour.dashboard');
+
+// Component usage
+{#if dashboardTour.show}
+  <FeatureTour tour={dashboardTourConfig} />
+{/if}
+
+// Tooltip with dismiss
+<TooltipWithDismiss
+  tooltipId="survey-builder"
+  title="Create Survey"
+  content="Click to start building"
+  targetSelector="[data-tour='new-survey-btn']"
+/>
+```
+
+### 19.7 Migration Path
+1. **V26** - First login tracking (`first_login`, `last_login_at`)
+2. **V27** - User preferences (JSONB storage)
+3. **V28** - Complete feature management system
+
+### 19.8 Integration with Existing Systems
+- **Subscription Plans** - Features gated by plan tier
+- **Role-Based Access** - Integrated with existing RBAC
+- **Tenant Isolation** - All queries tenant-scoped
+- **Audit Logging** - Full audit trail for changes
 
 ---
 

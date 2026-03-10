@@ -19,4 +19,5 @@ public class AuthUserResponse {
     private String fullName;
     private String tenantId;
     private AdminRole role;
+    private boolean firstLogin;
 }

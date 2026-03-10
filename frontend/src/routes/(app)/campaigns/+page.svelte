@@ -12,6 +12,7 @@
 	import { ConfirmDialog } from '$lib/components/ui/confirm-dialog';
 	import { EmptyState } from '$lib/components/empty-state';
 	import { Confetti } from '$lib/components/confetti';
+	import { ErrorBanner } from '$lib/components/error-banner';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
@@ -73,6 +74,15 @@
 	let formLoading = $state(false);
 	let formError = $state<string | null>(null);
 	let formErrors = $state<FormErrors>({});
+
+	// API Error Banner - only for 500-level errors
+	type ApiErrorState = {
+		show: boolean;
+		type: 'error';
+		title: string;
+		message: string;
+	};
+	let apiError = $state<ApiErrorState>({ show: false, type: 'error', title: '', message: '' });
 
 	// Activate
 	let activateTarget = $state<CampaignResponse | null>(null);
@@ -209,6 +219,7 @@
 		e.preventDefault();
 		formLoading = true;
 		formError = null;
+		apiError = { show: false, type: 'error', title: '', message: '' };
 
 		if (!validateForm()) {
 			formLoading = false;
@@ -239,9 +250,23 @@
 			await loadData();
 		} catch (err: unknown) {
 			const axiosErr = err as {
-				response?: { data?: { message?: string } };
+				response?: { data?: { message?: string }; status?: number };
 			};
-			formError = axiosErr?.response?.data?.message ?? 'Something went wrong.';
+			const status = axiosErr?.response?.status;
+			const message = axiosErr?.response?.data?.message ?? 'Failed to save campaign.';
+			
+			// Show banner only for 500-level errors
+			if (status && status >= 500) {
+				apiError = {
+					show: true,
+					type: 'error',
+					title: '🔴 Server Error',
+					message: 'Our servers are experiencing issues. Please try again later.'
+				};
+			} else {
+				// Keep inline for 400-level (validation/auth)
+				formError = message;
+			}
 		} finally {
 			formLoading = false;
 		}
@@ -250,6 +275,7 @@
 	async function handleActivate() {
 		if (!activateTarget) return;
 		activateLoading = true;
+		apiError = { show: false, type: 'error', title: '', message: '' };
 		try {
 			await api.post(`/campaigns/${activateTarget.id}/activate`);
 			// 🎉 Celebrate activating first campaign
@@ -261,8 +287,22 @@
 			}
 			activateTarget = null;
 			await loadData();
-		} catch {
-			// silent
+		} catch (err: any) {
+			const status = err?.response?.status;
+			const message = err?.response?.data?.message || 'Failed to activate campaign.';
+			
+			// Show banner only for 500-level errors
+			if (status && status >= 500) {
+				apiError = {
+					show: true,
+					type: 'error',
+					title: '🔴 Server Error',
+					message: 'Our servers are experiencing issues. Please try again later.'
+				};
+			} else {
+				// Keep inline for 400-level (validation/auth)
+				formError = message;
+			}
 		} finally {
 			activateLoading = false;
 		}
@@ -271,12 +311,27 @@
 	async function handleDelete() {
 		if (!deleteTarget) return;
 		deleteLoading = true;
+		apiError = { show: false, type: 'error', title: '', message: '' };
 		try {
 			await api.delete(`/campaigns/${deleteTarget.id}`);
 			deleteTarget = null;
 			await loadData();
-		} catch {
-			// silent
+		} catch (err: any) {
+			const status = err?.response?.status;
+			const message = err?.response?.data?.message || 'Failed to delete campaign.';
+			
+			// Show banner only for 500-level errors
+			if (status && status >= 500) {
+				apiError = {
+					show: true,
+					type: 'error',
+					title: '🔴 Server Error',
+					message: 'Our servers are experiencing issues. Please try again later.'
+				};
+			} else {
+				// Keep inline for 400-level (validation/auth)
+				formError = message;
+			}
 		} finally {
 			deleteLoading = false;
 		}
@@ -305,7 +360,15 @@
 		})
 	]);
 
-	onMount(loadData);
+	onMount(() => {
+		loadData();
+		// Check for #new hash to open create dialog
+		if (typeof window !== 'undefined' && window.location.hash === '#new') {
+			openCreateDialog();
+			// Clear hash without triggering navigation
+			window.history.replaceState(null, '', window.location.pathname);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -319,6 +382,14 @@
 		actionLabel="New Campaign"
 		actionIcon={Plus}
 		onAction={openCreateDialog}
+	/>
+
+	<ErrorBanner
+		show={apiError.show}
+		type="failure"
+		title={apiError.title}
+		message={apiError.message}
+		onDismiss={() => (apiError = { show: false, type: 'error', title: '', message: '' })}
 	/>
 
 	<!-- Filters -->

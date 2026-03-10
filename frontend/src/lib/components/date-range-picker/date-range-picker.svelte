@@ -31,9 +31,7 @@
 	}: Props = $props();
 
 	let open = $state(false);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let localStart = $state<string>(startDateProp);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let localEnd = $state<string>(endDateProp);
 
 	// Sync props to local state when they change from parent
@@ -99,7 +97,6 @@
 						id="start-date"
 						type="date"
 						bind:value={localStart}
-						class="w-full"
 					/>
 				</div>
 				<div class="space-y-2">
@@ -108,18 +105,19 @@
 						id="end-date"
 						type="date"
 						bind:value={localEnd}
-						class="w-full"
 					/>
 				</div>
 			</div>
+
+			<!-- Actions -->
+			<div class="flex justify-end gap-2 pt-4">
+				<Button variant="outline" onclick={() => (open = false)}>
+					Cancel
+				</Button>
+				<Button onclick={applyDates}>
+					Apply
+				</Button>
+			</div>
 		</div>
-		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)}>
-				Cancel
-			</Button>
-			<Button onclick={applyDates}>
-				Apply
-			</Button>
-		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

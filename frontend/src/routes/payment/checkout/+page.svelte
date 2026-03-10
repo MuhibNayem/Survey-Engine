@@ -10,6 +10,7 @@
     import { Badge } from "$lib/components/ui/badge";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { Confetti } from "$lib/components/confetti";
+    import { ErrorBanner } from "$lib/components/error-banner";
     import {
         CreditCard,
         ShieldCheck,
@@ -27,6 +28,8 @@
     let loading = $state(true);
     let paying = $state(false);
     let error = $state<string | null>(null);
+    let paymentFailed = $state(false);
+    let serverError = $state(false);
     let plan = $state<PlanDefinitionResponse | null>(null);
     let source = $state<"settings" | "onboarding">("settings");
     
@@ -82,6 +85,8 @@
 
         paying = true;
         error = null;
+        paymentFailed = false;
+        serverError = false;
         try {
             await api.post<SubscriptionResponse>(
                 "/admin/subscriptions/checkout",
@@ -92,7 +97,7 @@
 
             // 🎉 Celebrate successful payment!
             showConfetti = true;
-            
+
             // Wait for confetti animation before redirecting
             setTimeout(() => {
                 if (source === "onboarding") {
@@ -106,7 +111,15 @@
                 }
             }, 4500);
         } catch (err: any) {
-            error = err?.response?.data?.message || "Payment failed.";
+            const status = err?.response?.status;
+            // Show banner only for 500-level server errors
+            if (status >= 500) {
+                serverError = true;
+            } else {
+                // Keep inline for 400-level (validation/auth)
+                paymentFailed = true;
+                error = err?.response?.data?.message || "Payment failed. Please check your card details.";
+            }
         } finally {
             paying = false;
         }
@@ -170,8 +183,18 @@
             <Badge variant="secondary" class="w-fit">MVP Mock Gateway</Badge>
         </div>
 
-        {#if error}
-            <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <ErrorBanner
+            show={serverError}
+            type="failure"
+            title="🔴 Server Error"
+            message="Our servers are experiencing issues. Please try again later."
+            showRetry={true}
+            onRetry={payAndUpgrade}
+            onDismiss={() => (serverError = false)}
+        />
+
+        {#if error && !serverError}
+            <div class="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
             </div>
         {/if}

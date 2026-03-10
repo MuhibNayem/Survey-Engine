@@ -1,18 +1,10 @@
-import Root from './OnboardingTour.svelte';
+// Onboarding Components Export
 
-export {
-	Root,
-	//
-	Root as OnboardingTour
-};
+export { default as OnboardingTour } from './OnboardingTour.svelte';
+export { default as FeatureTour } from './FeatureTour.svelte';
+export { default as FeatureTooltip } from './FeatureTooltip.svelte';
+export { default as FeatureBanner } from './FeatureBanner.svelte';
+export { default as TooltipWithDismiss } from './TooltipWithDismiss.svelte';
 
-export interface OnboardingStep {
-	title: string;
-	description: string;
-	targetSelector: string;
-}
-
-export interface OnboardingTourProps {
-	steps: OnboardingStep[];
-	onComplete?: () => void;
-}
+export type { TourStep, TourConfig } from './FeatureTour.svelte';
+export type { BannerConfig } from './FeatureBanner.svelte';

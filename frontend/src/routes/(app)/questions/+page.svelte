@@ -15,6 +15,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { useKeyboardShortcuts, commonShortcuts } from '$lib/hooks/useKeyboardShortcuts.svelte';
 	import { Confetti } from '$lib/components/confetti';
+	import { ErrorBanner } from '$lib/components/error-banner';
 	import { Plus, Pencil, Trash2, Search, X, HelpCircle, MoreHorizontal } from 'lucide-svelte';
 	import type { QuestionResponse, QuestionType, PageResponse } from '$lib/types';
 
@@ -41,6 +42,15 @@
 	let formOptions = $state<OptionRow[]>([]);
 	let formLoading = $state(false);
 	let formError = $state<string | null>(null);
+
+	// API Error Banner - only for 500-level errors
+	type ApiErrorState = {
+		show: boolean;
+		type: 'error';
+		title: string;
+		message: string;
+	};
+	let apiError = $state<ApiErrorState>({ show: false, type: 'error', title: '', message: '' });
 
 	// Delete dialog
 	let deleteTarget = $state<QuestionResponse | null>(null);
@@ -178,6 +188,7 @@
 		e.preventDefault();
 		formLoading = true;
 		formError = null;
+		apiError = { show: false, type: 'error', title: '', message: '' };
 		try {
 			let optionConfig: string | undefined;
 			if (requiresOptions(formType)) {
@@ -211,8 +222,22 @@
 			dialogOpen = false;
 			await loadQuestions();
 		} catch (err: unknown) {
-			const axiosErr = err as { response?: { data?: { message?: string } } };
-			formError = axiosErr?.response?.data?.message ?? 'Something went wrong.';
+			const axiosErr = err as { response?: { data?: { message?: string }; status?: number } };
+			const status = axiosErr?.response?.status;
+			const message = axiosErr?.response?.data?.message ?? 'Failed to save question.';
+			
+			// Show banner only for 500-level errors
+			if (status && status >= 500) {
+				apiError = {
+					show: true,
+					type: 'error',
+					title: '🔴 Server Error',
+					message: 'Our servers are experiencing issues. Please try again later.'
+				};
+			} else {
+				// Keep inline for 400-level (validation/auth)
+				formError = message;
+			}
 		} finally {
 			formLoading = false;
 		}
@@ -276,7 +301,15 @@
 		})
 	]);
 
-	onMount(loadQuestions);
+	onMount(() => {
+		loadQuestions();
+		// Check for #new hash to open create dialog
+		if (typeof window !== 'undefined' && window.location.hash === '#new') {
+			openCreateDialog();
+			// Clear hash without triggering navigation
+			window.history.replaceState(null, '', window.location.pathname);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -290,6 +323,14 @@
 		actionLabel="New Question"
 		actionIcon={Plus}
 		onAction={openCreateDialog}
+	/>
+
+	<ErrorBanner
+		show={apiError.show}
+		type="failure"
+		title={apiError.title}
+		message={apiError.message}
+		onDismiss={() => (apiError = { show: false, type: 'error', title: '', message: '' })}
 	/>
 
 	<!-- Filters -->

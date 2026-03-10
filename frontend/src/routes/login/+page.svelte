@@ -15,7 +15,11 @@
         e.preventDefault();
         const success = await auth.login({ email, password });
         if (success) {
-            if (auth.user?.role === "SUPER_ADMIN") {
+            // Check if this is first-time login
+            if (auth.user?.firstLogin) {
+                // Redirect to onboarding for first-time users
+                goto("/onboarding/plan");
+            } else if (auth.user?.role === "SUPER_ADMIN") {
                 goto("/admin/dashboard");
             } else {
                 goto("/dashboard");
@@ -60,9 +64,7 @@
             <Card.Content class="pt-6">
                 <form onsubmit={handleLogin} class="space-y-4">
                     {#if auth.error}
-                        <div
-                            class="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                        >
+                        <div class="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                             {auth.error}
                         </div>
                     {/if}

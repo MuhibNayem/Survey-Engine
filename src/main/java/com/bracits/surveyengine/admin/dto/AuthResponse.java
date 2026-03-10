@@ -15,6 +15,7 @@ public class AuthResponse {
     private String fullName;
     private String tenantId;
     private AdminRole role;
+    private boolean firstLogin;
     private String accessToken;
     private String refreshToken;
     private String tokenType;

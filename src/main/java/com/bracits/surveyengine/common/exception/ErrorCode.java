@@ -22,9 +22,14 @@ public enum ErrorCode {
     PAYMENT_FAILED("Payment processing failed"),
     QUOTA_EXCEEDED("Plan quota exceeded"),
 
+    // --- Feature Management ---
+    FEATURE_DISABLED("Feature is currently disabled"),
+    RESOURCE_ALREADY_EXISTS("Resource already exists"),
+
     // --- General ---
     RESOURCE_NOT_FOUND("Requested resource not found"),
     VALIDATION_FAILED("Request validation failed"),
+    VALIDATION_ERROR("Request validation failed"),
     ACCESS_DENIED("Access denied"),
     INTERNAL_ERROR("An unexpected error occurred");
 

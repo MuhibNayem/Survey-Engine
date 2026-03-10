@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class TenantService {
@@ -24,5 +26,15 @@ public class TenantService {
     @Transactional(readOnly = true)
     public boolean exists(String tenantId) {
         return tenantRepository.existsById(tenantId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Tenant> findAll() {
+        return tenantRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Tenant> searchByName(String searchTerm) {
+        return tenantRepository.findByNameContainingIgnoreCaseOrderByCreatedAtDesc(searchTerm);
     }
 }

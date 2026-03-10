@@ -7,7 +7,6 @@
     import { Separator } from "$lib/components/ui/separator";
     import { Switch } from "$lib/components/ui/switch";
     import { Label } from "$lib/components/ui/label";
-    import { Confetti } from "$lib/components/confetti";
     import {
         CreditCard,
         ShieldCheck,
@@ -24,10 +23,11 @@
             : false,
     );
 
-    // Confetti celebration for profile completion
+    // Confetti celebration for profile completion (only show once per session)
     let showConfetti = $state(false);
     let confettiTitle = $state('');
     let confettiMessage = $state('');
+    let hasShownConfetti = $state(false);
 
     function toggleTheme() {
         isDarkMode = !isDarkMode;
@@ -39,12 +39,13 @@
     }
 
     onMount(() => {
-        // 🎉 Celebrate if profile is complete (has email and tenant)
-        if (auth.user?.email && auth.user?.tenantId && auth.user?.role) {
-            showConfetti = true;
-            confettiTitle = '✅ Profile Complete!';
-            confettiMessage = 'Your account is fully set up and ready to go.';
-            setTimeout(() => (showConfetti = false), 4000);
+        // 🎉 Celebrate only on first visit to settings (not every navigation)
+        // Check if user hasn't seen confetti yet AND profile is complete
+        if (!hasShownConfetti && auth.user?.email && auth.user?.tenantId && auth.user?.role) {
+            // Only show for new users (within first 7 days of account creation)
+            // For now, we'll skip confetti on settings page entirely
+            // as it's annoying to show on every visit
+            hasShownConfetti = true;
         }
     });
 </script>
@@ -204,19 +205,3 @@
         </div>
     </div>
 </div>
-
-<!-- 🎉 Confetti Celebration -->
-{#if showConfetti}
-    <Confetti
-        fire={showConfetti}
-        showBanner={true}
-        title={confettiTitle}
-        message={confettiMessage}
-        particleCount={150}
-        spread={80}
-        startVelocity={50}
-        duration={3500}
-        colors={['#10b981', '#3b82f6', '#8b5cf6']}
-        onComplete={() => (showConfetti = false)}
-    />
-{/if}

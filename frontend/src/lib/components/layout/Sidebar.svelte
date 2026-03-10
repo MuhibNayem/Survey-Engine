@@ -14,6 +14,7 @@
         Users,
         UserX,
         Activity,
+        ToggleRight,
     } from "lucide-svelte";
     import * as Tooltip from "$lib/components/ui/tooltip";
     import { auth } from "$lib/stores/auth.svelte";
@@ -41,6 +42,7 @@
         { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
         { href: "/admin/tenants", label: "Tenants", icon: Users },
         { href: "/admin/plans", label: "System Plans", icon: ShieldAlert },
+        { href: "/admin/features", label: "Features", icon: ToggleRight },
         { href: "/admin/audit-logs", label: "Audit Logs", icon: Activity },
     ];
 
@@ -66,10 +68,14 @@
                         : "/dashboard"}
                     class="flex items-center gap-2"
                 >
-                    <img src={logo} alt="Survey Engine Logo" class="h-8 w-8 object-contain" />
+                    <img
+                        src={logo}
+                        alt="Survey Engine Logo"
+                        class="h-8 w-8 object-contain"
+                    />
                     <span class="text-lg font-semibold text-sidebar-foreground"
                         >Survey Engine</span
-                     >
+                    >
                 </a>
             {:else}
                 <a

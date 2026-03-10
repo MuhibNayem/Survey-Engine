@@ -34,6 +34,7 @@ export interface AuthUserResponse {
     fullName?: string;
     tenantId: string;
     role: string;
+    firstLogin?: boolean;
 }
 
 export interface PageResponse<T> {

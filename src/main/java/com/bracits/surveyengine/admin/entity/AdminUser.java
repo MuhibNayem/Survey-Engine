@@ -3,7 +3,9 @@ package com.bracits.surveyengine.admin.entity;
 import com.bracits.surveyengine.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -15,7 +17,7 @@ import java.util.UUID;
 @Table(name = "admin_user")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdminUser extends AuditableEntity {
@@ -44,4 +46,18 @@ public class AdminUser extends AuditableEntity {
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * Tracks if this is the user's first login after registration.
+     * Set to false after first successful login completion.
+     */
+    @Column(name = "first_login", nullable = false)
+    @Builder.Default
+    private boolean firstLogin = true;
+
+    /**
+     * Last login timestamp for tracking user activity.
+     */
+    @Column(name = "last_login_at")
+    private Instant lastLoginAt;
 }

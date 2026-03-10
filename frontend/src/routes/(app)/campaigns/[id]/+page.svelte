@@ -13,6 +13,7 @@
     import { toast } from "svelte-sonner";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { Confetti } from "$lib/components/confetti";
+    import { ErrorBanner } from "$lib/components/error-banner";
     import {
         ArrowLeft,
         Settings,
@@ -51,6 +52,15 @@
     let showConfetti = $state(false);
     let confettiTitle = $state('');
     let confettiMessage = $state('');
+
+    // API Error Banner - only for 500-level errors
+    type ApiErrorState = {
+        show: boolean;
+        type: 'error';
+        title: string;
+        message: string;
+    };
+    let apiError = $state<ApiErrorState>({ show: false, type: 'error', title: '', message: '' });
 
     // Settings form
     let settings = $state<CampaignSettingsRequest>({
@@ -361,6 +371,7 @@
 
     async function activate() {
         activateLoading = true;
+        apiError = { show: false, type: 'error', title: '', message: '' };
         try {
             await api.post(`/campaigns/${campaignId}/activate`);
             // 🎉 Celebrate campaign activation
@@ -369,8 +380,19 @@
             confettiMessage = 'Your campaign is now live and collecting responses.';
             setTimeout(() => (showConfetti = false), 4500);
             await loadCampaign();
-        } catch {
-            // silent
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const message = err?.response?.data?.message || 'Failed to activate campaign.';
+            
+            // Show banner only for 500-level errors
+            if (status && status >= 500) {
+                apiError = {
+                    show: true,
+                    type: 'error',
+                    title: '🔴 Server Error',
+                    message: 'Our servers are experiencing issues. Please try again later.'
+                };
+            }
         } finally {
             activateLoading = false;
         }
@@ -488,6 +510,16 @@
     </div>
 {:else if campaign}
     <div class="space-y-6">
+        <ErrorBanner
+            show={apiError.show}
+            type="failure"
+            title={apiError.title}
+            message={apiError.message}
+            showRetry={true}
+            onRetry={activate}
+            onDismiss={() => (apiError = { show: false, type: 'error', title: '', message: '' })}
+        />
+
         <!-- Header -->
         <div
             class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"

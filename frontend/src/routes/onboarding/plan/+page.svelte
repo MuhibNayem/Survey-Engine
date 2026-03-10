@@ -8,6 +8,7 @@
     import { Badge } from "$lib/components/ui/badge";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { Confetti } from "$lib/components/confetti";
+    import { ErrorBanner } from "$lib/components/error-banner";
     import { CheckCircle2, CreditCard, Sparkles } from "lucide-svelte";
     import type {
         PlanDefinitionResponse,
@@ -18,6 +19,15 @@
     let error = $state<string | null>(null);
     let plans = $state<PlanDefinitionResponse[]>([]);
     let subscription = $state<SubscriptionResponse | null>(null);
+
+    // API Error Banner - only for 500-level errors
+    type ApiErrorState = {
+        show: boolean;
+        type: 'error';
+        title: string;
+        message: string;
+    };
+    let apiError = $state<ApiErrorState>({ show: false, type: 'error', title: '', message: '' });
 
     // Confetti celebration
     let showConfetti = $state(false);
@@ -48,11 +58,13 @@
     }
 
     function startCheckout(planCode: string) {
-        // 🎉 Celebrate plan selection
-        showConfetti = true;
-        confettiTitle = '✨ Welcome Aboard!';
-        confettiMessage = 'Your plan has been selected. Let\'s get started on your survey journey!';
-        setTimeout(() => (showConfetti = false), 5000);
+        // 🎉 Celebrate plan selection only for first-time users
+        if (auth.user?.firstLogin) {
+            showConfetti = true;
+            confettiTitle = '✨ Welcome Aboard!';
+            confettiMessage = 'Your plan has been selected. Let\'s get started on your survey journey!';
+            setTimeout(() => (showConfetti = false), 5000);
+        }
         goto(`/payment/checkout?planCode=${planCode}&source=onboarding`);
     }
 
@@ -64,6 +76,7 @@
 
         loading = true;
         error = null;
+        apiError = { show: false, type: 'error', title: '', message: '' };
         try {
             const [plansRes, subRes] = await Promise.allSettled([
                 api.get<PlanDefinitionResponse[]>("/admin/plans"),
@@ -73,7 +86,18 @@
             if (plansRes.status === "fulfilled") {
                 plans = plansRes.value.data;
             } else {
-                error = "Failed to load plans.";
+                const status = plansRes.reason?.response?.status;
+                // Show banner only for 500-level errors
+                if (status && status >= 500) {
+                    apiError = {
+                        show: true,
+                        type: 'error',
+                        title: '🔴 Server Error',
+                        message: 'Our servers are experiencing issues. Please try again later.'
+                    };
+                } else {
+                    error = "Failed to load plans.";
+                }
             }
 
             if (subRes.status === "fulfilled") {
@@ -107,13 +131,13 @@
             </p>
         </div>
 
-        {#if error}
-            <div
-                class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
-            >
-                {error}
-            </div>
-        {/if}
+        <ErrorBanner
+            show={apiError.show || error !== null}
+            type="failure"
+            title={apiError.show ? apiError.title : "⚠️ Plan Selection Failed"}
+            message={apiError.show ? apiError.message : (error || 'Failed to load plan information.')}
+            onDismiss={() => { apiError = { show: false, type: 'error', title: '', message: '' }; error = null; }}
+        />
 
         {#if loading}
             <div class="grid gap-4 md:grid-cols-3">

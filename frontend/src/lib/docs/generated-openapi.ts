@@ -57,6 +57,14 @@ export const generatedOpenApi = {
     {
       "name": "Audit Logs",
       "description": "Tenant-scoped and platform-scoped activity log retrieval endpoints."
+    },
+    {
+      "name": "Feature Management",
+      "description": "Enterprise feature management APIs for tours, tooltips, banners, and feature flags. Super admin endpoints for feature governance and tenant configuration."
+    },
+    {
+      "name": "User Features",
+      "description": "User-level feature access and completion tracking endpoints."
     }
   ],
   "operations": [
@@ -286,6 +294,266 @@ export const generatedOpenApi = {
         {
           "name": "tenantId",
           "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "listFeatures",
+      "method": "GET",
+      "endpoint": "/admin/features",
+      "path": "/api/v1/admin/features",
+      "summary": "List all feature definitions",
+      "description": "Why this endpoint is needed:\nSuper administrators need a centralized view of all registered features including tours, tooltips, banners, and feature flags.\n\nWhat this endpoint does:\nReturns paginated list of feature definitions with filtering by category and type.\n",
+      "tags": [
+        "Feature Management"
+      ],
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "category",
+          "type": "string(GENERAL|DASHBOARD|SURVEYS|CAMPAIGNS|QUESTIONS|ANALYTICS|RESPONSES|SETTINGS|ADMIN)",
+          "required": false
+        },
+        {
+          "name": "type",
+          "type": "string(TOUR|TOOLTIP|BANNER|FEATURE_FLAG|ANNOUNCEMENT)",
+          "required": false
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "defaultValue": "0"
+        },
+        {
+          "name": "size",
+          "type": "integer",
+          "required": false,
+          "defaultValue": "20"
+        }
+      ],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "createFeature",
+      "method": "POST",
+      "endpoint": "/admin/features",
+      "path": "/api/v1/admin/features",
+      "summary": "Create a new feature definition",
+      "description": "Why this endpoint is needed:\nSuper administrators need to register new features in the central registry with metadata, access rules, and rollout configuration.\n",
+      "tags": [
+        "Feature Management"
+      ],
+      "pathParams": [],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "featureType",
+          "type": "string(TOUR|TOOLTIP|BANNER|FEATURE_FLAG|ANNOUNCEMENT)",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "string(GENERAL|DASHBOARD|SURVEYS|CAMPAIGNS|QUESTIONS|ANALYTICS|RESPONSES|SETTINGS|ADMIN)",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": true,
+          "defaultValue": "true"
+        },
+        {
+          "name": "rolloutPercentage",
+          "type": "integer",
+          "required": false,
+          "defaultValue": "100"
+        },
+        {
+          "name": "minPlan",
+          "type": "string(BASIC|PRO|ENTERPRISE)",
+          "required": false,
+          "defaultValue": "BASIC"
+        },
+        {
+          "name": "roles",
+          "type": "string(SUPER_ADMIN|ADMIN|EDITOR|VIEWER)[]",
+          "required": false,
+          "defaultValue": "SUPER_ADMIN,ADMIN,EDITOR,VIEWER"
+        },
+        {
+          "name": "platforms",
+          "type": "string(WEB|MOBILE|DESKTOP)[]",
+          "required": false,
+          "defaultValue": "WEB"
+        },
+        {
+          "name": "metadata",
+          "type": "object",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "updateFeature",
+      "method": "PUT",
+      "endpoint": "/admin/features/{featureKey}",
+      "path": "/api/v1/admin/features/{featureKey}",
+      "summary": "Update an existing feature definition",
+      "description": "Why this endpoint is needed:\nFeature metadata, access rules, and rollout percentages need to be adjustable as product strategy evolves.\n",
+      "tags": [
+        "Feature Management"
+      ],
+      "pathParams": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "rolloutPercentage",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "name": "minPlan",
+          "type": "string(BASIC|PRO|ENTERPRISE)",
+          "required": false
+        },
+        {
+          "name": "roles",
+          "type": "string(SUPER_ADMIN|ADMIN|EDITOR|VIEWER)[]",
+          "required": false
+        },
+        {
+          "name": "platforms",
+          "type": "string(WEB|MOBILE|DESKTOP)[]",
+          "required": false
+        },
+        {
+          "name": "metadata",
+          "type": "object",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "deleteFeature",
+      "method": "DELETE",
+      "endpoint": "/admin/features/{featureKey}",
+      "path": "/api/v1/admin/features/{featureKey}",
+      "summary": "Delete a feature definition",
+      "description": "Why this endpoint is needed:\nRetired features need to be removed from the registry to keep the catalog clean.\n",
+      "tags": [
+        "Feature Management"
+      ],
+      "pathParams": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "getFeatureAnalytics",
+      "method": "GET",
+      "endpoint": "/admin/features/{featureKey}/analytics",
+      "path": "/api/v1/admin/features/{featureKey}/analytics",
+      "summary": "Get usage analytics for a feature",
+      "description": "Why this endpoint is needed:\nProduct teams need to measure feature adoption, completion rates, and user engagement.\n",
+      "tags": [
+        "Feature Management"
+      ],
+      "pathParams": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "configureFeatureForTenant",
+      "method": "POST",
+      "endpoint": "/admin/features/{featureKey}/tenants/{tenantId}/configure",
+      "path": "/api/v1/admin/features/{featureKey}/tenants/{tenantId}/configure",
+      "summary": "Configure feature for a specific tenant",
+      "description": "Why this endpoint is needed:\nEnterprise tenants may need to enable/disable features or customize behavior for their user base.\n",
+      "tags": [
+        "Feature Management"
+      ],
+      "pathParams": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tenantId",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": [
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "rolloutPercentage",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "name": "customMetadata",
+          "type": "object",
           "required": false
         }
       ]
@@ -1570,6 +1838,76 @@ export const generatedOpenApi = {
         }
       ],
       "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "completeFeature",
+      "method": "POST",
+      "endpoint": "/features/{featureKey}/complete",
+      "path": "/api/v1/features/{featureKey}/complete",
+      "summary": "Mark a feature as completed",
+      "description": "Why this endpoint is needed:\nUsers need to record completion of tours, tooltips, or feature interactions for progress tracking.\n",
+      "tags": [
+        "User Features"
+      ],
+      "pathParams": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": [
+        {
+          "name": "completed",
+          "type": "boolean",
+          "required": false,
+          "defaultValue": "true"
+        }
+      ]
+    },
+    {
+      "id": "getFeatureStatus",
+      "method": "GET",
+      "endpoint": "/features/{featureKey}/status",
+      "path": "/api/v1/features/{featureKey}/status",
+      "summary": "Get feature status for current user",
+      "description": "Why this endpoint is needed:\nFrontend needs to check if a specific feature has been completed by the current user.\n",
+      "tags": [
+        "User Features"
+      ],
+      "pathParams": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "getAvailableFeatures",
+      "method": "GET",
+      "endpoint": "/features/available",
+      "path": "/api/v1/features/available",
+      "summary": "Get features available to current user",
+      "description": "Why this endpoint is needed:\nFrontend applications need to know which features are available and incomplete for the logged-in user.\n",
+      "tags": [
+        "User Features"
+      ],
+      "pathParams": [],
+      "queryParams": [
+        {
+          "name": "category",
+          "type": "string(GENERAL|DASHBOARD|SURVEYS|CAMPAIGNS|QUESTIONS|ANALYTICS|RESPONSES|SETTINGS|ADMIN)",
+          "required": false
+        }
+      ],
       "headers": [],
       "requestBody": []
     },

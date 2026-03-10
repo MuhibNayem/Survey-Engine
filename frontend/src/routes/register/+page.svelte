@@ -207,9 +207,7 @@
             <Card.Content class="pt-6">
                 <form onsubmit={handleRegister} class="space-y-4">
                     {#if auth.error}
-                        <div
-                            class="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                        >
+                        <div class="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                             {auth.error}
                         </div>
                     {/if}

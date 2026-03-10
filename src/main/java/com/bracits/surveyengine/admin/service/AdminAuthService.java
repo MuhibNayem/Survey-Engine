@@ -128,6 +128,16 @@ public class AdminAuthService {
                     "Invalid email or password");
         }
 
+        // Check if this is first login
+        boolean isFirstLogin = user.isFirstLogin();
+        
+        // Update first login flag and last login timestamp
+        if (isFirstLogin) {
+            user.setFirstLogin(false);
+        }
+        user.setLastLoginAt(Instant.now());
+        userRepository.save(user);
+
         // Revoke existing refresh tokens on new login
         refreshTokenRepository.revokeAllByUserId(user.getId());
 
@@ -176,6 +186,7 @@ public class AdminAuthService {
                 .fullName(user.getFullName())
                 .tenantId(user.getTenantId())
                 .role(user.getRole())
+                .firstLogin(user.isFirstLogin())
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenValue)
                 .tokenType("Bearer")

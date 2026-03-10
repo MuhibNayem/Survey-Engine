@@ -5,8 +5,8 @@
 | Field | Value |
 | ----- | ----- |
 | Document Title | Survey Engine MVP SRS |
-| Version | 2.2 |
-| Date | March 9, 2026 |
+| Version | 3.0 - Enterprise Feature Management Added |
+| Date | March 10, 2026 |
 | Prepared For | Product and Engineering |
 | Classification | Internal |
 | Status | Reflects implemented code and schema |
@@ -19,22 +19,26 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 
 ### **2.1 In Scope (Implemented)**
 
-* Multi-tenant data model with tenant isolation in service/repository layer and DB constraints.  
+* Multi-tenant data model with tenant isolation in service/repository layer and DB constraints.
 * Engine-owned admin authentication with dual delivery modes:
   * browser session mode (HttpOnly cookie-based tokens)
-  * headless/API mode (explicit token response contract)  
-* Admin RBAC using JWT roles (`SUPER_ADMIN`, `ADMIN`, `EDITOR`, `VIEWER`).  
-* Question bank and category CRUD with live mutable bank definitions.  
-* Survey CRUD with draft-time pinning, lifecycle transitions, and immutable published snapshots.  
-* Campaign CRUD, runtime settings, activation, and distribution channel generation.  
-* Responder submission, response locking, reopen workflow, and basic analytics.  
-* Campaign access mode (`PUBLIC`/`PRIVATE`) with tenant-level external auth profile for private responder access.  
-* Automated campaign scoring using category weights pinned from survey structure.  
-* Optional manual scoring profile APIs retained for advanced/administrative use (not part of default frontend flow).  
-* SaaS subscription domain (tenant subscription, plan catalog, mock payment success flow).  
+  * headless/API mode (explicit token response contract)
+* Admin RBAC using JWT roles (`SUPER_ADMIN`, `ADMIN`, `EDITOR`, `VIEWER`).
+* Question bank and category CRUD with live mutable bank definitions.
+* Survey CRUD with draft-time pinning, lifecycle transitions, and immutable published snapshots.
+* Campaign CRUD, runtime settings, activation, and distribution channel generation.
+* Responder submission, response locking, reopen workflow, and basic analytics.
+* Campaign access mode (`PUBLIC`/`PRIVATE`) with tenant-level external auth profile for private responder access.
+* Automated campaign scoring using category weights pinned from survey structure.
+* Optional manual scoring profile APIs retained for advanced/administrative use (not part of default frontend flow).
+* SaaS subscription domain (tenant subscription, plan catalog, mock payment success flow).
 * Super-admin plan catalog management and tenant plan quota enforcement.
 * Super-admin tenant operations: tenant listing, suspend/activate, impersonation, and subscription override.
 * Tenant and platform audit log query APIs.
+* **NEW: Enterprise Feature Management System (tours, tooltips, banners, feature flags, announcements).**
+* **NEW: First-time user tracking with backend-persisted onboarding progress.**
+* **NEW: Guided help system with multi-layer access control (global/tenant/plan/role/rollout).**
+* **NEW: Super admin UI for feature governance and tenant-level configuration.**
 
 ### **2.2 Out of Scope (Current Codebase)**
 
@@ -342,6 +346,51 @@ Production targets:
 * Platform-wide audit endpoint: `GET /api/v1/admin/superadmin/audit-logs`.
 * Query supports filtering by action/entity/date and paging/sorting.
 
+### **4.15 Enterprise Feature Management System (NEW - V28)**
+
+* Central feature registry with metadata, access rules, and rollout configuration.
+* Multi-layer access control:
+  * Global enable/disable flag
+  * Tenant-level overrides
+  * Plan-based gating (BASIC/PRO/ENTERPRISE)
+  * Role-based access (SUPER_ADMIN/ADMIN/EDITOR/VIEWER)
+  * Rollout percentage (0-100%) for gradual releases
+* Feature types supported:
+  * TOUR: Multi-step guided tours with element highlighting
+  * TOOLTIP: Contextual help with dismiss functionality
+  * BANNER: Announcement banners with scheduling
+  * FEATURE_FLAG: Binary feature toggles
+  * ANNOUNCEMENT: Time-bound announcements
+* User progress tracking:
+  * Backend-persisted completion status
+  * Access count and timestamps
+  * Cross-device synchronization
+* Super admin governance:
+  * Create/update/delete feature definitions
+  * Configure tenant-specific overrides
+  * View usage analytics and adoption metrics
+  * Bulk import/export features
+* Frontend integration:
+  * Reactive feature flag hook (`useFeatureFlag`)
+  * Pre-built components (FeatureTour, FeatureTooltip, FeatureBanner)
+  * Automatic availability checking
+  * Progress tracking APIs
+* Analytics and reporting:
+  * Completion rates per feature
+  * User engagement metrics
+  * Tenant-level adoption dashboards
+  * A/B testing support via rollout percentage
+
+### **4.16 First-Time User Onboarding (NEW - V26/V27/V28)**
+
+* First login tracking with `first_login` flag in admin_user table.
+* Automatic redirect to onboarding flow for new users.
+* Backend-persisted onboarding progress (not browser-dependent).
+* Integration with feature management for tour/toOLTIP delivery.
+* Plan selection flow during first-time onboarding.
+* Contextual help tooltips with permanent dismiss option.
+* Dashboard tour for initial product discovery.
+
 ## **5\. Data and Schema Requirements**
 
 ### **5.1 Core Tenant Model**
@@ -378,16 +427,16 @@ Production targets:
 
 ## **6\. API Surface (Implemented)**
 
-* Admin auth: `/api/v1/admin/auth/**`  
+* Admin auth: `/api/v1/admin/auth/**`
   * Includes browser mode (`/register`, `/login`, `/refresh`, `/logout`, `/me`, `/csrf`) and token mode (`/token/**`).
-* Plan management: `/api/v1/admin/plans` (PUT requires `SUPER_ADMIN`)  
-* Subscription: `/api/v1/admin/subscriptions/me`, `/api/v1/admin/subscriptions/checkout`  
-* Super-admin tenant ops: `/api/v1/admin/superadmin/tenants/**`, `/api/v1/admin/superadmin/metrics`  
-* Question bank: `/api/v1/questions/**`, `/api/v1/categories/**`  
-* Surveys: `/api/v1/surveys/**`  
-* Campaigns: `/api/v1/campaigns/**`  
+* Plan management: `/api/v1/admin/plans` (PUT requires `SUPER_ADMIN`)
+* Subscription: `/api/v1/admin/subscriptions/me`, `/api/v1/admin/subscriptions/checkout`
+* Super-admin tenant ops: `/api/v1/admin/superadmin/tenants/**`, `/api/v1/admin/superadmin/metrics`
+* Question bank: `/api/v1/questions/**`, `/api/v1/categories/**`
+* Surveys: `/api/v1/surveys/**`
+* Campaigns: `/api/v1/campaigns/**`
 * Public campaign preview: `/api/v1/public/campaigns/**`
-* Scoring: `/api/v1/scoring/**`  
+* Scoring: `/api/v1/scoring/**`
   * Note: scoring APIs are implemented, but the default MVP frontend flow no longer exposes a dedicated `/scoring` route.
 * Auth profiles/validation: `/api/v1/auth/**`
   * Includes provider template endpoints for onboarding UI.
@@ -395,6 +444,18 @@ Production targets:
 * Advanced Analytics: `/api/v1/analytics/campaigns/{campaignId}/**`
   * Includes `/full-report` (GET, metadata filtered) and `/compare` (POST, multiplexed segments).
 * Audit logs: `/api/v1/audit-logs`, `/api/v1/admin/superadmin/audit-logs`
+* **Feature Management: `/api/v1/admin/features/**` (Super Admin)**
+  * `GET /` - List all features
+  * `POST /` - Create new feature
+  * `PUT /{featureKey}` - Update feature
+  * `DELETE /{featureKey}` - Delete feature
+  * `POST /{featureKey}/tenants/{tenantId}/configure` - Configure for tenant
+  * `GET /{featureKey}/analytics` - Get usage analytics
+  * `POST /bulk` - Bulk create/update features
+* **User Features: `/api/v1/features/**` (Any authenticated user)**
+  * `GET /available` - Get available features for current user
+  * `POST /{featureKey}/complete` - Mark feature as completed
+  * `GET /{featureKey}/status` - Check feature status
 
 ## **7\. Non-Functional Requirements (Implemented Baseline)**
 
@@ -440,17 +501,22 @@ Minimum business errors in code include:
 
 The authentication model and survey response access model are considered **MVP-ready** for pilot/beta use:
 
-* Tenant-level responder auth configuration (no per-campaign auth duplication).  
-* Campaign access control supports both `PUBLIC` and `PRIVATE` modes.  
-* Survey draft pinning model protects runtime consistency against future question/category bank edits.  
-* Campaign activation auto-provisions default weighted scoring from pinned survey category weights.  
+* Tenant-level responder auth configuration (no per-campaign auth duplication).
+* Campaign access control supports both `PUBLIC` and `PRIVATE` modes.
+* Survey draft pinning model protects runtime consistency against future question/category bank edits.
+* Campaign activation auto-provisions default weighted scoring from pinned survey category weights.
 * Private responder flows support:
   * Signed launch token validation with replay protection (`jti`)
   * OIDC authorization code flow with callback and one-time responder access code exchange
-* Dynamic tenant claim mapping supports required/optional claims with fail-closed validation.  
-* Admin authentication includes access token + refresh token rotation.  
-* Auth configuration changes are audit logged.  
+* Dynamic tenant claim mapping supports required/optional claims with fail-closed validation.
+* Admin authentication includes access token + refresh token rotation.
+* Auth configuration changes are audit logged.
 * End-to-end test suite passes with these behaviors.
+* **NEW: Enterprise Feature Management System with complete backend and frontend implementation.**
+* **NEW: First-time user tracking with backend-persisted onboarding progress.**
+* **NEW: Super admin UI for feature governance and tenant configuration.**
+* **NEW: Multi-layer access control (global/tenant/plan/role/rollout).**
+* **NEW: User progress tracking with cross-device synchronization.**
 
 ### **10.2 MVP Caveat**
 
@@ -458,11 +524,14 @@ This maturity level is suitable for MVP release and early tenant onboarding, but
 
 ## **11\. Known Gaps / Future Extensions**
 
-* Replace mock payment gateway with production provider integration (webhooks, retry, reconciliation).  
-* Add quota dimensions (storage, API rate, monthly response caps, feature flags).  
-* Add richer analytics/reporting data products.  
-* Extend admin RBAC and policy packs for enterprise governance.  
-* Add dedicated theming management API surface.  
-* Add production-grade secret management and key lifecycle controls (KMS/Vault backed encryption, scheduled rotation, operational playbooks).  
-* Add auth abuse protections (rate limits, anomaly controls, lockout policy) on public/auth endpoints.  
+* Replace mock payment gateway with production provider integration (webhooks, retry, reconciliation).
+* Add quota dimensions (storage, API rate, monthly response caps, feature flags).
+* Add richer analytics/reporting data products.
+* Extend admin RBAC and policy packs for enterprise governance.
+* Add dedicated theming management API surface.
+* Add production-grade secret management and key lifecycle controls (KMS/Vault backed encryption, scheduled rotation, operational playbooks).
+* Add auth abuse protections (rate limits, anomaly controls, lockout policy) on public/auth endpoints.
 * Expand live IdP interoperability certification matrix and operational monitoring coverage.
+* Add E2E tests for feature management flows.
+* Add accessibility testing for guided help components.
+* Add performance benchmarks for feature availability checks at scale.

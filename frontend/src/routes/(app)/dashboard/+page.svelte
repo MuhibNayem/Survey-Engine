@@ -10,6 +10,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { EmptyState } from '$lib/components/empty-state';
 	import { Confetti } from '$lib/components/confetti';
+	import { ErrorBanner } from '$lib/components/error-banner';
 	import {
 		HelpCircle,
 		FolderKanban,
@@ -36,6 +37,15 @@
         responses: "—",
     });
     let loadingCampaigns = $state(true);
+
+    // API Error Banner - only for 500-level errors
+    type ApiErrorState = {
+        show: boolean;
+        type: 'error';
+        title: string;
+        message: string;
+    };
+    let apiError = $state<ApiErrorState>({ show: false, type: 'error', title: '', message: '' });
 
     // Confetti celebration for milestones
     let showConfetti = $state(false);
@@ -96,7 +106,8 @@
         };
     }
 
-    onMount(async () => {
+    async function loadDashboardData() {
+        apiError = { show: false, type: 'error', title: '', message: '' };
         // Load stats in parallel
         const [questions, categories, surveys, campaigns, sub] =
             await Promise.allSettled([
@@ -107,17 +118,31 @@
                 api.get<SubscriptionResponse>("/admin/subscriptions/me"),
             ]);
 
+        let hasError = false;
+        let hasServerError = false;
         if (questions.status === "fulfilled") {
             const { total } = unwrapPage(questions.value.data);
             stats.questions = String(total);
+        } else {
+            const status = questions.reason?.response?.status;
+            if (status && status >= 500) hasServerError = true;
+            else hasError = true;
         }
         if (categories.status === "fulfilled") {
             const { total } = unwrapPage(categories.value.data);
             stats.categories = String(total);
+        } else {
+            const status = categories.reason?.response?.status;
+            if (status && status >= 500) hasServerError = true;
+            else hasError = true;
         }
         if (surveys.status === "fulfilled") {
             const { total } = unwrapPage(surveys.value.data);
             stats.surveys = String(total);
+        } else {
+            const status = surveys.reason?.response?.status;
+            if (status && status >= 500) hasServerError = true;
+            else hasError = true;
         }
 
         if (campaigns.status === "fulfilled") {
@@ -170,7 +195,26 @@
         if (sub.status === "fulfilled") {
             subscription = sub.value.data;
         }
-    });
+
+        // Show banner only for 500-level errors
+        if (hasServerError) {
+            apiError = {
+                show: true,
+                type: 'error',
+                title: '🔴 Server Error',
+                message: 'Our servers are experiencing issues. Please try again later.'
+            };
+        } else if (hasError) {
+            apiError = {
+                show: true,
+                type: 'error',
+                title: '📊 Data Load Error',
+                message: 'Failed to load some dashboard data. Please try again.'
+            };
+        }
+    }
+
+    onMount(loadDashboardData);
 
     const planBadgeVariant = $derived(
         subscription?.status === "ACTIVE"
@@ -206,6 +250,16 @@
             >
         </p>
     </div>
+
+    <ErrorBanner
+        show={apiError.show}
+        type="error"
+        title={apiError.title}
+        message={apiError.message}
+        showRetry={true}
+        onRetry={loadDashboardData}
+        onDismiss={() => (apiError = { show: false, type: 'error', title: '', message: '' })}
+    />
 
     <!-- Subscription Banner -->
     {#if subscription}

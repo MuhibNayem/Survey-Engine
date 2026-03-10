@@ -49,6 +49,10 @@ tags:
     description: Platform-level tenant administration, impersonation, and metrics endpoints.
   - name: Audit Logs
     description: Tenant-scoped and platform-scoped activity log retrieval endpoints.
+  - name: Feature Management
+    description: Enterprise feature management APIs for tours, tooltips, banners, and feature flags. Super admin endpoints for feature governance and tenant configuration.
+  - name: User Features
+    description: User-level feature access and completion tracking endpoints.
 
 security:
   - bearerAuth: []
@@ -2415,6 +2419,264 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
 
+  /api/v1/admin/features:
+    get:
+      tags: [Feature Management]
+      operationId: listFeatures
+      summary: List all feature definitions
+      description: |
+        Why this endpoint is needed:
+        Super administrators need a centralized view of all registered features including tours, tooltips, banners, and feature flags.
+        
+        What this endpoint does:
+        Returns paginated list of feature definitions with filtering by category and type.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/FeatureCategory'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/FeatureType'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of feature definitions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeatureDefinitionDTO'
+    post:
+      tags: [Feature Management]
+      operationId: createFeature
+      summary: Create a new feature definition
+      description: |
+        Why this endpoint is needed:
+        Super administrators need to register new features in the central registry with metadata, access rules, and rollout configuration.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeatureRequest'
+      responses:
+        '201':
+          description: Feature created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureDefinitionDTO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/v1/admin/features/{featureKey}:
+    put:
+      tags: [Feature Management]
+      operationId: updateFeature
+      summary: Update an existing feature definition
+      description: |
+        Why this endpoint is needed:
+        Feature metadata, access rules, and rollout percentages need to be adjustable as product strategy evolves.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFeatureRequest'
+      responses:
+        '200':
+          description: Feature updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureDefinitionDTO'
+    delete:
+      tags: [Feature Management]
+      operationId: deleteFeature
+      summary: Delete a feature definition
+      description: |
+        Why this endpoint is needed:
+        Retired features need to be removed from the registry to keep the catalog clean.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Feature deleted
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/admin/features/{featureKey}/tenants/{tenantId}/configure:
+    post:
+      tags: [Feature Management]
+      operationId: configureFeatureForTenant
+      summary: Configure feature for a specific tenant
+      description: |
+        Why this endpoint is needed:
+        Enterprise tenants may need to enable/disable features or customize behavior for their user base.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantFeatureConfigDTO'
+      responses:
+        '200':
+          description: Tenant configuration saved
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/admin/features/{featureKey}/analytics:
+    get:
+      tags: [Feature Management]
+      operationId: getFeatureAnalytics
+      summary: Get usage analytics for a feature
+      description: |
+        Why this endpoint is needed:
+        Product teams need to measure feature adoption, completion rates, and user engagement.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Feature analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureAnalyticsDTO'
+
+  /api/v1/features/available:
+    get:
+      tags: [User Features]
+      operationId: getAvailableFeatures
+      summary: Get features available to current user
+      description: |
+        Why this endpoint is needed:
+        Frontend applications need to know which features are available and incomplete for the logged-in user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/FeatureCategory'
+      responses:
+        '200':
+          description: List of available features
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeatureStatusDTO'
+
+  /api/v1/features/{featureKey}/complete:
+    post:
+      tags: [User Features]
+      operationId: completeFeature
+      summary: Mark a feature as completed
+      description: |
+        Why this endpoint is needed:
+        Users need to record completion of tours, tooltips, or feature interactions for progress tracking.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completed:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Feature marked as completed
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/features/{featureKey}/status:
+    get:
+      tags: [User Features]
+      operationId: getFeatureStatus
+      summary: Get feature status for current user
+      description: |
+        Why this endpoint is needed:
+        Frontend needs to check if a specific feature has been completed by the current user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Feature status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureStatusDTO'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3235,3 +3497,116 @@ components:
               field: { type: string }
               message: { type: string }
               rejectedValue: {}
+
+    FeatureType:
+      type: string
+      enum: [TOUR, TOOLTIP, BANNER, FEATURE_FLAG, ANNOUNCEMENT]
+
+    FeatureCategory:
+      type: string
+      enum: [GENERAL, DASHBOARD, SURVEYS, CAMPAIGNS, QUESTIONS, ANALYTICS, RESPONSES, SETTINGS, ADMIN]
+
+    CreateFeatureRequest:
+      type: object
+      required: [featureKey, featureType, category, name, enabled]
+      properties:
+        featureKey: { type: string, maxLength: 255 }
+        featureType: { $ref: '#/components/schemas/FeatureType' }
+        category: { $ref: '#/components/schemas/FeatureCategory' }
+        name: { type: string, maxLength: 255 }
+        description: { type: string }
+        enabled: { type: boolean, default: true }
+        rolloutPercentage: { type: integer, minimum: 0, maximum: 100, default: 100 }
+        minPlan: { type: string, enum: [BASIC, PRO, ENTERPRISE], default: BASIC }
+        roles:
+          type: array
+          items: { type: string, enum: [SUPER_ADMIN, ADMIN, EDITOR, VIEWER] }
+          default: [SUPER_ADMIN, ADMIN, EDITOR, VIEWER]
+        platforms:
+          type: array
+          items: { type: string, enum: [WEB, MOBILE, DESKTOP] }
+          default: [WEB]
+        metadata: { type: object, additionalProperties: {} }
+
+    UpdateFeatureRequest:
+      type: object
+      properties:
+        name: { type: string, maxLength: 255 }
+        description: { type: string }
+        enabled: { type: boolean }
+        rolloutPercentage: { type: integer, minimum: 0, maximum: 100 }
+        minPlan: { type: string, enum: [BASIC, PRO, ENTERPRISE] }
+        roles:
+          type: array
+          items: { type: string, enum: [SUPER_ADMIN, ADMIN, EDITOR, VIEWER] }
+        platforms:
+          type: array
+          items: { type: string, enum: [WEB, MOBILE, DESKTOP] }
+        metadata: { type: object, additionalProperties: {} }
+
+    FeatureDefinitionDTO:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        featureKey: { type: string }
+        featureType: { $ref: '#/components/schemas/FeatureType' }
+        category: { $ref: '#/components/schemas/FeatureCategory' }
+        name: { type: string }
+        description: { type: string }
+        enabled: { type: boolean }
+        rolloutPercentage: { type: integer }
+        minPlan: { type: string }
+        roles:
+          type: array
+          items: { type: string }
+        platforms:
+          type: array
+          items: { type: string }
+        metadata: { type: object, additionalProperties: {} }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedBy: { type: string }
+        updatedAt: { type: string, format: date-time }
+
+    TenantFeatureConfigDTO:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        rolloutPercentage: { type: integer, minimum: 0, maximum: 100 }
+        customMetadata: { type: object, additionalProperties: {} }
+
+    FeatureAnalyticsDTO:
+      type: object
+      properties:
+        featureKey: { type: string }
+        totalUsers: { type: integer }
+        accessedCount: { type: integer }
+        completedCount: { type: integer }
+        completionRate: { type: number, format: double }
+        averageAccessCount: { type: number, format: double }
+        lastAccessedAt: { type: string, format: date-time }
+
+    FeatureStatusDTO:
+      type: object
+      properties:
+        featureKey: { type: string }
+        available: { type: boolean }
+        completed: { type: boolean }
+        accessed: { type: boolean }
+        accessCount: { type: integer }
+        lastAccessedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+
+    BulkFeatureResponse:
+      type: object
+      properties:
+        created: { type: integer }
+        updated: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              featureKey: { type: string }
+              error: { type: string }

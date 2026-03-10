@@ -1,7 +1,7 @@
 # Survey Engine MVP Lifecycle Flows (Step-by-Step Guide)
 ## Product: Headless Multi-Tenant Survey Engine (MVP)
-## Version: 1.2
-## Date: March 9, 2026
+## Version: 2.0 - Enterprise Feature Management Added
+## Date: March 10, 2026
 
 ## Purpose
 This document explains each MVP flow in execution order with practical guidance:
@@ -32,6 +32,8 @@ This is intentionally operational and sequence-driven for product, onboarding, a
 14. Out-of-MVP Lifecycle Items
 15. Super-Admin Tenant Operations Flow
 16. Audit Log Query Flow
+17. **NEW: Enterprise Feature Management Flow**
+18. **NEW: First-Time User Onboarding Flow**
 
 ---
 
@@ -856,3 +858,165 @@ Provide traceability for tenant-level and platform-wide operational activity.
 - Why: Super-admin and support teams need cross-tenant visibility.
 - How: Use optional filters (`tenantId`, `actor`, `action`, `entityType`, `from`, `to`) and paging.
 - Result: Platform-wide audit records for governance and investigation.
+
+---
+
+## 17. Enterprise Feature Management Flow (NEW - V28)
+
+### Goal
+Provide centralized control over feature availability, guided tours, tooltips, banners, and announcements with multi-layer access control.
+
+### Step-by-step
+
+#### **17.1 Super Admin: Create Feature Definition**
+
+1. Create feature (`POST /api/v1/admin/features`).
+- Why: Register new feature in central registry with metadata and access rules.
+- How: Send `featureKey`, `featureType`, `category`, `name`, `enabled`, `rolloutPercentage`, `minPlan`, `roles`, `platforms`, `metadata`.
+- Result: Feature definition created with unique ID.
+
+2. Review feature (`GET /api/v1/admin/features/{featureKey}`).
+- Why: Verify configuration and metadata.
+- How: Fetch feature definition by key.
+- Result: Complete feature metadata.
+
+3. Update feature (`PUT /api/v1/admin/features/{featureKey}`).
+- Why: Adjust rollout percentage, enable/disable, or modify access rules.
+- How: Send updated fields in request payload.
+- Result: Feature definition updated.
+
+#### **17.2 Super Admin: Configure for Tenant**
+
+1. Configure tenant override (`POST /api/v1/admin/features/{featureKey}/tenants/{tenantId}/configure`).
+- Why: Enterprise tenants may need custom feature behavior or enable/disable for their users.
+- How: Send `enabled`, `rolloutPercentage`, `customMetadata`.
+- Result: Tenant-specific configuration saved.
+
+2. View tenant configurations (`GET /api/v1/admin/features/{featureKey}/tenants`).
+- Why: See which tenants have custom configurations.
+- How: Fetch tenant config list for feature.
+- Result: List of tenant overrides.
+
+#### **17.3 User: Feature Tour Flow**
+
+1. Check available features (`GET /api/v1/features/available?category=ONBOARDING`).
+- Why: Frontend needs to know which tours are available and incomplete for current user.
+- How: Call from authenticated user session.
+- Result: List of available features with status.
+
+2. Display tour (`<FeatureTour tour={config} />`).
+- Why: Guide user through feature discovery.
+- How: Render tour component when `feature.show = true`.
+- Result: Multi-step guided tour displayed.
+
+3. Mark tour complete (`POST /api/v1/features/{featureKey}/complete`).
+- Why: Track user progress and prevent re-showing.
+- How: Send `completed: true` (optional, defaults to true).
+- Result: User feature access record updated with `completed = true`, `completed_at = now()`.
+
+#### **17.4 User: Tooltip Dismiss Flow**
+
+1. Check tooltip status (`GET /api/v1/features/{featureKey}/status`).
+- Why: Determine if tooltip should be shown.
+- How: Call before rendering tooltip component.
+- Result: Feature status with `completed` flag.
+
+2. Display tooltip (`<TooltipWithDismiss tooltipId="survey-builder" />`).
+- Why: Provide contextual help.
+- How: Render when `status.completed = false`.
+- Result: Tooltip displayed near target element.
+
+3. Dismiss tooltip (checkbox "Don't show again").
+- Why: User wants to permanently dismiss.
+- How: Call `POST /api/v1/features/{featureKey}/complete` on checkbox check.
+- Result: Tooltip never shown again for this user.
+
+#### **17.5 Analytics and Reporting**
+
+1. View feature analytics (`GET /api/v1/admin/features/{featureKey}/analytics`).
+- Why: Measure adoption, completion rates, and engagement.
+- How: Call from super-admin session.
+- Result: Analytics with `totalUsers`, `accessedCount`, `completedCount`, `completionRate`, `averageAccessCount`.
+
+2. Bulk update features (`POST /api/v1/admin/features/bulk`).
+- Why: Create/update multiple features at once.
+- How: Send array of feature definitions.
+- Result: Bulk operation response with `created`, `updated`, `failed` counts.
+
+### Key implementation intent
+- Feature availability is determined by: global enabled → tenant override → plan check → role check → rollout percentage → user completion status.
+- All feature changes are audit logged with before/after snapshots.
+- Rollout percentage uses deterministic user hashing for consistency.
+
+---
+
+## 18. First-Time User Onboarding Flow (NEW - V26/V27/V28)
+
+### Goal
+Provide seamless onboarding experience for new users with guided tours, contextual tooltips, and progress tracking.
+
+### Step-by-step
+
+#### **18.1 Registration and First Login**
+
+1. Register new account (`POST /api/v1/admin/auth/register`).
+- Why: Create first admin user for new tenant.
+- How: Send `fullName`, `email`, `password`, `confirmPassword`.
+- Result: User created with `first_login = true`, tenant provisioned, trial subscription initialized.
+
+2. Check first login status (automatic in JWT response).
+- Why: Determine if user should see onboarding.
+- How: Backend returns `firstLogin: true` in auth response.
+- Result: Frontend redirects to `/onboarding/plan` if `firstLogin = true`.
+
+3. Complete onboarding plan selection (`POST /api/v1/admin/subscriptions/checkout`).
+- Why: Select initial plan tier.
+- How: Submit plan code from onboarding UI.
+- Result: Subscription activated, `first_login` set to `false`.
+
+#### **18.2 Dashboard Onboarding Tour**
+
+1. Check tour availability (`GET /api/v1/features/available?category=ONBOARDING`).
+- Why: Determine which onboarding tours to show.
+- How: Call on dashboard mount.
+- Result: List of available tours (e.g., `tour.dashboard`, `tour.surveys`).
+
+2. Display dashboard tour (`<FeatureTour tour={dashboardTour} />`).
+- Why: Introduce user to key dashboard features.
+- How: Render when `tour.show = true`.
+- Result: Multi-step tour with highlighting.
+
+3. Mark tour complete (`POST /api/v1/features/tour.dashboard/complete`).
+- Why: Track completion and prevent re-showing.
+- How: Call on tour completion.
+- Result: `completed = true`, tour never shown again.
+
+#### **18.3 Contextual Help Tooltips**
+
+1. Display tooltips after tour (`<TooltipWithDismiss tooltipId="new-survey" />`).
+- Why: Provide just-in-time guidance for specific actions.
+- How: Render when `status.completed = false`.
+- Result: Tooltip appears near target element after delay.
+
+2. Dismiss tooltip (checkbox "Don't show again").
+- Why: User wants to permanently dismiss.
+- How: Call `POST /api/v1/features/tooltip.new-survey/complete`.
+- Result: Tooltip permanently dismissed for this user.
+
+#### **18.4 Progress Tracking and Analytics**
+
+1. View user progress (automatic in backend).
+- Why: Track which features user has completed.
+- How: Backend maintains `user_feature_access` table.
+- Result: `accessed`, `completed`, `access_count`, `last_accessed_at`, `completed_at`.
+
+2. Reset user progress (`DELETE /api/v1/admin/preferences`).
+- Why: Allow user to restart all tours/tooltips.
+- How: Call from user settings (future enhancement).
+- Result: All feature completion flags reset to `false`.
+
+### Key implementation intent
+- First login flag ensures onboarding shows only once per user.
+- Backend persistence prevents data loss on browser clear.
+- Tenant-level configuration allows enterprises to customize onboarding.
+- Analytics track onboarding effectiveness and drop-off points.
