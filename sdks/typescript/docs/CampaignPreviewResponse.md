@@ -21,10 +21,12 @@ Name | Type
 `finishMessage` | string
 `headerHtml` | string
 `footerHtml` | string
+`theme` | [SurveyThemeConfigDto](SurveyThemeConfigDto.md)
 `collectName` | boolean
 `collectEmail` | boolean
 `collectPhone` | boolean
 `collectAddress` | boolean
+`dataCollectionFields` | [Array&lt;DataCollectionFieldResponse&gt;](DataCollectionFieldResponse.md)
 `pages` | [Array&lt;CampaignPreviewResponsePagesInner&gt;](CampaignPreviewResponsePagesInner.md)
 
 ## Example
@@ -49,10 +51,12 @@ const example = {
   "finishMessage": null,
   "headerHtml": null,
   "footerHtml": null,
+  "theme": null,
   "collectName": null,
   "collectEmail": null,
   "collectPhone": null,
   "collectAddress": null,
+  "dataCollectionFields": null,
   "pages": null,
 } satisfies CampaignPreviewResponse
 

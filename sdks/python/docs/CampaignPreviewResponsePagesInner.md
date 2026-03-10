@@ -8,7 +8,8 @@ Name | Type | Description | Notes
 **id** | **UUID** |  | [optional] 
 **title** | **str** |  | [optional] 
 **sort_order** | **int** |  | [optional] 
-**questions** | [**List[CampaignPreviewResponsePagesInnerQuestionsInner]**](CampaignPreviewResponsePagesInnerQuestionsInner.md) |  | [optional] 
+**categories** | [**List[CampaignPreviewResponsePagesInnerCategoriesInner]**](CampaignPreviewResponsePagesInnerCategoriesInner.md) |  | [optional] 
+**questions** | [**List[CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner]**](CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner.md) |  | [optional] 
 
 ## Example
 

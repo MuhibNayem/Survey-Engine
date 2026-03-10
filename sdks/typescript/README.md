@@ -73,8 +73,12 @@ All URIs are relative to *http://localhost*
 *CampaignsApi* | [**getCampaignPreview**](docs/CampaignsApi.md#getcampaignpreview) | **GET** /api/v1/campaigns/{id}/preview | Get admin preview payload for a campaign
 *CampaignsApi* | [**getCampaignSettings**](docs/CampaignsApi.md#getcampaignsettings) | **GET** /api/v1/campaigns/{id}/settings | Get campaign runtime settings
 *CampaignsApi* | [**getPublicCampaignPreview**](docs/CampaignsApi.md#getpubliccampaignpreview) | **GET** /api/v1/public/campaigns/{id}/preview | Get responder-facing preview payload (public endpoint)
+*CampaignsApi* | [**getResponderSessionStatus**](docs/CampaignsApi.md#getrespondersessionstatus) | **GET** /api/v1/public/campaigns/{id}/auth/session | Get current private responder session status for a campaign
 *CampaignsApi* | [**listCampaignChannels**](docs/CampaignsApi.md#listcampaignchannels) | **GET** /api/v1/campaigns/{id}/channels | List generated channels for a campaign
 *CampaignsApi* | [**listCampaigns**](docs/CampaignsApi.md#listcampaigns) | **GET** /api/v1/campaigns | List active campaigns
+*CampaignsApi* | [**loadPublicDraft**](docs/CampaignsApi.md#loadpublicdraft) | **POST** /api/v1/public/campaigns/{id}/responses/draft/load | Load an existing in-progress responder draft
+*CampaignsApi* | [**logoutResponderSession**](docs/CampaignsApi.md#logoutrespondersession) | **POST** /api/v1/public/campaigns/{id}/auth/logout | Revoke the current private responder session for a campaign
+*CampaignsApi* | [**savePublicDraft**](docs/CampaignsApi.md#savepublicdraft) | **POST** /api/v1/public/campaigns/{id}/responses/draft | Create or update an in-progress responder draft
 *CampaignsApi* | [**updateCampaign**](docs/CampaignsApi.md#updatecampaign) | **PUT** /api/v1/campaigns/{id} | Update campaign metadata
 *CampaignsApi* | [**updateCampaignSettings**](docs/CampaignsApi.md#updatecampaignsettings) | **PUT** /api/v1/campaigns/{id}/settings | Update campaign runtime settings
 *CategoriesApi* | [**createCategory**](docs/CategoriesApi.md#createcategory) | **POST** /api/v1/categories | Create a category grouping for questions
@@ -130,6 +134,12 @@ All URIs are relative to *http://localhost*
 *UserFeaturesApi* | [**completeFeature**](docs/UserFeaturesApi.md#completefeatureoperation) | **POST** /api/v1/features/{featureKey}/complete | Mark a feature as completed
 *UserFeaturesApi* | [**getAvailableFeatures**](docs/UserFeaturesApi.md#getavailablefeatures) | **GET** /api/v1/features/available | Get features available to current user
 *UserFeaturesApi* | [**getFeatureStatus**](docs/UserFeaturesApi.md#getfeaturestatus) | **GET** /api/v1/features/{featureKey}/status | Get feature status for current user
+*UserPreferencesApi* | [**getFeatureCompletionStatus**](docs/UserPreferencesApi.md#getfeaturecompletionstatus) | **GET** /api/v1/admin/preferences/{featureKey}/completed | Check whether a feature or onboarding item is completed
+*UserPreferencesApi* | [**getUserPreferences**](docs/UserPreferencesApi.md#getuserpreferences) | **GET** /api/v1/admin/preferences | Get all preferences for the current admin user
+*UserPreferencesApi* | [**resetUserPreferences**](docs/UserPreferencesApi.md#resetuserpreferences) | **DELETE** /api/v1/admin/preferences | Reset all preferences for the current admin user
+*UserPreferencesApi* | [**setFeatureCompletionStatus**](docs/UserPreferencesApi.md#setfeaturecompletionstatus) | **POST** /api/v1/admin/preferences/{featureKey}/complete | Mark a feature or onboarding item as completed or incomplete
+*UserPreferencesApi* | [**setUserPreference**](docs/UserPreferencesApi.md#setuserpreference) | **PATCH** /api/v1/admin/preferences/{key} | Update one preference key for the current admin user
+*UserPreferencesApi* | [**updateUserPreferences**](docs/UserPreferencesApi.md#updateuserpreferences) | **PATCH** /api/v1/admin/preferences | Update multiple preferences for the current admin user
 
 
 ### Models
@@ -146,7 +156,8 @@ All URIs are relative to *http://localhost*
 - [CampaignAnalytics](docs/CampaignAnalytics.md)
 - [CampaignPreviewResponse](docs/CampaignPreviewResponse.md)
 - [CampaignPreviewResponsePagesInner](docs/CampaignPreviewResponsePagesInner.md)
-- [CampaignPreviewResponsePagesInnerQuestionsInner](docs/CampaignPreviewResponsePagesInnerQuestionsInner.md)
+- [CampaignPreviewResponsePagesInnerCategoriesInner](docs/CampaignPreviewResponsePagesInnerCategoriesInner.md)
+- [CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner](docs/CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner.md)
 - [CampaignRequest](docs/CampaignRequest.md)
 - [CampaignResponse](docs/CampaignResponse.md)
 - [CampaignSettingsRequest](docs/CampaignSettingsRequest.md)
@@ -160,6 +171,8 @@ All URIs are relative to *http://localhost*
 - [CompleteFeatureRequest](docs/CompleteFeatureRequest.md)
 - [CreateFeatureRequest](docs/CreateFeatureRequest.md)
 - [CsrfTokenResponse](docs/CsrfTokenResponse.md)
+- [DataCollectionFieldRequest](docs/DataCollectionFieldRequest.md)
+- [DataCollectionFieldResponse](docs/DataCollectionFieldResponse.md)
 - [DistributionChannelResponse](docs/DistributionChannelResponse.md)
 - [ErrorResponse](docs/ErrorResponse.md)
 - [ErrorResponseFieldErrorsInner](docs/ErrorResponseFieldErrorsInner.md)
@@ -168,6 +181,7 @@ All URIs are relative to *http://localhost*
 - [FeatureDefinitionDTO](docs/FeatureDefinitionDTO.md)
 - [FeatureStatusDTO](docs/FeatureStatusDTO.md)
 - [FeatureType](docs/FeatureType.md)
+- [GetFeatureCompletionStatus200Response](docs/GetFeatureCompletionStatus200Response.md)
 - [LifecycleTransitionRequest](docs/LifecycleTransitionRequest.md)
 - [LoginRequest](docs/LoginRequest.md)
 - [OidcCallbackResponse](docs/OidcCallbackResponse.md)
@@ -185,6 +199,8 @@ All URIs are relative to *http://localhost*
 - [RefreshTokenRequest](docs/RefreshTokenRequest.md)
 - [RegisterRequest](docs/RegisterRequest.md)
 - [ReopenRequest](docs/ReopenRequest.md)
+- [ResponderSessionStatusResponse](docs/ResponderSessionStatusResponse.md)
+- [ResponseDraftLookupRequest](docs/ResponseDraftLookupRequest.md)
 - [ResponseSubmissionRequest](docs/ResponseSubmissionRequest.md)
 - [ResponseSubmissionRequestAnswersInner](docs/ResponseSubmissionRequestAnswersInner.md)
 - [ScoreResult](docs/ScoreResult.md)
@@ -201,10 +217,19 @@ All URIs are relative to *http://localhost*
 - [SurveyResponsePagesInnerQuestionsInner](docs/SurveyResponsePagesInnerQuestionsInner.md)
 - [SurveyResponseResponse](docs/SurveyResponseResponse.md)
 - [SurveyResponseResponseAnswersInner](docs/SurveyResponseResponseAnswersInner.md)
+- [SurveyThemeAdvanced](docs/SurveyThemeAdvanced.md)
+- [SurveyThemeBranding](docs/SurveyThemeBranding.md)
+- [SurveyThemeConfigDto](docs/SurveyThemeConfigDto.md)
+- [SurveyThemeFooter](docs/SurveyThemeFooter.md)
+- [SurveyThemeHeader](docs/SurveyThemeHeader.md)
+- [SurveyThemeLayout](docs/SurveyThemeLayout.md)
+- [SurveyThemeMotion](docs/SurveyThemeMotion.md)
+- [SurveyThemePalette](docs/SurveyThemePalette.md)
 - [TenantFeatureConfigDTO](docs/TenantFeatureConfigDTO.md)
 - [TenantOverviewResponse](docs/TenantOverviewResponse.md)
 - [TokenValidationResult](docs/TokenValidationResult.md)
 - [UpdateFeatureRequest](docs/UpdateFeatureRequest.md)
+- [UserPreferenceDTO](docs/UserPreferenceDTO.md)
 - [WeightProfileRequest](docs/WeightProfileRequest.md)
 - [WeightProfileResponse](docs/WeightProfileResponse.md)
 - [WeightProfileResponseCategoryWeightsInner](docs/WeightProfileResponseCategoryWeightsInner.md)

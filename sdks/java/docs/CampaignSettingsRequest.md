@@ -22,10 +22,12 @@
 |**finishMessage** | **String** |  |  [optional] |
 |**headerHtml** | **String** |  |  [optional] |
 |**footerHtml** | **String** |  |  [optional] |
+|**theme** | [**SurveyThemeConfigDto**](SurveyThemeConfigDto.md) |  |  [optional] |
 |**collectName** | **Boolean** |  |  [optional] |
 |**collectEmail** | **Boolean** |  |  [optional] |
 |**collectPhone** | **Boolean** |  |  [optional] |
 |**collectAddress** | **Boolean** |  |  [optional] |
+|**dataCollectionFields** | [**List&lt;DataCollectionFieldRequest&gt;**](DataCollectionFieldRequest.md) |  |  [optional] |
 
 
 

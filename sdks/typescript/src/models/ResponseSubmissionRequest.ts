@@ -32,6 +32,12 @@ export interface ResponseSubmissionRequest {
      * @type {string}
      * @memberof ResponseSubmissionRequest
      */
+    responseId?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ResponseSubmissionRequest
+     */
     campaignId: string;
     /**
      * 
@@ -65,6 +71,12 @@ export interface ResponseSubmissionRequest {
     responderAccessCode?: string;
     /**
      * 
+     * @type {{ [key: string]: string; }}
+     * @memberof ResponseSubmissionRequest
+     */
+    respondentMetadata?: { [key: string]: string; };
+    /**
+     * 
      * @type {Array<ResponseSubmissionRequestAnswersInner>}
      * @memberof ResponseSubmissionRequest
      */
@@ -89,12 +101,14 @@ export function ResponseSubmissionRequestFromJSONTyped(json: any, ignoreDiscrimi
     }
     return {
         
+        'responseId': json['responseId'] == null ? undefined : json['responseId'],
         'campaignId': json['campaignId'],
         'respondentIdentifier': json['respondentIdentifier'] == null ? undefined : json['respondentIdentifier'],
         'respondentIp': json['respondentIp'] == null ? undefined : json['respondentIp'],
         'respondentDeviceFingerprint': json['respondentDeviceFingerprint'] == null ? undefined : json['respondentDeviceFingerprint'],
         'responderToken': json['responderToken'] == null ? undefined : json['responderToken'],
         'responderAccessCode': json['responderAccessCode'] == null ? undefined : json['responderAccessCode'],
+        'respondentMetadata': json['respondentMetadata'] == null ? undefined : json['respondentMetadata'],
         'answers': json['answers'] == null ? undefined : ((json['answers'] as Array<any>).map(ResponseSubmissionRequestAnswersInnerFromJSON)),
     };
 }
@@ -110,12 +124,14 @@ export function ResponseSubmissionRequestToJSONTyped(value?: ResponseSubmissionR
 
     return {
         
+        'responseId': value['responseId'],
         'campaignId': value['campaignId'],
         'respondentIdentifier': value['respondentIdentifier'],
         'respondentIp': value['respondentIp'],
         'respondentDeviceFingerprint': value['respondentDeviceFingerprint'],
         'responderToken': value['responderToken'],
         'responderAccessCode': value['responderAccessCode'],
+        'respondentMetadata': value['respondentMetadata'],
         'answers': value['answers'] == null ? undefined : ((value['answers'] as Array<any>).map(ResponseSubmissionRequestAnswersInnerToJSON)),
     };
 }

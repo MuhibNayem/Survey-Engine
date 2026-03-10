@@ -12,8 +12,12 @@ All URIs are relative to *http://localhost*
 | [**getCampaignPreview**](CampaignsApi.md#getCampaignPreview) | **GET** /api/v1/campaigns/{id}/preview | Get admin preview payload for a campaign |
 | [**getCampaignSettings**](CampaignsApi.md#getCampaignSettings) | **GET** /api/v1/campaigns/{id}/settings | Get campaign runtime settings |
 | [**getPublicCampaignPreview**](CampaignsApi.md#getPublicCampaignPreview) | **GET** /api/v1/public/campaigns/{id}/preview | Get responder-facing preview payload (public endpoint) |
+| [**getResponderSessionStatus**](CampaignsApi.md#getResponderSessionStatus) | **GET** /api/v1/public/campaigns/{id}/auth/session | Get current private responder session status for a campaign |
 | [**listCampaignChannels**](CampaignsApi.md#listCampaignChannels) | **GET** /api/v1/campaigns/{id}/channels | List generated channels for a campaign |
 | [**listCampaigns**](CampaignsApi.md#listCampaigns) | **GET** /api/v1/campaigns | List active campaigns |
+| [**loadPublicDraft**](CampaignsApi.md#loadPublicDraft) | **POST** /api/v1/public/campaigns/{id}/responses/draft/load | Load an existing in-progress responder draft |
+| [**logoutResponderSession**](CampaignsApi.md#logoutResponderSession) | **POST** /api/v1/public/campaigns/{id}/auth/logout | Revoke the current private responder session for a campaign |
+| [**savePublicDraft**](CampaignsApi.md#savePublicDraft) | **POST** /api/v1/public/campaigns/{id}/responses/draft | Create or update an in-progress responder draft |
 | [**updateCampaign**](CampaignsApi.md#updateCampaign) | **PUT** /api/v1/campaigns/{id} | Update campaign metadata |
 | [**updateCampaignSettings**](CampaignsApi.md#updateCampaignSettings) | **PUT** /api/v1/campaigns/{id}/settings | Update campaign runtime settings |
 
@@ -564,6 +568,69 @@ No authorization required
 | **200** | Public preview returned |  -  |
 | **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
 
+<a id="getResponderSessionStatus"></a>
+# **getResponderSessionStatus**
+> ResponderSessionStatusResponse getResponderSessionStatus(id)
+
+Get current private responder session status for a campaign
+
+Why this endpoint is needed: Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.  What this endpoint does: It returns whether a valid responder session cookie is currently active for the target private campaign.  How this endpoint does it: The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload. 
+
+### Example
+```java
+// Import classes:
+import org.openapitools.client.ApiClient;
+import org.openapitools.client.ApiException;
+import org.openapitools.client.Configuration;
+import org.openapitools.client.models.*;
+import org.openapitools.client.api.CampaignsApi;
+
+public class Example {
+  public static void main(String[] args) {
+    ApiClient defaultClient = Configuration.getDefaultApiClient();
+    defaultClient.setBasePath("http://localhost");
+
+    CampaignsApi apiInstance = new CampaignsApi(defaultClient);
+    UUID id = UUID.randomUUID(); // UUID | 
+    try {
+      ResponderSessionStatusResponse result = apiInstance.getResponderSessionStatus(id);
+      System.out.println(result);
+    } catch (ApiException e) {
+      System.err.println("Exception when calling CampaignsApi#getResponderSessionStatus");
+      System.err.println("Status code: " + e.getCode());
+      System.err.println("Reason: " + e.getResponseBody());
+      System.err.println("Response headers: " + e.getResponseHeaders());
+      e.printStackTrace();
+    }
+  }
+}
+```
+
+### Parameters
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | **UUID**|  | |
+
+### Return type
+
+[**ResponderSessionStatusResponse**](ResponderSessionStatusResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Responder session status returned |  -  |
+| **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
 <a id="listCampaignChannels"></a>
 # **listCampaignChannels**
 > List&lt;DistributionChannelResponse&gt; listCampaignChannels(id)
@@ -696,6 +763,201 @@ This endpoint does not need any parameter.
 |-------------|-------------|------------------|
 | **200** | Campaign list returned |  -  |
 | **401** | Authentication missing or invalid |  -  |
+
+<a id="loadPublicDraft"></a>
+# **loadPublicDraft**
+> SurveyResponseResponse loadPublicDraft(id, responseDraftLookupRequest)
+
+Load an existing in-progress responder draft
+
+Why this endpoint is needed: Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.  What this endpoint does: It returns the matching in-progress draft when one exists for the supplied identity or response id.  How this endpoint does it: The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists. 
+
+### Example
+```java
+// Import classes:
+import org.openapitools.client.ApiClient;
+import org.openapitools.client.ApiException;
+import org.openapitools.client.Configuration;
+import org.openapitools.client.models.*;
+import org.openapitools.client.api.CampaignsApi;
+
+public class Example {
+  public static void main(String[] args) {
+    ApiClient defaultClient = Configuration.getDefaultApiClient();
+    defaultClient.setBasePath("http://localhost");
+
+    CampaignsApi apiInstance = new CampaignsApi(defaultClient);
+    UUID id = UUID.randomUUID(); // UUID | 
+    ResponseDraftLookupRequest responseDraftLookupRequest = new ResponseDraftLookupRequest(); // ResponseDraftLookupRequest | 
+    try {
+      SurveyResponseResponse result = apiInstance.loadPublicDraft(id, responseDraftLookupRequest);
+      System.out.println(result);
+    } catch (ApiException e) {
+      System.err.println("Exception when calling CampaignsApi#loadPublicDraft");
+      System.err.println("Status code: " + e.getCode());
+      System.err.println("Reason: " + e.getResponseBody());
+      System.err.println("Response headers: " + e.getResponseHeaders());
+      e.printStackTrace();
+    }
+  }
+}
+```
+
+### Parameters
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | **UUID**|  | |
+| **responseDraftLookupRequest** | [**ResponseDraftLookupRequest**](ResponseDraftLookupRequest.md)|  | |
+
+### Return type
+
+[**SurveyResponseResponse**](SurveyResponseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Draft restored |  -  |
+| **204** | No draft exists for the supplied identity |  -  |
+| **400** | Request validation failed or business rule validation failed |  -  |
+| **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
+<a id="logoutResponderSession"></a>
+# **logoutResponderSession**
+> logoutResponderSession(id)
+
+Revoke the current private responder session for a campaign
+
+Why this endpoint is needed: Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.  What this endpoint does: It revokes the current responder session and clears the responder session cookie.  How this endpoint does it: The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie. 
+
+### Example
+```java
+// Import classes:
+import org.openapitools.client.ApiClient;
+import org.openapitools.client.ApiException;
+import org.openapitools.client.Configuration;
+import org.openapitools.client.models.*;
+import org.openapitools.client.api.CampaignsApi;
+
+public class Example {
+  public static void main(String[] args) {
+    ApiClient defaultClient = Configuration.getDefaultApiClient();
+    defaultClient.setBasePath("http://localhost");
+
+    CampaignsApi apiInstance = new CampaignsApi(defaultClient);
+    UUID id = UUID.randomUUID(); // UUID | 
+    try {
+      apiInstance.logoutResponderSession(id);
+    } catch (ApiException e) {
+      System.err.println("Exception when calling CampaignsApi#logoutResponderSession");
+      System.err.println("Status code: " + e.getCode());
+      System.err.println("Reason: " + e.getResponseBody());
+      System.err.println("Response headers: " + e.getResponseHeaders());
+      e.printStackTrace();
+    }
+  }
+}
+```
+
+### Parameters
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | **UUID**|  | |
+
+### Return type
+
+null (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **204** | Responder session revoked and cookie cleared |  -  |
+| **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
+<a id="savePublicDraft"></a>
+# **savePublicDraft**
+> SurveyResponseResponse savePublicDraft(id, responseSubmissionRequest)
+
+Create or update an in-progress responder draft
+
+Why this endpoint is needed: Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.  What this endpoint does: It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.  How this endpoint does it: The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state. 
+
+### Example
+```java
+// Import classes:
+import org.openapitools.client.ApiClient;
+import org.openapitools.client.ApiException;
+import org.openapitools.client.Configuration;
+import org.openapitools.client.models.*;
+import org.openapitools.client.api.CampaignsApi;
+
+public class Example {
+  public static void main(String[] args) {
+    ApiClient defaultClient = Configuration.getDefaultApiClient();
+    defaultClient.setBasePath("http://localhost");
+
+    CampaignsApi apiInstance = new CampaignsApi(defaultClient);
+    UUID id = UUID.randomUUID(); // UUID | 
+    ResponseSubmissionRequest responseSubmissionRequest = new ResponseSubmissionRequest(); // ResponseSubmissionRequest | 
+    try {
+      SurveyResponseResponse result = apiInstance.savePublicDraft(id, responseSubmissionRequest);
+      System.out.println(result);
+    } catch (ApiException e) {
+      System.err.println("Exception when calling CampaignsApi#savePublicDraft");
+      System.err.println("Status code: " + e.getCode());
+      System.err.println("Reason: " + e.getResponseBody());
+      System.err.println("Response headers: " + e.getResponseHeaders());
+      e.printStackTrace();
+    }
+  }
+}
+```
+
+### Parameters
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | **UUID**|  | |
+| **responseSubmissionRequest** | [**ResponseSubmissionRequest**](ResponseSubmissionRequest.md)|  | |
+
+### Return type
+
+[**SurveyResponseResponse**](SurveyResponseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Draft saved |  -  |
+| **400** | Request validation failed or business rule validation failed |  -  |
+| **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
 
 <a id="updateCampaign"></a>
 # **updateCampaign**

@@ -10,7 +10,8 @@
 |**id** | **UUID** |  |  [optional] |
 |**title** | **String** |  |  [optional] |
 |**sortOrder** | **Integer** |  |  [optional] |
-|**questions** | [**List&lt;CampaignPreviewResponsePagesInnerQuestionsInner&gt;**](CampaignPreviewResponsePagesInnerQuestionsInner.md) |  |  [optional] |
+|**categories** | [**List&lt;CampaignPreviewResponsePagesInnerCategoriesInner&gt;**](CampaignPreviewResponsePagesInnerCategoriesInner.md) |  |  [optional] |
+|**questions** | [**List&lt;CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner&gt;**](CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner.md) |  |  [optional] |
 
 
 

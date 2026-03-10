@@ -15,3 +15,4 @@ export * from './SubscriptionApi';
 export * from './SuperAdminApi';
 export * from './SurveysApi';
 export * from './UserFeaturesApi';
+export * from './UserPreferencesApi';

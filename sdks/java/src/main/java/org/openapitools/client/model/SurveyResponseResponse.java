@@ -54,7 +54,7 @@ import org.openapitools.client.JSON;
 /**
  * SurveyResponseResponse
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-11T04:33:32.444010+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class SurveyResponseResponse {
   public static final String SERIALIZED_NAME_ID = "id";
   @SerializedName(SERIALIZED_NAME_ID)
@@ -75,6 +75,11 @@ public class SurveyResponseResponse {
   @SerializedName(SERIALIZED_NAME_RESPONDENT_IDENTIFIER)
   @javax.annotation.Nullable
   private String respondentIdentifier;
+
+  public static final String SERIALIZED_NAME_RESPONDENT_METADATA = "respondentMetadata";
+  @SerializedName(SERIALIZED_NAME_RESPONDENT_METADATA)
+  @javax.annotation.Nullable
+  private String respondentMetadata;
 
   /**
    * Gets or Sets status
@@ -248,6 +253,25 @@ public class SurveyResponseResponse {
 
   public void setRespondentIdentifier(@javax.annotation.Nullable String respondentIdentifier) {
     this.respondentIdentifier = respondentIdentifier;
+  }
+
+
+  public SurveyResponseResponse respondentMetadata(@javax.annotation.Nullable String respondentMetadata) {
+    this.respondentMetadata = respondentMetadata;
+    return this;
+  }
+
+  /**
+   * Get respondentMetadata
+   * @return respondentMetadata
+   */
+  @javax.annotation.Nullable
+  public String getRespondentMetadata() {
+    return respondentMetadata;
+  }
+
+  public void setRespondentMetadata(@javax.annotation.Nullable String respondentMetadata) {
+    this.respondentMetadata = respondentMetadata;
   }
 
 
@@ -469,6 +493,7 @@ public class SurveyResponseResponse {
         Objects.equals(this.campaignId, surveyResponseResponse.campaignId) &&
         Objects.equals(this.surveySnapshotId, surveyResponseResponse.surveySnapshotId) &&
         Objects.equals(this.respondentIdentifier, surveyResponseResponse.respondentIdentifier) &&
+        Objects.equals(this.respondentMetadata, surveyResponseResponse.respondentMetadata) &&
         Objects.equals(this.status, surveyResponseResponse.status) &&
         Objects.equals(this.startedAt, surveyResponseResponse.startedAt) &&
         Objects.equals(this.submittedAt, surveyResponseResponse.submittedAt) &&
@@ -482,7 +507,7 @@ public class SurveyResponseResponse {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, campaignId, surveySnapshotId, respondentIdentifier, status, startedAt, submittedAt, lockedAt, weightProfileId, weightedTotalScore, scoredAt, answers, additionalProperties);
+    return Objects.hash(id, campaignId, surveySnapshotId, respondentIdentifier, respondentMetadata, status, startedAt, submittedAt, lockedAt, weightProfileId, weightedTotalScore, scoredAt, answers, additionalProperties);
   }
 
   @Override
@@ -493,6 +518,7 @@ public class SurveyResponseResponse {
     sb.append("    campaignId: ").append(toIndentedString(campaignId)).append("\n");
     sb.append("    surveySnapshotId: ").append(toIndentedString(surveySnapshotId)).append("\n");
     sb.append("    respondentIdentifier: ").append(toIndentedString(respondentIdentifier)).append("\n");
+    sb.append("    respondentMetadata: ").append(toIndentedString(respondentMetadata)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    startedAt: ").append(toIndentedString(startedAt)).append("\n");
     sb.append("    submittedAt: ").append(toIndentedString(submittedAt)).append("\n");
@@ -523,7 +549,7 @@ public class SurveyResponseResponse {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "campaignId", "surveySnapshotId", "respondentIdentifier", "status", "startedAt", "submittedAt", "lockedAt", "weightProfileId", "weightedTotalScore", "scoredAt", "answers"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "campaignId", "surveySnapshotId", "respondentIdentifier", "respondentMetadata", "status", "startedAt", "submittedAt", "lockedAt", "weightProfileId", "weightedTotalScore", "scoredAt", "answers"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -553,6 +579,9 @@ public class SurveyResponseResponse {
       }
       if ((jsonObj.get("respondentIdentifier") != null && !jsonObj.get("respondentIdentifier").isJsonNull()) && !jsonObj.get("respondentIdentifier").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `respondentIdentifier` to be a primitive type in the JSON string but got `%s`", jsonObj.get("respondentIdentifier").toString()));
+      }
+      if ((jsonObj.get("respondentMetadata") != null && !jsonObj.get("respondentMetadata").isJsonNull()) && !jsonObj.get("respondentMetadata").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `respondentMetadata` to be a primitive type in the JSON string but got `%s`", jsonObj.get("respondentMetadata").toString()));
       }
       if ((jsonObj.get("status") != null && !jsonObj.get("status").isJsonNull()) && !jsonObj.get("status").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `status` to be a primitive type in the JSON string but got `%s`", jsonObj.get("status").toString()));

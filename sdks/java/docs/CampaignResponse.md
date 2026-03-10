@@ -20,6 +20,7 @@
 |**createdAt** | **OffsetDateTime** |  |  [optional] |
 |**updatedBy** | **String** |  |  [optional] |
 |**updatedAt** | **OffsetDateTime** |  |  [optional] |
+|**dataCollectionFields** | [**List&lt;DataCollectionFieldResponse&gt;**](DataCollectionFieldResponse.md) |  |  [optional] |
 
 
 

@@ -8,7 +8,12 @@ Name | Type | Description | Notes
 **id** | **UUID** |  | [optional] 
 **question_id** | **UUID** |  | [optional] 
 **question_version_id** | **UUID** |  | [optional] 
+**question_version_number** | **int** |  | [optional] 
+**question_text** | **str** |  | [optional] 
+**question_type** | **str** |  | [optional] 
+**option_config** | **str** |  | [optional] 
 **value** | **str** |  | [optional] 
+**remark** | **str** |  | [optional] 
 **score** | **float** |  | [optional] 
 
 ## Example

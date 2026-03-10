@@ -12,8 +12,12 @@ Method | HTTP request | Description
 [**get_campaign_preview**](CampaignsApi.md#get_campaign_preview) | **GET** /api/v1/campaigns/{id}/preview | Get admin preview payload for a campaign
 [**get_campaign_settings**](CampaignsApi.md#get_campaign_settings) | **GET** /api/v1/campaigns/{id}/settings | Get campaign runtime settings
 [**get_public_campaign_preview**](CampaignsApi.md#get_public_campaign_preview) | **GET** /api/v1/public/campaigns/{id}/preview | Get responder-facing preview payload (public endpoint)
+[**get_responder_session_status**](CampaignsApi.md#get_responder_session_status) | **GET** /api/v1/public/campaigns/{id}/auth/session | Get current private responder session status for a campaign
 [**list_campaign_channels**](CampaignsApi.md#list_campaign_channels) | **GET** /api/v1/campaigns/{id}/channels | List generated channels for a campaign
 [**list_campaigns**](CampaignsApi.md#list_campaigns) | **GET** /api/v1/campaigns | List active campaigns
+[**load_public_draft**](CampaignsApi.md#load_public_draft) | **POST** /api/v1/public/campaigns/{id}/responses/draft/load | Load an existing in-progress responder draft
+[**logout_responder_session**](CampaignsApi.md#logout_responder_session) | **POST** /api/v1/public/campaigns/{id}/auth/logout | Revoke the current private responder session for a campaign
+[**save_public_draft**](CampaignsApi.md#save_public_draft) | **POST** /api/v1/public/campaigns/{id}/responses/draft | Create or update an in-progress responder draft
 [**update_campaign**](CampaignsApi.md#update_campaign) | **PUT** /api/v1/campaigns/{id} | Update campaign metadata
 [**update_campaign_settings**](CampaignsApi.md#update_campaign_settings) | **PUT** /api/v1/campaigns/{id}/settings | Update campaign runtime settings
 
@@ -715,6 +719,83 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **get_responder_session_status**
+> ResponderSessionStatusResponse get_responder_session_status(id)
+
+Get current private responder session status for a campaign
+
+Why this endpoint is needed:
+Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.
+
+What this endpoint does:
+It returns whether a valid responder session cookie is currently active for the target private campaign.
+
+How this endpoint does it:
+The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload.
+
+
+### Example
+
+
+```python
+import openapi_client
+from openapi_client.models.responder_session_status_response import ResponderSessionStatusResponse
+from openapi_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = openapi_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with openapi_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = openapi_client.CampaignsApi(api_client)
+    id = UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d') # UUID | 
+
+    try:
+        # Get current private responder session status for a campaign
+        api_response = api_instance.get_responder_session_status(id)
+        print("The response of CampaignsApi->get_responder_session_status:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling CampaignsApi->get_responder_session_status: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **UUID**|  | 
+
+### Return type
+
+[**ResponderSessionStatusResponse**](ResponderSessionStatusResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Responder session status returned |  -  |
+**404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **list_campaign_channels**
 > List[DistributionChannelResponse] list_campaign_channels(id)
 
@@ -883,6 +964,243 @@ This endpoint does not need any parameter.
 |-------------|-------------|------------------|
 **200** | Campaign list returned |  -  |
 **401** | Authentication missing or invalid |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **load_public_draft**
+> SurveyResponseResponse load_public_draft(id, response_draft_lookup_request)
+
+Load an existing in-progress responder draft
+
+Why this endpoint is needed:
+Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.
+
+What this endpoint does:
+It returns the matching in-progress draft when one exists for the supplied identity or response id.
+
+How this endpoint does it:
+The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists.
+
+
+### Example
+
+
+```python
+import openapi_client
+from openapi_client.models.response_draft_lookup_request import ResponseDraftLookupRequest
+from openapi_client.models.survey_response_response import SurveyResponseResponse
+from openapi_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = openapi_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with openapi_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = openapi_client.CampaignsApi(api_client)
+    id = UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d') # UUID | 
+    response_draft_lookup_request = openapi_client.ResponseDraftLookupRequest() # ResponseDraftLookupRequest | 
+
+    try:
+        # Load an existing in-progress responder draft
+        api_response = api_instance.load_public_draft(id, response_draft_lookup_request)
+        print("The response of CampaignsApi->load_public_draft:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling CampaignsApi->load_public_draft: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **UUID**|  | 
+ **response_draft_lookup_request** | [**ResponseDraftLookupRequest**](ResponseDraftLookupRequest.md)|  | 
+
+### Return type
+
+[**SurveyResponseResponse**](SurveyResponseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Draft restored |  -  |
+**204** | No draft exists for the supplied identity |  -  |
+**400** | Request validation failed or business rule validation failed |  -  |
+**404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **logout_responder_session**
+> logout_responder_session(id)
+
+Revoke the current private responder session for a campaign
+
+Why this endpoint is needed:
+Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.
+
+What this endpoint does:
+It revokes the current responder session and clears the responder session cookie.
+
+How this endpoint does it:
+The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie.
+
+
+### Example
+
+
+```python
+import openapi_client
+from openapi_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = openapi_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with openapi_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = openapi_client.CampaignsApi(api_client)
+    id = UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d') # UUID | 
+
+    try:
+        # Revoke the current private responder session for a campaign
+        api_instance.logout_responder_session(id)
+    except Exception as e:
+        print("Exception when calling CampaignsApi->logout_responder_session: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **UUID**|  | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**204** | Responder session revoked and cookie cleared |  -  |
+**404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **save_public_draft**
+> SurveyResponseResponse save_public_draft(id, response_submission_request)
+
+Create or update an in-progress responder draft
+
+Why this endpoint is needed:
+Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.
+
+What this endpoint does:
+It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.
+
+How this endpoint does it:
+The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state.
+
+
+### Example
+
+
+```python
+import openapi_client
+from openapi_client.models.response_submission_request import ResponseSubmissionRequest
+from openapi_client.models.survey_response_response import SurveyResponseResponse
+from openapi_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = openapi_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with openapi_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = openapi_client.CampaignsApi(api_client)
+    id = UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d') # UUID | 
+    response_submission_request = openapi_client.ResponseSubmissionRequest() # ResponseSubmissionRequest | 
+
+    try:
+        # Create or update an in-progress responder draft
+        api_response = api_instance.save_public_draft(id, response_submission_request)
+        print("The response of CampaignsApi->save_public_draft:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling CampaignsApi->save_public_draft: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **UUID**|  | 
+ **response_submission_request** | [**ResponseSubmissionRequest**](ResponseSubmissionRequest.md)|  | 
+
+### Return type
+
+[**SurveyResponseResponse**](SurveyResponseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Draft saved |  -  |
+**400** | Request validation failed or business rule validation failed |  -  |
+**404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

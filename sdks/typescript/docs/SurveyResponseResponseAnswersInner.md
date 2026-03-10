@@ -9,7 +9,12 @@ Name | Type
 `id` | string
 `questionId` | string
 `questionVersionId` | string
+`questionVersionNumber` | number
+`questionText` | string
+`questionType` | string
+`optionConfig` | string
 `value` | string
+`remark` | string
 `score` | number
 
 ## Example
@@ -22,7 +27,12 @@ const example = {
   "id": null,
   "questionId": null,
   "questionVersionId": null,
+  "questionVersionNumber": null,
+  "questionText": null,
+  "questionType": null,
+  "optionConfig": null,
   "value": null,
+  "remark": null,
   "score": null,
 } satisfies SurveyResponseResponseAnswersInner
 

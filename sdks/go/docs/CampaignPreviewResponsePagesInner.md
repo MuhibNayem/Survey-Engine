@@ -7,7 +7,8 @@ Name | Type | Description | Notes
 **Id** | Pointer to **string** |  | [optional] 
 **Title** | Pointer to **string** |  | [optional] 
 **SortOrder** | Pointer to **int32** |  | [optional] 
-**Questions** | Pointer to [**[]CampaignPreviewResponsePagesInnerQuestionsInner**](CampaignPreviewResponsePagesInnerQuestionsInner.md) |  | [optional] 
+**Categories** | Pointer to [**[]CampaignPreviewResponsePagesInnerCategoriesInner**](CampaignPreviewResponsePagesInnerCategoriesInner.md) |  | [optional] 
+**Questions** | Pointer to [**[]CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner**](CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner.md) |  | [optional] 
 
 ## Methods
 
@@ -103,22 +104,47 @@ SetSortOrder sets SortOrder field to given value.
 
 HasSortOrder returns a boolean if a field has been set.
 
+### GetCategories
+
+`func (o *CampaignPreviewResponsePagesInner) GetCategories() []CampaignPreviewResponsePagesInnerCategoriesInner`
+
+GetCategories returns the Categories field if non-nil, zero value otherwise.
+
+### GetCategoriesOk
+
+`func (o *CampaignPreviewResponsePagesInner) GetCategoriesOk() (*[]CampaignPreviewResponsePagesInnerCategoriesInner, bool)`
+
+GetCategoriesOk returns a tuple with the Categories field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetCategories
+
+`func (o *CampaignPreviewResponsePagesInner) SetCategories(v []CampaignPreviewResponsePagesInnerCategoriesInner)`
+
+SetCategories sets Categories field to given value.
+
+### HasCategories
+
+`func (o *CampaignPreviewResponsePagesInner) HasCategories() bool`
+
+HasCategories returns a boolean if a field has been set.
+
 ### GetQuestions
 
-`func (o *CampaignPreviewResponsePagesInner) GetQuestions() []CampaignPreviewResponsePagesInnerQuestionsInner`
+`func (o *CampaignPreviewResponsePagesInner) GetQuestions() []CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner`
 
 GetQuestions returns the Questions field if non-nil, zero value otherwise.
 
 ### GetQuestionsOk
 
-`func (o *CampaignPreviewResponsePagesInner) GetQuestionsOk() (*[]CampaignPreviewResponsePagesInnerQuestionsInner, bool)`
+`func (o *CampaignPreviewResponsePagesInner) GetQuestionsOk() (*[]CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner, bool)`
 
 GetQuestionsOk returns a tuple with the Questions field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetQuestions
 
-`func (o *CampaignPreviewResponsePagesInner) SetQuestions(v []CampaignPreviewResponsePagesInnerQuestionsInner)`
+`func (o *CampaignPreviewResponsePagesInner) SetQuestions(v []CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner)`
 
 SetQuestions sets Questions field to given value.
 

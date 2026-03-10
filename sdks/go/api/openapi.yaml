@@ -55,6 +55,9 @@ tags:
   name: Feature Management
 - description: User-level feature access and completion tracking endpoints.
   name: User Features
+- description: "Authenticated admin preference storage for UI state, theme mode, and\
+    \ onboarding progress."
+  name: User Preferences
 paths:
   /api/v1/admin/auth/register:
     post:
@@ -223,6 +226,177 @@ paths:
       summary: Get CSRF token for browser cookie session mode
       tags:
       - Admin Authentication
+  /api/v1/admin/preferences:
+    delete:
+      description: |
+        Why this endpoint is needed:
+        Support and onboarding workflows need a clean reset path so tours, theme defaults, and dismissed tips can be replayed.
+
+        What this endpoint does:
+        It clears all stored preferences for the current admin user.
+
+        How this endpoint does it:
+        The service deletes the current admin preference map and returns success without a body.
+      operationId: resetUserPreferences
+      responses:
+        "200":
+          description: Preferences reset
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Reset all preferences for the current admin user
+      tags:
+      - User Preferences
+    get:
+      description: |
+        Why this endpoint is needed:
+        The admin application persists per-user UI state such as theme mode, completed onboarding flows, and dismissed hints.
+
+        What this endpoint does:
+        It returns the preference map for the currently authenticated admin.
+
+        How this endpoint does it:
+        The service resolves the current admin from auth context, loads the tenant-scoped preference record, and maps it to UserPreferenceDTO.
+      operationId: getUserPreferences
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferenceDTO"
+          description: Current user preferences returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Get all preferences for the current admin user
+      tags:
+      - User Preferences
+    patch:
+      description: |
+        Why this endpoint is needed:
+        Modern UI flows often save several preference keys together, such as theme mode and onboarding completion checkpoints.
+
+        What this endpoint does:
+        It updates multiple string-based preference values in a single call.
+
+        How this endpoint does it:
+        The service merges the incoming key-value map into the current admin user's preference store and persists the result.
+      operationId: updateUserPreferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: Preferences updated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Update multiple preferences for the current admin user
+      tags:
+      - User Preferences
+  /api/v1/admin/preferences/{key}:
+    patch:
+      description: |
+        Why this endpoint is needed:
+        Lightweight UI interactions such as theme changes and dismiss actions often update only one preference key.
+
+        What this endpoint does:
+        It sets one preference value for the current admin user.
+
+        How this endpoint does it:
+        The controller accepts a raw string body and the service stores it under the requested key.
+      operationId: setUserPreference
+      parameters:
+      - explode: false
+        in: path
+        name: key
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          description: Preference updated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Update one preference key for the current admin user
+      tags:
+      - User Preferences
+  /api/v1/admin/preferences/{featureKey}/completed:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Onboarding and contextual-help UX need a direct completion check for a single feature key.
+
+        What this endpoint does:
+        It returns whether the current admin has marked the target feature as completed.
+
+        How this endpoint does it:
+        The service resolves the current admin user and reads the completion flag from stored preferences.
+      operationId: getFeatureCompletionStatus
+      parameters:
+      - explode: false
+        in: path
+        name: featureKey
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getFeatureCompletionStatus_200_response"
+          description: Completion state returned
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Check whether a feature or onboarding item is completed
+      tags:
+      - User Preferences
+  /api/v1/admin/preferences/{featureKey}/complete:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Guided tours and feature education flows need an explicit server-side completion write path that survives browsers and devices.
+
+        What this endpoint does:
+        It stores the completion status for one feature key for the current admin user.
+
+        How this endpoint does it:
+        The service updates the completion map in user preferences and returns success without a body.
+      operationId: setFeatureCompletionStatus
+      parameters:
+      - explode: false
+        in: path
+        name: featureKey
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: true
+        in: query
+        name: completed
+        required: false
+        schema:
+          default: true
+          type: boolean
+        style: form
+      responses:
+        "200":
+          description: Completion state updated
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+      summary: Mark a feature or onboarding item as completed or incomplete
+      tags:
+      - User Preferences
   /api/v1/admin/auth/token/register:
     post:
       description: |
@@ -1501,6 +1675,128 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       security: []
       summary: Get responder-facing preview payload (public endpoint)
+      tags:
+      - Campaigns
+  /api/v1/public/campaigns/{id}/auth/session:
+    get:
+      description: |
+        Why this endpoint is needed:
+        Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.
+
+        What this endpoint does:
+        It returns whether a valid responder session cookie is currently active for the target private campaign.
+
+        How this endpoint does it:
+        The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload.
+      operationId: getResponderSessionStatus
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponderSessionStatusResponse"
+          description: Responder session status returned
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Get current private responder session status for a campaign
+      tags:
+      - Campaigns
+  /api/v1/public/campaigns/{id}/auth/logout:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.
+
+        What this endpoint does:
+        It revokes the current responder session and clears the responder session cookie.
+
+        How this endpoint does it:
+        The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie.
+      operationId: logoutResponderSession
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      responses:
+        "204":
+          description: Responder session revoked and cookie cleared
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Revoke the current private responder session for a campaign
+      tags:
+      - Campaigns
+  /api/v1/public/campaigns/{id}/responses/draft:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.
+
+        What this endpoint does:
+        It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.
+
+        How this endpoint does it:
+        The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state.
+      operationId: savePublicDraft
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResponseSubmissionRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponseResponse"
+          description: Draft saved
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Create or update an in-progress responder draft
+      tags:
+      - Campaigns
+  /api/v1/public/campaigns/{id}/responses/draft/load:
+    post:
+      description: |
+        Why this endpoint is needed:
+        Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.
+
+        What this endpoint does:
+        It returns the matching in-progress draft when one exists for the supplied identity or response id.
+
+        How this endpoint does it:
+        The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists.
+      operationId: loadPublicDraft
+      parameters:
+      - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResponseDraftLookupRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponseResponse"
+          description: Draft restored
+        "204":
+          description: No draft exists for the supplied identity
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      security: []
+      summary: Load an existing in-progress responder draft
       tags:
       - Campaigns
   /api/v1/auth/profiles:
@@ -3647,6 +3943,21 @@ components:
       - surveyId
     CampaignResponse:
       example:
+        dataCollectionFields:
+        - fieldKey: fieldKey
+          sortOrder: 0
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          label: label
+          fieldType: TEXT
+          required: true
+          enabled: true
+        - fieldKey: fieldKey
+          sortOrder: 0
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          label: label
+          fieldType: TEXT
+          required: true
+          enabled: true
         surveyId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         updatedBy: updatedBy
         defaultWeightProfileId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
@@ -3704,11 +4015,28 @@ components:
         updatedAt:
           format: date-time
           type: string
+        dataCollectionFields:
+          items:
+            $ref: "#/components/schemas/DataCollectionFieldResponse"
+          type: array
     CampaignSettingsRequest:
       example:
         footerHtml: footerHtml
         headerHtml: headerHtml
         collectAddress: true
+        dataCollectionFields:
+        - fieldKey: fieldKey
+          sortOrder: 1
+          label: label
+          fieldType: TEXT
+          required: true
+          enabled: true
+        - fieldKey: fieldKey
+          sortOrder: 1
+          label: label
+          fieldType: TEXT
+          required: true
+          enabled: true
         startMessage: startMessage
         emailRestrictionEnabled: true
         oneResponsePerDevice: true
@@ -3720,6 +4048,58 @@ components:
         password: password
         showQuestionNumbers: true
         captchaEnabled: true
+        theme:
+          layout:
+            sectionStyle: panel
+            questionCardStyle: soft
+            contentWidth: narrow
+            footerStyle: minimal
+            headerAlignment: left
+            categorySeparatorStyle: divider
+            footerAlignment: left
+            headerStyle: hero
+          paletteKey: paletteKey
+          motion:
+            animationPreset: none
+          footer:
+            legal: legal
+            line2: line2
+            enabled: true
+            line1: line1
+          advanced:
+            useCustomHeaderHtml: true
+            customFooterHtml: customFooterHtml
+            customHeaderHtml: customHeaderHtml
+            useCustomFooterHtml: true
+            customCss: customCss
+          branding:
+            fontFamily: fontFamily
+            logoPosition: left
+            brandLabel: brandLabel
+            logoUrl: logoUrl
+          header:
+            note: note
+            eyebrow: eyebrow
+            subtitle: subtitle
+            title: title
+            enabled: true
+          palette:
+            border: border
+            textSecondary: textSecondary
+            headerText: headerText
+            footerText: footerText
+            primaryText: primaryText
+            accentSoft: accentSoft
+            footerBackground: footerBackground
+            accent: accent
+            shell: shell
+            background: background
+            headerBackground: headerBackground
+            textPrimary: textPrimary
+            panel: panel
+            card: card
+            primary: primary
+          templateKey: templateKey
         collectEmail: true
         ipRestrictionEnabled: true
         responseQuota: 0
@@ -3757,6 +4137,8 @@ components:
           type: string
         footerHtml:
           type: string
+        theme:
+          $ref: "#/components/schemas/SurveyThemeConfigDto"
         collectName:
           type: boolean
         collectEmail:
@@ -3765,11 +4147,30 @@ components:
           type: boolean
         collectAddress:
           type: boolean
+        dataCollectionFields:
+          items:
+            $ref: "#/components/schemas/DataCollectionFieldRequest"
+          type: array
     CampaignSettingsResponse:
       example:
         footerHtml: footerHtml
         headerHtml: headerHtml
         collectAddress: true
+        dataCollectionFields:
+        - fieldKey: fieldKey
+          sortOrder: 0
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          label: label
+          fieldType: TEXT
+          required: true
+          enabled: true
+        - fieldKey: fieldKey
+          sortOrder: 0
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          label: label
+          fieldType: TEXT
+          required: true
+          enabled: true
         startMessage: startMessage
         emailRestrictionEnabled: true
         oneResponsePerDevice: true
@@ -3782,6 +4183,58 @@ components:
         password: password
         showQuestionNumbers: true
         captchaEnabled: true
+        theme:
+          layout:
+            sectionStyle: panel
+            questionCardStyle: soft
+            contentWidth: narrow
+            footerStyle: minimal
+            headerAlignment: left
+            categorySeparatorStyle: divider
+            footerAlignment: left
+            headerStyle: hero
+          paletteKey: paletteKey
+          motion:
+            animationPreset: none
+          footer:
+            legal: legal
+            line2: line2
+            enabled: true
+            line1: line1
+          advanced:
+            useCustomHeaderHtml: true
+            customFooterHtml: customFooterHtml
+            customHeaderHtml: customHeaderHtml
+            useCustomFooterHtml: true
+            customCss: customCss
+          branding:
+            fontFamily: fontFamily
+            logoPosition: left
+            brandLabel: brandLabel
+            logoUrl: logoUrl
+          header:
+            note: note
+            eyebrow: eyebrow
+            subtitle: subtitle
+            title: title
+            enabled: true
+          palette:
+            border: border
+            textSecondary: textSecondary
+            headerText: headerText
+            footerText: footerText
+            primaryText: primaryText
+            accentSoft: accentSoft
+            footerBackground: footerBackground
+            accent: accent
+            shell: shell
+            background: background
+            headerBackground: headerBackground
+            textPrimary: textPrimary
+            panel: panel
+            card: card
+            primary: primary
+          templateKey: templateKey
         collectEmail: true
         ipRestrictionEnabled: true
         responseQuota: 0
@@ -3822,6 +4275,8 @@ components:
           type: string
         footerHtml:
           type: string
+        theme:
+          $ref: "#/components/schemas/SurveyThemeConfigDto"
         collectName:
           type: boolean
         collectEmail:
@@ -3830,11 +4285,30 @@ components:
           type: boolean
         collectAddress:
           type: boolean
+        dataCollectionFields:
+          items:
+            $ref: "#/components/schemas/DataCollectionFieldResponse"
+          type: array
     CampaignPreviewResponse:
       example:
         footerHtml: footerHtml
         headerHtml: headerHtml
         collectAddress: true
+        dataCollectionFields:
+        - fieldKey: fieldKey
+          sortOrder: 0
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          label: label
+          fieldType: TEXT
+          required: true
+          enabled: true
+        - fieldKey: fieldKey
+          sortOrder: 0
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          label: label
+          fieldType: TEXT
+          required: true
+          enabled: true
         surveyId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         startMessage: startMessage
         finishMessage: finishMessage
@@ -3851,56 +4325,238 @@ components:
           questions:
           - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
             questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 5.637376656633329
             answerConfig: answerConfig
             optionConfig: optionConfig
             categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
-            sortOrder: 1
+            sortOrder: 7
             id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
             text: text
             type: RANK
-            maxScore: 6.027456183070403
+            maxScore: 2.3021358869347655
             mandatory: true
           - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
             questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 5.637376656633329
             answerConfig: answerConfig
             optionConfig: optionConfig
             categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
-            sortOrder: 1
+            sortOrder: 7
             id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
             text: text
             type: RANK
-            maxScore: 6.027456183070403
+            maxScore: 2.3021358869347655
             mandatory: true
           id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categories:
+          - categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 5
+            name: name
+            weightPercentage: 1.4658129805029452
+            questions:
+            - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              categoryWeightPercentage: 5.637376656633329
+              answerConfig: answerConfig
+              optionConfig: optionConfig
+              categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              sortOrder: 7
+              id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              text: text
+              type: RANK
+              maxScore: 2.3021358869347655
+              mandatory: true
+            - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              categoryWeightPercentage: 5.637376656633329
+              answerConfig: answerConfig
+              optionConfig: optionConfig
+              categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              sortOrder: 7
+              id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              text: text
+              type: RANK
+              maxScore: 2.3021358869347655
+              mandatory: true
+            description: description
+            versionNumber: 6
+          - categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 5
+            name: name
+            weightPercentage: 1.4658129805029452
+            questions:
+            - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              categoryWeightPercentage: 5.637376656633329
+              answerConfig: answerConfig
+              optionConfig: optionConfig
+              categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              sortOrder: 7
+              id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              text: text
+              type: RANK
+              maxScore: 2.3021358869347655
+              mandatory: true
+            - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              categoryWeightPercentage: 5.637376656633329
+              answerConfig: answerConfig
+              optionConfig: optionConfig
+              categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              sortOrder: 7
+              id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              text: text
+              type: RANK
+              maxScore: 2.3021358869347655
+              mandatory: true
+            description: description
+            versionNumber: 6
           title: title
         - sortOrder: 0
           questions:
           - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
             questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 5.637376656633329
             answerConfig: answerConfig
             optionConfig: optionConfig
             categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
-            sortOrder: 1
+            sortOrder: 7
             id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
             text: text
             type: RANK
-            maxScore: 6.027456183070403
+            maxScore: 2.3021358869347655
             mandatory: true
           - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
             questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 5.637376656633329
             answerConfig: answerConfig
             optionConfig: optionConfig
             categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
-            sortOrder: 1
+            sortOrder: 7
             id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
             text: text
             type: RANK
-            maxScore: 6.027456183070403
+            maxScore: 2.3021358869347655
             mandatory: true
           id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categories:
+          - categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 5
+            name: name
+            weightPercentage: 1.4658129805029452
+            questions:
+            - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              categoryWeightPercentage: 5.637376656633329
+              answerConfig: answerConfig
+              optionConfig: optionConfig
+              categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              sortOrder: 7
+              id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              text: text
+              type: RANK
+              maxScore: 2.3021358869347655
+              mandatory: true
+            - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              categoryWeightPercentage: 5.637376656633329
+              answerConfig: answerConfig
+              optionConfig: optionConfig
+              categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              sortOrder: 7
+              id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              text: text
+              type: RANK
+              maxScore: 2.3021358869347655
+              mandatory: true
+            description: description
+            versionNumber: 6
+          - categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 5
+            name: name
+            weightPercentage: 1.4658129805029452
+            questions:
+            - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              categoryWeightPercentage: 5.637376656633329
+              answerConfig: answerConfig
+              optionConfig: optionConfig
+              categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              sortOrder: 7
+              id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              text: text
+              type: RANK
+              maxScore: 2.3021358869347655
+              mandatory: true
+            - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              categoryWeightPercentage: 5.637376656633329
+              answerConfig: answerConfig
+              optionConfig: optionConfig
+              categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              sortOrder: 7
+              id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+              text: text
+              type: RANK
+              maxScore: 2.3021358869347655
+              mandatory: true
+            description: description
+            versionNumber: 6
           title: title
         tenantId: tenantId
         campaignStatus: DRAFT
+        theme:
+          layout:
+            sectionStyle: panel
+            questionCardStyle: soft
+            contentWidth: narrow
+            footerStyle: minimal
+            headerAlignment: left
+            categorySeparatorStyle: divider
+            footerAlignment: left
+            headerStyle: hero
+          paletteKey: paletteKey
+          motion:
+            animationPreset: none
+          footer:
+            legal: legal
+            line2: line2
+            enabled: true
+            line1: line1
+          advanced:
+            useCustomHeaderHtml: true
+            customFooterHtml: customFooterHtml
+            customHeaderHtml: customHeaderHtml
+            useCustomFooterHtml: true
+            customCss: customCss
+          branding:
+            fontFamily: fontFamily
+            logoPosition: left
+            brandLabel: brandLabel
+            logoUrl: logoUrl
+          header:
+            note: note
+            eyebrow: eyebrow
+            subtitle: subtitle
+            title: title
+            enabled: true
+          palette:
+            border: border
+            textSecondary: textSecondary
+            headerText: headerText
+            footerText: footerText
+            primaryText: primaryText
+            accentSoft: accentSoft
+            footerBackground: footerBackground
+            accent: accent
+            shell: shell
+            background: background
+            headerBackground: headerBackground
+            textPrimary: textPrimary
+            panel: panel
+            card: card
+            primary: primary
+          templateKey: templateKey
         collectEmail: true
         campaignName: campaignName
         showProgressIndicator: true
@@ -3948,6 +4604,8 @@ components:
           type: string
         footerHtml:
           type: string
+        theme:
+          $ref: "#/components/schemas/SurveyThemeConfigDto"
         collectName:
           type: boolean
         collectEmail:
@@ -3956,6 +4614,10 @@ components:
           type: boolean
         collectAddress:
           type: boolean
+        dataCollectionFields:
+          items:
+            $ref: "#/components/schemas/DataCollectionFieldResponse"
+          type: array
         pages:
           items:
             $ref: "#/components/schemas/CampaignPreviewResponse_pages_inner"
@@ -4288,12 +4950,20 @@ components:
         - score: 0.8008281904610115
           questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
           questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          remark: remark
           value: value
         - score: 0.8008281904610115
           questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
           questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          remark: remark
           value: value
+        respondentMetadata:
+          key: respondentMetadata
+        responseId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
       properties:
+        responseId:
+          format: uuid
+          type: string
         campaignId:
           format: uuid
           type: string
@@ -4307,6 +4977,9 @@ components:
           type: string
         responderAccessCode:
           type: string
+        respondentMetadata:
+          additionalProperties:
+            type: string
         answers:
           items:
             $ref: "#/components/schemas/ResponseSubmissionRequest_answers_inner"
@@ -4315,27 +4988,38 @@ components:
       - campaignId
     SurveyResponseResponse:
       example:
-        respondentIdentifier: respondentIdentifier
         campaignId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         weightProfileId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         lockedAt: 2000-01-23T04:56:07.000+00:00
         answers:
-        - score: 6.027456183070403
+        - score: 1.4658129805029452
           questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
           questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          optionConfig: optionConfig
+          remark: remark
           id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionVersionNumber: 6
+          questionType: RANK
           value: value
-        - score: 6.027456183070403
+          questionText: questionText
+        - score: 1.4658129805029452
           questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
           questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          optionConfig: optionConfig
+          remark: remark
           id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionVersionNumber: 6
+          questionType: RANK
           value: value
+          questionText: questionText
         startedAt: 2000-01-23T04:56:07.000+00:00
+        respondentMetadata: respondentMetadata
         scoredAt: 2000-01-23T04:56:07.000+00:00
-        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
-        submittedAt: 2000-01-23T04:56:07.000+00:00
         surveySnapshotId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         weightedTotalScore: 0.8008281904610115
+        respondentIdentifier: respondentIdentifier
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        submittedAt: 2000-01-23T04:56:07.000+00:00
         status: IN_PROGRESS
       properties:
         id:
@@ -4348,6 +5032,8 @@ components:
           format: uuid
           type: string
         respondentIdentifier:
+          type: string
+        respondentMetadata:
           type: string
         status:
           enum:
@@ -4377,6 +5063,363 @@ components:
           items:
             $ref: "#/components/schemas/SurveyResponseResponse_answers_inner"
           type: array
+    ResponseDraftLookupRequest:
+      example:
+        respondentIdentifier: respondentIdentifier
+        responderToken: responderToken
+        responderAccessCode: responderAccessCode
+        responseId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        responseId:
+          format: uuid
+          type: string
+        respondentIdentifier:
+          type: string
+        responderToken:
+          type: string
+        responderAccessCode:
+          type: string
+    ResponderSessionStatusResponse:
+      example:
+        authenticated: true
+        email: email
+      properties:
+        authenticated:
+          type: boolean
+        email:
+          type: string
+    DataCollectionFieldRequest:
+      example:
+        fieldKey: fieldKey
+        sortOrder: 1
+        label: label
+        fieldType: TEXT
+        required: true
+        enabled: true
+      properties:
+        fieldKey:
+          type: string
+        label:
+          type: string
+        fieldType:
+          enum:
+          - TEXT
+          - EMAIL
+          - PHONE
+          - NUMBER
+          - TEXTAREA
+          type: string
+        required:
+          type: boolean
+        sortOrder:
+          type: integer
+        enabled:
+          type: boolean
+    DataCollectionFieldResponse:
+      example:
+        fieldKey: fieldKey
+        sortOrder: 0
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        label: label
+        fieldType: TEXT
+        required: true
+        enabled: true
+      properties:
+        id:
+          format: uuid
+          type: string
+        fieldKey:
+          type: string
+        label:
+          type: string
+        fieldType:
+          enum:
+          - TEXT
+          - EMAIL
+          - PHONE
+          - NUMBER
+          - TEXTAREA
+          type: string
+        required:
+          type: boolean
+        sortOrder:
+          type: integer
+        enabled:
+          type: boolean
+    SurveyThemeConfigDto:
+      example:
+        layout:
+          sectionStyle: panel
+          questionCardStyle: soft
+          contentWidth: narrow
+          footerStyle: minimal
+          headerAlignment: left
+          categorySeparatorStyle: divider
+          footerAlignment: left
+          headerStyle: hero
+        paletteKey: paletteKey
+        motion:
+          animationPreset: none
+        footer:
+          legal: legal
+          line2: line2
+          enabled: true
+          line1: line1
+        advanced:
+          useCustomHeaderHtml: true
+          customFooterHtml: customFooterHtml
+          customHeaderHtml: customHeaderHtml
+          useCustomFooterHtml: true
+          customCss: customCss
+        branding:
+          fontFamily: fontFamily
+          logoPosition: left
+          brandLabel: brandLabel
+          logoUrl: logoUrl
+        header:
+          note: note
+          eyebrow: eyebrow
+          subtitle: subtitle
+          title: title
+          enabled: true
+        palette:
+          border: border
+          textSecondary: textSecondary
+          headerText: headerText
+          footerText: footerText
+          primaryText: primaryText
+          accentSoft: accentSoft
+          footerBackground: footerBackground
+          accent: accent
+          shell: shell
+          background: background
+          headerBackground: headerBackground
+          textPrimary: textPrimary
+          panel: panel
+          card: card
+          primary: primary
+        templateKey: templateKey
+      properties:
+        templateKey:
+          type: string
+        paletteKey:
+          type: string
+        palette:
+          $ref: "#/components/schemas/SurveyThemePalette"
+        branding:
+          $ref: "#/components/schemas/SurveyThemeBranding"
+        layout:
+          $ref: "#/components/schemas/SurveyThemeLayout"
+        motion:
+          $ref: "#/components/schemas/SurveyThemeMotion"
+        header:
+          $ref: "#/components/schemas/SurveyThemeHeader"
+        footer:
+          $ref: "#/components/schemas/SurveyThemeFooter"
+        advanced:
+          $ref: "#/components/schemas/SurveyThemeAdvanced"
+    SurveyThemePalette:
+      example:
+        border: border
+        textSecondary: textSecondary
+        headerText: headerText
+        footerText: footerText
+        primaryText: primaryText
+        accentSoft: accentSoft
+        footerBackground: footerBackground
+        accent: accent
+        shell: shell
+        background: background
+        headerBackground: headerBackground
+        textPrimary: textPrimary
+        panel: panel
+        card: card
+        primary: primary
+      properties:
+        background:
+          type: string
+        shell:
+          type: string
+        panel:
+          type: string
+        card:
+          type: string
+        border:
+          type: string
+        textPrimary:
+          type: string
+        textSecondary:
+          type: string
+        primary:
+          type: string
+        primaryText:
+          type: string
+        accent:
+          type: string
+        accentSoft:
+          type: string
+        headerBackground:
+          type: string
+        headerText:
+          type: string
+        footerBackground:
+          type: string
+        footerText:
+          type: string
+    SurveyThemeBranding:
+      example:
+        fontFamily: fontFamily
+        logoPosition: left
+        brandLabel: brandLabel
+        logoUrl: logoUrl
+      properties:
+        brandLabel:
+          type: string
+        logoUrl:
+          type: string
+        logoPosition:
+          enum:
+          - left
+          - center
+          - right
+          type: string
+        fontFamily:
+          type: string
+    SurveyThemeLayout:
+      example:
+        sectionStyle: panel
+        questionCardStyle: soft
+        contentWidth: narrow
+        footerStyle: minimal
+        headerAlignment: left
+        categorySeparatorStyle: divider
+        footerAlignment: left
+        headerStyle: hero
+      properties:
+        contentWidth:
+          enum:
+          - narrow
+          - standard
+          - wide
+          type: string
+        headerStyle:
+          enum:
+          - hero
+          - compact
+          - editorial
+          - minimal
+          type: string
+        headerAlignment:
+          enum:
+          - left
+          - center
+          - right
+          type: string
+        footerStyle:
+          enum:
+          - minimal
+          - support
+          - legal
+          - editorial
+          type: string
+        footerAlignment:
+          enum:
+          - left
+          - center
+          - right
+          type: string
+        sectionStyle:
+          enum:
+          - panel
+          - flat
+          - editorial
+          type: string
+        questionCardStyle:
+          enum:
+          - soft
+          - solid
+          - minimal
+          type: string
+        categorySeparatorStyle:
+          enum:
+          - divider
+          - chapter
+          - minimal
+          type: string
+    SurveyThemeMotion:
+      example:
+        animationPreset: none
+      properties:
+        animationPreset:
+          enum:
+          - none
+          - subtle
+          - premium
+          type: string
+    SurveyThemeHeader:
+      example:
+        note: note
+        eyebrow: eyebrow
+        subtitle: subtitle
+        title: title
+        enabled: true
+      properties:
+        enabled:
+          type: boolean
+        eyebrow:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: string
+        note:
+          type: string
+    SurveyThemeFooter:
+      example:
+        legal: legal
+        line2: line2
+        enabled: true
+        line1: line1
+      properties:
+        enabled:
+          type: boolean
+        line1:
+          type: string
+        line2:
+          type: string
+        legal:
+          type: string
+    SurveyThemeAdvanced:
+      example:
+        useCustomHeaderHtml: true
+        customFooterHtml: customFooterHtml
+        customHeaderHtml: customHeaderHtml
+        useCustomFooterHtml: true
+        customCss: customCss
+      properties:
+        useCustomHeaderHtml:
+          type: boolean
+        useCustomFooterHtml:
+          type: boolean
+        customHeaderHtml:
+          type: string
+        customFooterHtml:
+          type: string
+        customCss:
+          type: string
+    UserPreferenceDTO:
+      example:
+        preferences:
+          key: preferences
+        featureCompletion:
+          key: true
+      properties:
+        preferences:
+          additionalProperties:
+            type: string
+        featureCompletion:
+          additionalProperties:
+            type: boolean
     ReopenRequest:
       example:
         reason: reason
@@ -5047,6 +6090,12 @@ components:
           items:
             $ref: "#/components/schemas/BulkFeatureResponse_errors_inner"
           type: array
+    getFeatureCompletionStatus_200_response:
+      example:
+        completed: true
+      properties:
+        completed:
+          type: boolean
     completeFeature_request:
       properties:
         completed:
@@ -5178,18 +6227,19 @@ components:
           items:
             $ref: "#/components/schemas/SurveyResponse_pages_inner_questions_inner"
           type: array
-    CampaignPreviewResponse_pages_inner_questions_inner:
+    CampaignPreviewResponse_pages_inner_categories_inner_questions_inner:
       example:
         questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        categoryWeightPercentage: 5.637376656633329
         answerConfig: answerConfig
         optionConfig: optionConfig
         categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
-        sortOrder: 1
+        sortOrder: 7
         id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         text: text
         type: RANK
-        maxScore: 6.027456183070403
+        maxScore: 2.3021358869347655
         mandatory: true
       properties:
         id:
@@ -5204,6 +6254,8 @@ components:
         categoryVersionId:
           format: uuid
           type: string
+        categoryWeightPercentage:
+          type: number
         text:
           type: string
         type:
@@ -5223,33 +6275,149 @@ components:
           type: string
         answerConfig:
           type: string
+    CampaignPreviewResponse_pages_inner_categories_inner:
+      example:
+        categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        sortOrder: 5
+        name: name
+        weightPercentage: 1.4658129805029452
+        questions:
+        - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryWeightPercentage: 5.637376656633329
+          answerConfig: answerConfig
+          optionConfig: optionConfig
+          categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 7
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          text: text
+          type: RANK
+          maxScore: 2.3021358869347655
+          mandatory: true
+        - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryWeightPercentage: 5.637376656633329
+          answerConfig: answerConfig
+          optionConfig: optionConfig
+          categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 7
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          text: text
+          type: RANK
+          maxScore: 2.3021358869347655
+          mandatory: true
+        description: description
+        versionNumber: 6
+      properties:
+        categoryVersionId:
+          format: uuid
+          type: string
+        versionNumber:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        weightPercentage:
+          type: number
+        sortOrder:
+          type: integer
+        questions:
+          items:
+            $ref: "#/components/schemas/CampaignPreviewResponse_pages_inner_categories_inner_questions_inner"
+          type: array
     CampaignPreviewResponse_pages_inner:
       example:
         sortOrder: 0
         questions:
         - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
           questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryWeightPercentage: 5.637376656633329
           answerConfig: answerConfig
           optionConfig: optionConfig
           categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
-          sortOrder: 1
+          sortOrder: 7
           id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
           text: text
           type: RANK
-          maxScore: 6.027456183070403
+          maxScore: 2.3021358869347655
           mandatory: true
         - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
           questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          categoryWeightPercentage: 5.637376656633329
           answerConfig: answerConfig
           optionConfig: optionConfig
           categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
-          sortOrder: 1
+          sortOrder: 7
           id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
           text: text
           type: RANK
-          maxScore: 6.027456183070403
+          maxScore: 2.3021358869347655
           mandatory: true
         id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        categories:
+        - categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 5
+          name: name
+          weightPercentage: 1.4658129805029452
+          questions:
+          - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 5.637376656633329
+            answerConfig: answerConfig
+            optionConfig: optionConfig
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 7
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            text: text
+            type: RANK
+            maxScore: 2.3021358869347655
+            mandatory: true
+          - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 5.637376656633329
+            answerConfig: answerConfig
+            optionConfig: optionConfig
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 7
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            text: text
+            type: RANK
+            maxScore: 2.3021358869347655
+            mandatory: true
+          description: description
+          versionNumber: 6
+        - categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          sortOrder: 5
+          name: name
+          weightPercentage: 1.4658129805029452
+          questions:
+          - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 5.637376656633329
+            answerConfig: answerConfig
+            optionConfig: optionConfig
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 7
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            text: text
+            type: RANK
+            maxScore: 2.3021358869347655
+            mandatory: true
+          - questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            categoryWeightPercentage: 5.637376656633329
+            answerConfig: answerConfig
+            optionConfig: optionConfig
+            categoryVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            sortOrder: 7
+            id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+            text: text
+            type: RANK
+            maxScore: 2.3021358869347655
+            mandatory: true
+          description: description
+          versionNumber: 6
         title: title
       properties:
         id:
@@ -5259,9 +6427,13 @@ components:
           type: string
         sortOrder:
           type: integer
+        categories:
+          items:
+            $ref: "#/components/schemas/CampaignPreviewResponse_pages_inner_categories_inner"
+          type: array
         questions:
           items:
-            $ref: "#/components/schemas/CampaignPreviewResponse_pages_inner_questions_inner"
+            $ref: "#/components/schemas/CampaignPreviewResponse_pages_inner_categories_inner_questions_inner"
           type: array
     AuthProfileResponse_claimMappings_inner:
       example:
@@ -5284,6 +6456,7 @@ components:
         score: 0.8008281904610115
         questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        remark: remark
         value: value
       properties:
         questionId:
@@ -5294,17 +6467,24 @@ components:
           type: string
         value:
           type: string
+        remark:
+          type: string
         score:
           type: number
       required:
       - questionId
     SurveyResponseResponse_answers_inner:
       example:
-        score: 6.027456183070403
+        score: 1.4658129805029452
         questionVersionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
         questionId: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        optionConfig: optionConfig
+        remark: remark
         id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        questionVersionNumber: 6
+        questionType: RANK
         value: value
+        questionText: questionText
       properties:
         id:
           format: uuid
@@ -5315,7 +6495,22 @@ components:
         questionVersionId:
           format: uuid
           type: string
+        questionVersionNumber:
+          type: integer
+        questionText:
+          type: string
+        questionType:
+          enum:
+          - RANK
+          - RATING_SCALE
+          - SINGLE_CHOICE
+          - MULTIPLE_CHOICE
+          type: string
+        optionConfig:
+          type: string
         value:
+          type: string
+        remark:
           type: string
         score:
           type: number

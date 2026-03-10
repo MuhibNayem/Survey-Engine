@@ -53,6 +53,12 @@ export interface SurveyResponseResponse {
     respondentIdentifier?: string;
     /**
      * 
+     * @type {string}
+     * @memberof SurveyResponseResponse
+     */
+    respondentMetadata?: string;
+    /**
+     * 
      * @type {SurveyResponseResponseStatusEnum}
      * @memberof SurveyResponseResponse
      */
@@ -135,6 +141,7 @@ export function SurveyResponseResponseFromJSONTyped(json: any, ignoreDiscriminat
         'campaignId': json['campaignId'] == null ? undefined : json['campaignId'],
         'surveySnapshotId': json['surveySnapshotId'] == null ? undefined : json['surveySnapshotId'],
         'respondentIdentifier': json['respondentIdentifier'] == null ? undefined : json['respondentIdentifier'],
+        'respondentMetadata': json['respondentMetadata'] == null ? undefined : json['respondentMetadata'],
         'status': json['status'] == null ? undefined : json['status'],
         'startedAt': json['startedAt'] == null ? undefined : (new Date(json['startedAt'])),
         'submittedAt': json['submittedAt'] == null ? undefined : (new Date(json['submittedAt'])),
@@ -161,6 +168,7 @@ export function SurveyResponseResponseToJSONTyped(value?: SurveyResponseResponse
         'campaignId': value['campaignId'],
         'surveySnapshotId': value['surveySnapshotId'],
         'respondentIdentifier': value['respondentIdentifier'],
+        'respondentMetadata': value['respondentMetadata'],
         'status': value['status'],
         'startedAt': value['startedAt'] == null ? value['startedAt'] : value['startedAt'].toISOString(),
         'submittedAt': value['submittedAt'] == null ? value['submittedAt'] : value['submittedAt'].toISOString(),

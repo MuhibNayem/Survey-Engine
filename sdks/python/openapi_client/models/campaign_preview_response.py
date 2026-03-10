@@ -21,6 +21,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
 from openapi_client.models.campaign_preview_response_pages_inner import CampaignPreviewResponsePagesInner
+from openapi_client.models.data_collection_field_response import DataCollectionFieldResponse
+from openapi_client.models.survey_theme_config_dto import SurveyThemeConfigDto
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -43,13 +45,15 @@ class CampaignPreviewResponse(BaseModel):
     finish_message: Optional[StrictStr] = Field(default=None, alias="finishMessage")
     header_html: Optional[StrictStr] = Field(default=None, alias="headerHtml")
     footer_html: Optional[StrictStr] = Field(default=None, alias="footerHtml")
+    theme: Optional[SurveyThemeConfigDto] = None
     collect_name: Optional[StrictBool] = Field(default=None, alias="collectName")
     collect_email: Optional[StrictBool] = Field(default=None, alias="collectEmail")
     collect_phone: Optional[StrictBool] = Field(default=None, alias="collectPhone")
     collect_address: Optional[StrictBool] = Field(default=None, alias="collectAddress")
+    data_collection_fields: Optional[List[DataCollectionFieldResponse]] = Field(default=None, alias="dataCollectionFields")
     pages: Optional[List[CampaignPreviewResponsePagesInner]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["campaignId", "tenantId", "campaignName", "campaignStatus", "authMode", "surveyId", "surveyTitle", "surveyDescription", "showQuestionNumbers", "showProgressIndicator", "allowBackButton", "startMessage", "finishMessage", "headerHtml", "footerHtml", "collectName", "collectEmail", "collectPhone", "collectAddress", "pages"]
+    __properties: ClassVar[List[str]] = ["campaignId", "tenantId", "campaignName", "campaignStatus", "authMode", "surveyId", "surveyTitle", "surveyDescription", "showQuestionNumbers", "showProgressIndicator", "allowBackButton", "startMessage", "finishMessage", "headerHtml", "footerHtml", "theme", "collectName", "collectEmail", "collectPhone", "collectAddress", "dataCollectionFields", "pages"]
 
     @field_validator('campaign_status')
     def campaign_status_validate_enum(cls, value):
@@ -112,6 +116,16 @@ class CampaignPreviewResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of theme
+        if self.theme:
+            _dict['theme'] = self.theme.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in data_collection_fields (list)
+        _items = []
+        if self.data_collection_fields:
+            for _item_data_collection_fields in self.data_collection_fields:
+                if _item_data_collection_fields:
+                    _items.append(_item_data_collection_fields.to_dict())
+            _dict['dataCollectionFields'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in pages (list)
         _items = []
         if self.pages:
@@ -151,10 +165,12 @@ class CampaignPreviewResponse(BaseModel):
             "finishMessage": obj.get("finishMessage"),
             "headerHtml": obj.get("headerHtml"),
             "footerHtml": obj.get("footerHtml"),
+            "theme": SurveyThemeConfigDto.from_dict(obj["theme"]) if obj.get("theme") is not None else None,
             "collectName": obj.get("collectName"),
             "collectEmail": obj.get("collectEmail"),
             "collectPhone": obj.get("collectPhone"),
             "collectAddress": obj.get("collectAddress"),
+            "dataCollectionFields": [DataCollectionFieldResponse.from_dict(_item) for _item in obj["dataCollectionFields"]] if obj.get("dataCollectionFields") is not None else None,
             "pages": [CampaignPreviewResponsePagesInner.from_dict(_item) for _item in obj["pages"]] if obj.get("pages") is not None else None
         })
         # store additional fields in additional_properties

@@ -22,7 +22,8 @@ type CampaignPreviewResponsePagesInner struct {
 	Id *string `json:"id,omitempty"`
 	Title *string `json:"title,omitempty"`
 	SortOrder *int32 `json:"sortOrder,omitempty"`
-	Questions []CampaignPreviewResponsePagesInnerQuestionsInner `json:"questions,omitempty"`
+	Categories []CampaignPreviewResponsePagesInnerCategoriesInner `json:"categories,omitempty"`
+	Questions []CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner `json:"questions,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -141,10 +142,42 @@ func (o *CampaignPreviewResponsePagesInner) SetSortOrder(v int32) {
 	o.SortOrder = &v
 }
 
+// GetCategories returns the Categories field value if set, zero value otherwise.
+func (o *CampaignPreviewResponsePagesInner) GetCategories() []CampaignPreviewResponsePagesInnerCategoriesInner {
+	if o == nil || IsNil(o.Categories) {
+		var ret []CampaignPreviewResponsePagesInnerCategoriesInner
+		return ret
+	}
+	return o.Categories
+}
+
+// GetCategoriesOk returns a tuple with the Categories field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CampaignPreviewResponsePagesInner) GetCategoriesOk() ([]CampaignPreviewResponsePagesInnerCategoriesInner, bool) {
+	if o == nil || IsNil(o.Categories) {
+		return nil, false
+	}
+	return o.Categories, true
+}
+
+// HasCategories returns a boolean if a field has been set.
+func (o *CampaignPreviewResponsePagesInner) HasCategories() bool {
+	if o != nil && !IsNil(o.Categories) {
+		return true
+	}
+
+	return false
+}
+
+// SetCategories gets a reference to the given []CampaignPreviewResponsePagesInnerCategoriesInner and assigns it to the Categories field.
+func (o *CampaignPreviewResponsePagesInner) SetCategories(v []CampaignPreviewResponsePagesInnerCategoriesInner) {
+	o.Categories = v
+}
+
 // GetQuestions returns the Questions field value if set, zero value otherwise.
-func (o *CampaignPreviewResponsePagesInner) GetQuestions() []CampaignPreviewResponsePagesInnerQuestionsInner {
+func (o *CampaignPreviewResponsePagesInner) GetQuestions() []CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner {
 	if o == nil || IsNil(o.Questions) {
-		var ret []CampaignPreviewResponsePagesInnerQuestionsInner
+		var ret []CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner
 		return ret
 	}
 	return o.Questions
@@ -152,7 +185,7 @@ func (o *CampaignPreviewResponsePagesInner) GetQuestions() []CampaignPreviewResp
 
 // GetQuestionsOk returns a tuple with the Questions field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *CampaignPreviewResponsePagesInner) GetQuestionsOk() ([]CampaignPreviewResponsePagesInnerQuestionsInner, bool) {
+func (o *CampaignPreviewResponsePagesInner) GetQuestionsOk() ([]CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner, bool) {
 	if o == nil || IsNil(o.Questions) {
 		return nil, false
 	}
@@ -168,8 +201,8 @@ func (o *CampaignPreviewResponsePagesInner) HasQuestions() bool {
 	return false
 }
 
-// SetQuestions gets a reference to the given []CampaignPreviewResponsePagesInnerQuestionsInner and assigns it to the Questions field.
-func (o *CampaignPreviewResponsePagesInner) SetQuestions(v []CampaignPreviewResponsePagesInnerQuestionsInner) {
+// SetQuestions gets a reference to the given []CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner and assigns it to the Questions field.
+func (o *CampaignPreviewResponsePagesInner) SetQuestions(v []CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner) {
 	o.Questions = v
 }
 
@@ -191,6 +224,9 @@ func (o CampaignPreviewResponsePagesInner) ToMap() (map[string]interface{}, erro
 	}
 	if !IsNil(o.SortOrder) {
 		toSerialize["sortOrder"] = o.SortOrder
+	}
+	if !IsNil(o.Categories) {
+		toSerialize["categories"] = o.Categories
 	}
 	if !IsNil(o.Questions) {
 		toSerialize["questions"] = o.Questions
@@ -220,6 +256,7 @@ func (o *CampaignPreviewResponsePagesInner) UnmarshalJSON(data []byte) (err erro
 		delete(additionalProperties, "id")
 		delete(additionalProperties, "title")
 		delete(additionalProperties, "sortOrder")
+		delete(additionalProperties, "categories")
 		delete(additionalProperties, "questions")
 		o.AdditionalProperties = additionalProperties
 	}

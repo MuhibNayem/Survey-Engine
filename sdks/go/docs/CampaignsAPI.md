@@ -12,8 +12,12 @@ Method | HTTP request | Description
 [**GetCampaignPreview**](CampaignsAPI.md#GetCampaignPreview) | **Get** /api/v1/campaigns/{id}/preview | Get admin preview payload for a campaign
 [**GetCampaignSettings**](CampaignsAPI.md#GetCampaignSettings) | **Get** /api/v1/campaigns/{id}/settings | Get campaign runtime settings
 [**GetPublicCampaignPreview**](CampaignsAPI.md#GetPublicCampaignPreview) | **Get** /api/v1/public/campaigns/{id}/preview | Get responder-facing preview payload (public endpoint)
+[**GetResponderSessionStatus**](CampaignsAPI.md#GetResponderSessionStatus) | **Get** /api/v1/public/campaigns/{id}/auth/session | Get current private responder session status for a campaign
 [**ListCampaignChannels**](CampaignsAPI.md#ListCampaignChannels) | **Get** /api/v1/campaigns/{id}/channels | List generated channels for a campaign
 [**ListCampaigns**](CampaignsAPI.md#ListCampaigns) | **Get** /api/v1/campaigns | List active campaigns
+[**LoadPublicDraft**](CampaignsAPI.md#LoadPublicDraft) | **Post** /api/v1/public/campaigns/{id}/responses/draft/load | Load an existing in-progress responder draft
+[**LogoutResponderSession**](CampaignsAPI.md#LogoutResponderSession) | **Post** /api/v1/public/campaigns/{id}/auth/logout | Revoke the current private responder session for a campaign
+[**SavePublicDraft**](CampaignsAPI.md#SavePublicDraft) | **Post** /api/v1/public/campaigns/{id}/responses/draft | Create or update an in-progress responder draft
 [**UpdateCampaign**](CampaignsAPI.md#UpdateCampaign) | **Put** /api/v1/campaigns/{id} | Update campaign metadata
 [**UpdateCampaignSettings**](CampaignsAPI.md#UpdateCampaignSettings) | **Put** /api/v1/campaigns/{id}/settings | Update campaign runtime settings
 
@@ -573,6 +577,76 @@ No authorization required
 [[Back to README]](../README.md)
 
 
+## GetResponderSessionStatus
+
+> ResponderSessionStatusResponse GetResponderSessionStatus(ctx, id).Execute()
+
+Get current private responder session status for a campaign
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/GIT_USER_ID/GIT_REPO_ID"
+)
+
+func main() {
+	id := "38400000-8cf0-11bd-b23e-10b96e4ef00d" // string | 
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.CampaignsAPI.GetResponderSessionStatus(context.Background(), id).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `CampaignsAPI.GetResponderSessionStatus``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `GetResponderSessionStatus`: ResponderSessionStatusResponse
+	fmt.Fprintf(os.Stdout, "Response from `CampaignsAPI.GetResponderSessionStatus`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**id** | **string** |  | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiGetResponderSessionStatusRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+
+### Return type
+
+[**ResponderSessionStatusResponse**](ResponderSessionStatusResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
 ## ListCampaignChannels
 
 > []DistributionChannelResponse ListCampaignChannels(ctx, id).Execute()
@@ -697,6 +771,218 @@ Other parameters are passed through a pointer to a apiListCampaignsRequest struc
 ### HTTP request headers
 
 - **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## LoadPublicDraft
+
+> SurveyResponseResponse LoadPublicDraft(ctx, id).ResponseDraftLookupRequest(responseDraftLookupRequest).Execute()
+
+Load an existing in-progress responder draft
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/GIT_USER_ID/GIT_REPO_ID"
+)
+
+func main() {
+	id := "38400000-8cf0-11bd-b23e-10b96e4ef00d" // string | 
+	responseDraftLookupRequest := *openapiclient.NewResponseDraftLookupRequest() // ResponseDraftLookupRequest | 
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.CampaignsAPI.LoadPublicDraft(context.Background(), id).ResponseDraftLookupRequest(responseDraftLookupRequest).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `CampaignsAPI.LoadPublicDraft``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `LoadPublicDraft`: SurveyResponseResponse
+	fmt.Fprintf(os.Stdout, "Response from `CampaignsAPI.LoadPublicDraft`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**id** | **string** |  | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiLoadPublicDraftRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **responseDraftLookupRequest** | [**ResponseDraftLookupRequest**](ResponseDraftLookupRequest.md) |  | 
+
+### Return type
+
+[**SurveyResponseResponse**](SurveyResponseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## LogoutResponderSession
+
+> LogoutResponderSession(ctx, id).Execute()
+
+Revoke the current private responder session for a campaign
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/GIT_USER_ID/GIT_REPO_ID"
+)
+
+func main() {
+	id := "38400000-8cf0-11bd-b23e-10b96e4ef00d" // string | 
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	r, err := apiClient.CampaignsAPI.LogoutResponderSession(context.Background(), id).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `CampaignsAPI.LogoutResponderSession``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**id** | **string** |  | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiLogoutResponderSessionRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+
+### Return type
+
+ (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## SavePublicDraft
+
+> SurveyResponseResponse SavePublicDraft(ctx, id).ResponseSubmissionRequest(responseSubmissionRequest).Execute()
+
+Create or update an in-progress responder draft
+
+
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/GIT_USER_ID/GIT_REPO_ID"
+)
+
+func main() {
+	id := "38400000-8cf0-11bd-b23e-10b96e4ef00d" // string | 
+	responseSubmissionRequest := *openapiclient.NewResponseSubmissionRequest("CampaignId_example") // ResponseSubmissionRequest | 
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.CampaignsAPI.SavePublicDraft(context.Background(), id).ResponseSubmissionRequest(responseSubmissionRequest).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `CampaignsAPI.SavePublicDraft``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `SavePublicDraft`: SurveyResponseResponse
+	fmt.Fprintf(os.Stdout, "Response from `CampaignsAPI.SavePublicDraft`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**id** | **string** |  | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiSavePublicDraftRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **responseSubmissionRequest** | [**ResponseSubmissionRequest**](ResponseSubmissionRequest.md) |  | 
+
+### Return type
+
+[**SurveyResponseResponse**](SurveyResponseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)

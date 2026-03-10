@@ -30,9 +30,10 @@ class ResponseSubmissionRequestAnswersInner(BaseModel):
     question_id: UUID = Field(alias="questionId")
     question_version_id: Optional[UUID] = Field(default=None, alias="questionVersionId")
     value: Optional[StrictStr] = None
+    remark: Optional[StrictStr] = None
     score: Optional[Union[StrictFloat, StrictInt]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["questionId", "questionVersionId", "value", "score"]
+    __properties: ClassVar[List[str]] = ["questionId", "questionVersionId", "value", "remark", "score"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -95,6 +96,7 @@ class ResponseSubmissionRequestAnswersInner(BaseModel):
             "questionId": obj.get("questionId"),
             "questionVersionId": obj.get("questionVersionId"),
             "value": obj.get("value"),
+            "remark": obj.get("remark"),
             "score": obj.get("score")
         })
         # store additional fields in additional_properties

@@ -126,8 +126,12 @@ Class | Method | HTTP request | Description
 *CampaignsApi* | [**get_campaign_preview**](docs/CampaignsApi.md#get_campaign_preview) | **GET** /api/v1/campaigns/{id}/preview | Get admin preview payload for a campaign
 *CampaignsApi* | [**get_campaign_settings**](docs/CampaignsApi.md#get_campaign_settings) | **GET** /api/v1/campaigns/{id}/settings | Get campaign runtime settings
 *CampaignsApi* | [**get_public_campaign_preview**](docs/CampaignsApi.md#get_public_campaign_preview) | **GET** /api/v1/public/campaigns/{id}/preview | Get responder-facing preview payload (public endpoint)
+*CampaignsApi* | [**get_responder_session_status**](docs/CampaignsApi.md#get_responder_session_status) | **GET** /api/v1/public/campaigns/{id}/auth/session | Get current private responder session status for a campaign
 *CampaignsApi* | [**list_campaign_channels**](docs/CampaignsApi.md#list_campaign_channels) | **GET** /api/v1/campaigns/{id}/channels | List generated channels for a campaign
 *CampaignsApi* | [**list_campaigns**](docs/CampaignsApi.md#list_campaigns) | **GET** /api/v1/campaigns | List active campaigns
+*CampaignsApi* | [**load_public_draft**](docs/CampaignsApi.md#load_public_draft) | **POST** /api/v1/public/campaigns/{id}/responses/draft/load | Load an existing in-progress responder draft
+*CampaignsApi* | [**logout_responder_session**](docs/CampaignsApi.md#logout_responder_session) | **POST** /api/v1/public/campaigns/{id}/auth/logout | Revoke the current private responder session for a campaign
+*CampaignsApi* | [**save_public_draft**](docs/CampaignsApi.md#save_public_draft) | **POST** /api/v1/public/campaigns/{id}/responses/draft | Create or update an in-progress responder draft
 *CampaignsApi* | [**update_campaign**](docs/CampaignsApi.md#update_campaign) | **PUT** /api/v1/campaigns/{id} | Update campaign metadata
 *CampaignsApi* | [**update_campaign_settings**](docs/CampaignsApi.md#update_campaign_settings) | **PUT** /api/v1/campaigns/{id}/settings | Update campaign runtime settings
 *CategoriesApi* | [**create_category**](docs/CategoriesApi.md#create_category) | **POST** /api/v1/categories | Create a category grouping for questions
@@ -183,6 +187,12 @@ Class | Method | HTTP request | Description
 *UserFeaturesApi* | [**complete_feature**](docs/UserFeaturesApi.md#complete_feature) | **POST** /api/v1/features/{featureKey}/complete | Mark a feature as completed
 *UserFeaturesApi* | [**get_available_features**](docs/UserFeaturesApi.md#get_available_features) | **GET** /api/v1/features/available | Get features available to current user
 *UserFeaturesApi* | [**get_feature_status**](docs/UserFeaturesApi.md#get_feature_status) | **GET** /api/v1/features/{featureKey}/status | Get feature status for current user
+*UserPreferencesApi* | [**get_feature_completion_status**](docs/UserPreferencesApi.md#get_feature_completion_status) | **GET** /api/v1/admin/preferences/{featureKey}/completed | Check whether a feature or onboarding item is completed
+*UserPreferencesApi* | [**get_user_preferences**](docs/UserPreferencesApi.md#get_user_preferences) | **GET** /api/v1/admin/preferences | Get all preferences for the current admin user
+*UserPreferencesApi* | [**reset_user_preferences**](docs/UserPreferencesApi.md#reset_user_preferences) | **DELETE** /api/v1/admin/preferences | Reset all preferences for the current admin user
+*UserPreferencesApi* | [**set_feature_completion_status**](docs/UserPreferencesApi.md#set_feature_completion_status) | **POST** /api/v1/admin/preferences/{featureKey}/complete | Mark a feature or onboarding item as completed or incomplete
+*UserPreferencesApi* | [**set_user_preference**](docs/UserPreferencesApi.md#set_user_preference) | **PATCH** /api/v1/admin/preferences/{key} | Update one preference key for the current admin user
+*UserPreferencesApi* | [**update_user_preferences**](docs/UserPreferencesApi.md#update_user_preferences) | **PATCH** /api/v1/admin/preferences | Update multiple preferences for the current admin user
 
 
 ## Documentation For Models
@@ -199,7 +209,8 @@ Class | Method | HTTP request | Description
  - [CampaignAnalytics](docs/CampaignAnalytics.md)
  - [CampaignPreviewResponse](docs/CampaignPreviewResponse.md)
  - [CampaignPreviewResponsePagesInner](docs/CampaignPreviewResponsePagesInner.md)
- - [CampaignPreviewResponsePagesInnerQuestionsInner](docs/CampaignPreviewResponsePagesInnerQuestionsInner.md)
+ - [CampaignPreviewResponsePagesInnerCategoriesInner](docs/CampaignPreviewResponsePagesInnerCategoriesInner.md)
+ - [CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner](docs/CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner.md)
  - [CampaignRequest](docs/CampaignRequest.md)
  - [CampaignResponse](docs/CampaignResponse.md)
  - [CampaignSettingsRequest](docs/CampaignSettingsRequest.md)
@@ -213,6 +224,8 @@ Class | Method | HTTP request | Description
  - [CompleteFeatureRequest](docs/CompleteFeatureRequest.md)
  - [CreateFeatureRequest](docs/CreateFeatureRequest.md)
  - [CsrfTokenResponse](docs/CsrfTokenResponse.md)
+ - [DataCollectionFieldRequest](docs/DataCollectionFieldRequest.md)
+ - [DataCollectionFieldResponse](docs/DataCollectionFieldResponse.md)
  - [DistributionChannelResponse](docs/DistributionChannelResponse.md)
  - [ErrorResponse](docs/ErrorResponse.md)
  - [ErrorResponseFieldErrorsInner](docs/ErrorResponseFieldErrorsInner.md)
@@ -221,6 +234,7 @@ Class | Method | HTTP request | Description
  - [FeatureDefinitionDTO](docs/FeatureDefinitionDTO.md)
  - [FeatureStatusDTO](docs/FeatureStatusDTO.md)
  - [FeatureType](docs/FeatureType.md)
+ - [GetFeatureCompletionStatus200Response](docs/GetFeatureCompletionStatus200Response.md)
  - [LifecycleTransitionRequest](docs/LifecycleTransitionRequest.md)
  - [LoginRequest](docs/LoginRequest.md)
  - [OidcCallbackResponse](docs/OidcCallbackResponse.md)
@@ -238,6 +252,8 @@ Class | Method | HTTP request | Description
  - [RefreshTokenRequest](docs/RefreshTokenRequest.md)
  - [RegisterRequest](docs/RegisterRequest.md)
  - [ReopenRequest](docs/ReopenRequest.md)
+ - [ResponderSessionStatusResponse](docs/ResponderSessionStatusResponse.md)
+ - [ResponseDraftLookupRequest](docs/ResponseDraftLookupRequest.md)
  - [ResponseSubmissionRequest](docs/ResponseSubmissionRequest.md)
  - [ResponseSubmissionRequestAnswersInner](docs/ResponseSubmissionRequestAnswersInner.md)
  - [ScoreResult](docs/ScoreResult.md)
@@ -254,10 +270,19 @@ Class | Method | HTTP request | Description
  - [SurveyResponsePagesInnerQuestionsInner](docs/SurveyResponsePagesInnerQuestionsInner.md)
  - [SurveyResponseResponse](docs/SurveyResponseResponse.md)
  - [SurveyResponseResponseAnswersInner](docs/SurveyResponseResponseAnswersInner.md)
+ - [SurveyThemeAdvanced](docs/SurveyThemeAdvanced.md)
+ - [SurveyThemeBranding](docs/SurveyThemeBranding.md)
+ - [SurveyThemeConfigDto](docs/SurveyThemeConfigDto.md)
+ - [SurveyThemeFooter](docs/SurveyThemeFooter.md)
+ - [SurveyThemeHeader](docs/SurveyThemeHeader.md)
+ - [SurveyThemeLayout](docs/SurveyThemeLayout.md)
+ - [SurveyThemeMotion](docs/SurveyThemeMotion.md)
+ - [SurveyThemePalette](docs/SurveyThemePalette.md)
  - [TenantFeatureConfigDTO](docs/TenantFeatureConfigDTO.md)
  - [TenantOverviewResponse](docs/TenantOverviewResponse.md)
  - [TokenValidationResult](docs/TokenValidationResult.md)
  - [UpdateFeatureRequest](docs/UpdateFeatureRequest.md)
+ - [UserPreferenceDTO](docs/UserPreferenceDTO.md)
  - [WeightProfileRequest](docs/WeightProfileRequest.md)
  - [WeightProfileResponse](docs/WeightProfileResponse.md)
  - [WeightProfileResponseCategoryWeightsInner](docs/WeightProfileResponseCategoryWeightsInner.md)

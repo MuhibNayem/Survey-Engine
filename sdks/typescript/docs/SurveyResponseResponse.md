@@ -10,6 +10,7 @@ Name | Type
 `campaignId` | string
 `surveySnapshotId` | string
 `respondentIdentifier` | string
+`respondentMetadata` | string
 `status` | string
 `startedAt` | Date
 `submittedAt` | Date
@@ -30,6 +31,7 @@ const example = {
   "campaignId": null,
   "surveySnapshotId": null,
   "respondentIdentifier": null,
+  "respondentMetadata": null,
   "status": null,
   "startedAt": null,
   "submittedAt": null,

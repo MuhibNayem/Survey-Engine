@@ -22,7 +22,12 @@ type SurveyResponseResponseAnswersInner struct {
 	Id *string `json:"id,omitempty"`
 	QuestionId *string `json:"questionId,omitempty"`
 	QuestionVersionId *string `json:"questionVersionId,omitempty"`
+	QuestionVersionNumber *int32 `json:"questionVersionNumber,omitempty"`
+	QuestionText *string `json:"questionText,omitempty"`
+	QuestionType *string `json:"questionType,omitempty"`
+	OptionConfig *string `json:"optionConfig,omitempty"`
 	Value *string `json:"value,omitempty"`
+	Remark *string `json:"remark,omitempty"`
 	Score *float32 `json:"score,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
@@ -142,6 +147,134 @@ func (o *SurveyResponseResponseAnswersInner) SetQuestionVersionId(v string) {
 	o.QuestionVersionId = &v
 }
 
+// GetQuestionVersionNumber returns the QuestionVersionNumber field value if set, zero value otherwise.
+func (o *SurveyResponseResponseAnswersInner) GetQuestionVersionNumber() int32 {
+	if o == nil || IsNil(o.QuestionVersionNumber) {
+		var ret int32
+		return ret
+	}
+	return *o.QuestionVersionNumber
+}
+
+// GetQuestionVersionNumberOk returns a tuple with the QuestionVersionNumber field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SurveyResponseResponseAnswersInner) GetQuestionVersionNumberOk() (*int32, bool) {
+	if o == nil || IsNil(o.QuestionVersionNumber) {
+		return nil, false
+	}
+	return o.QuestionVersionNumber, true
+}
+
+// HasQuestionVersionNumber returns a boolean if a field has been set.
+func (o *SurveyResponseResponseAnswersInner) HasQuestionVersionNumber() bool {
+	if o != nil && !IsNil(o.QuestionVersionNumber) {
+		return true
+	}
+
+	return false
+}
+
+// SetQuestionVersionNumber gets a reference to the given int32 and assigns it to the QuestionVersionNumber field.
+func (o *SurveyResponseResponseAnswersInner) SetQuestionVersionNumber(v int32) {
+	o.QuestionVersionNumber = &v
+}
+
+// GetQuestionText returns the QuestionText field value if set, zero value otherwise.
+func (o *SurveyResponseResponseAnswersInner) GetQuestionText() string {
+	if o == nil || IsNil(o.QuestionText) {
+		var ret string
+		return ret
+	}
+	return *o.QuestionText
+}
+
+// GetQuestionTextOk returns a tuple with the QuestionText field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SurveyResponseResponseAnswersInner) GetQuestionTextOk() (*string, bool) {
+	if o == nil || IsNil(o.QuestionText) {
+		return nil, false
+	}
+	return o.QuestionText, true
+}
+
+// HasQuestionText returns a boolean if a field has been set.
+func (o *SurveyResponseResponseAnswersInner) HasQuestionText() bool {
+	if o != nil && !IsNil(o.QuestionText) {
+		return true
+	}
+
+	return false
+}
+
+// SetQuestionText gets a reference to the given string and assigns it to the QuestionText field.
+func (o *SurveyResponseResponseAnswersInner) SetQuestionText(v string) {
+	o.QuestionText = &v
+}
+
+// GetQuestionType returns the QuestionType field value if set, zero value otherwise.
+func (o *SurveyResponseResponseAnswersInner) GetQuestionType() string {
+	if o == nil || IsNil(o.QuestionType) {
+		var ret string
+		return ret
+	}
+	return *o.QuestionType
+}
+
+// GetQuestionTypeOk returns a tuple with the QuestionType field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SurveyResponseResponseAnswersInner) GetQuestionTypeOk() (*string, bool) {
+	if o == nil || IsNil(o.QuestionType) {
+		return nil, false
+	}
+	return o.QuestionType, true
+}
+
+// HasQuestionType returns a boolean if a field has been set.
+func (o *SurveyResponseResponseAnswersInner) HasQuestionType() bool {
+	if o != nil && !IsNil(o.QuestionType) {
+		return true
+	}
+
+	return false
+}
+
+// SetQuestionType gets a reference to the given string and assigns it to the QuestionType field.
+func (o *SurveyResponseResponseAnswersInner) SetQuestionType(v string) {
+	o.QuestionType = &v
+}
+
+// GetOptionConfig returns the OptionConfig field value if set, zero value otherwise.
+func (o *SurveyResponseResponseAnswersInner) GetOptionConfig() string {
+	if o == nil || IsNil(o.OptionConfig) {
+		var ret string
+		return ret
+	}
+	return *o.OptionConfig
+}
+
+// GetOptionConfigOk returns a tuple with the OptionConfig field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SurveyResponseResponseAnswersInner) GetOptionConfigOk() (*string, bool) {
+	if o == nil || IsNil(o.OptionConfig) {
+		return nil, false
+	}
+	return o.OptionConfig, true
+}
+
+// HasOptionConfig returns a boolean if a field has been set.
+func (o *SurveyResponseResponseAnswersInner) HasOptionConfig() bool {
+	if o != nil && !IsNil(o.OptionConfig) {
+		return true
+	}
+
+	return false
+}
+
+// SetOptionConfig gets a reference to the given string and assigns it to the OptionConfig field.
+func (o *SurveyResponseResponseAnswersInner) SetOptionConfig(v string) {
+	o.OptionConfig = &v
+}
+
 // GetValue returns the Value field value if set, zero value otherwise.
 func (o *SurveyResponseResponseAnswersInner) GetValue() string {
 	if o == nil || IsNil(o.Value) {
@@ -172,6 +305,38 @@ func (o *SurveyResponseResponseAnswersInner) HasValue() bool {
 // SetValue gets a reference to the given string and assigns it to the Value field.
 func (o *SurveyResponseResponseAnswersInner) SetValue(v string) {
 	o.Value = &v
+}
+
+// GetRemark returns the Remark field value if set, zero value otherwise.
+func (o *SurveyResponseResponseAnswersInner) GetRemark() string {
+	if o == nil || IsNil(o.Remark) {
+		var ret string
+		return ret
+	}
+	return *o.Remark
+}
+
+// GetRemarkOk returns a tuple with the Remark field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SurveyResponseResponseAnswersInner) GetRemarkOk() (*string, bool) {
+	if o == nil || IsNil(o.Remark) {
+		return nil, false
+	}
+	return o.Remark, true
+}
+
+// HasRemark returns a boolean if a field has been set.
+func (o *SurveyResponseResponseAnswersInner) HasRemark() bool {
+	if o != nil && !IsNil(o.Remark) {
+		return true
+	}
+
+	return false
+}
+
+// SetRemark gets a reference to the given string and assigns it to the Remark field.
+func (o *SurveyResponseResponseAnswersInner) SetRemark(v string) {
+	o.Remark = &v
 }
 
 // GetScore returns the Score field value if set, zero value otherwise.
@@ -225,8 +390,23 @@ func (o SurveyResponseResponseAnswersInner) ToMap() (map[string]interface{}, err
 	if !IsNil(o.QuestionVersionId) {
 		toSerialize["questionVersionId"] = o.QuestionVersionId
 	}
+	if !IsNil(o.QuestionVersionNumber) {
+		toSerialize["questionVersionNumber"] = o.QuestionVersionNumber
+	}
+	if !IsNil(o.QuestionText) {
+		toSerialize["questionText"] = o.QuestionText
+	}
+	if !IsNil(o.QuestionType) {
+		toSerialize["questionType"] = o.QuestionType
+	}
+	if !IsNil(o.OptionConfig) {
+		toSerialize["optionConfig"] = o.OptionConfig
+	}
 	if !IsNil(o.Value) {
 		toSerialize["value"] = o.Value
+	}
+	if !IsNil(o.Remark) {
+		toSerialize["remark"] = o.Remark
 	}
 	if !IsNil(o.Score) {
 		toSerialize["score"] = o.Score
@@ -256,7 +436,12 @@ func (o *SurveyResponseResponseAnswersInner) UnmarshalJSON(data []byte) (err err
 		delete(additionalProperties, "id")
 		delete(additionalProperties, "questionId")
 		delete(additionalProperties, "questionVersionId")
+		delete(additionalProperties, "questionVersionNumber")
+		delete(additionalProperties, "questionText")
+		delete(additionalProperties, "questionType")
+		delete(additionalProperties, "optionConfig")
 		delete(additionalProperties, "value")
+		delete(additionalProperties, "remark")
 		delete(additionalProperties, "score")
 		o.AdditionalProperties = additionalProperties
 	}

@@ -18,6 +18,7 @@ Name | Type | Description | Notes
 **created_at** | **datetime** |  | [optional] 
 **updated_by** | **str** |  | [optional] 
 **updated_at** | **datetime** |  | [optional] 
+**data_collection_fields** | [**List[DataCollectionFieldResponse]**](DataCollectionFieldResponse.md) |  | [optional] 
 
 ## Example
 

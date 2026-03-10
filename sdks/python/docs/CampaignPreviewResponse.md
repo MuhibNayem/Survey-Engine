@@ -20,10 +20,12 @@ Name | Type | Description | Notes
 **finish_message** | **str** |  | [optional] 
 **header_html** | **str** |  | [optional] 
 **footer_html** | **str** |  | [optional] 
+**theme** | [**SurveyThemeConfigDto**](SurveyThemeConfigDto.md) |  | [optional] 
 **collect_name** | **bool** |  | [optional] 
 **collect_email** | **bool** |  | [optional] 
 **collect_phone** | **bool** |  | [optional] 
 **collect_address** | **bool** |  | [optional] 
+**data_collection_fields** | [**List[DataCollectionFieldResponse]**](DataCollectionFieldResponse.md) |  | [optional] 
 **pages** | [**List[CampaignPreviewResponsePagesInner]**](CampaignPreviewResponsePagesInner.md) |  | [optional] 
 
 ## Example

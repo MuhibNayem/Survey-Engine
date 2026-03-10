@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { DataCollectionFieldResponse } from './DataCollectionFieldResponse';
+import {
+    DataCollectionFieldResponseFromJSON,
+    DataCollectionFieldResponseFromJSONTyped,
+    DataCollectionFieldResponseToJSON,
+    DataCollectionFieldResponseToJSONTyped,
+} from './DataCollectionFieldResponse';
 import type { CampaignPreviewResponsePagesInner } from './CampaignPreviewResponsePagesInner';
 import {
     CampaignPreviewResponsePagesInnerFromJSON,
@@ -20,6 +27,13 @@ import {
     CampaignPreviewResponsePagesInnerToJSON,
     CampaignPreviewResponsePagesInnerToJSONTyped,
 } from './CampaignPreviewResponsePagesInner';
+import type { SurveyThemeConfigDto } from './SurveyThemeConfigDto';
+import {
+    SurveyThemeConfigDtoFromJSON,
+    SurveyThemeConfigDtoFromJSONTyped,
+    SurveyThemeConfigDtoToJSON,
+    SurveyThemeConfigDtoToJSONTyped,
+} from './SurveyThemeConfigDto';
 
 /**
  * 
@@ -119,6 +133,12 @@ export interface CampaignPreviewResponse {
     footerHtml?: string;
     /**
      * 
+     * @type {SurveyThemeConfigDto}
+     * @memberof CampaignPreviewResponse
+     */
+    theme?: SurveyThemeConfigDto;
+    /**
+     * 
      * @type {boolean}
      * @memberof CampaignPreviewResponse
      */
@@ -141,6 +161,12 @@ export interface CampaignPreviewResponse {
      * @memberof CampaignPreviewResponse
      */
     collectAddress?: boolean;
+    /**
+     * 
+     * @type {Array<DataCollectionFieldResponse>}
+     * @memberof CampaignPreviewResponse
+     */
+    dataCollectionFields?: Array<DataCollectionFieldResponse>;
     /**
      * 
      * @type {Array<CampaignPreviewResponsePagesInner>}
@@ -206,10 +232,12 @@ export function CampaignPreviewResponseFromJSONTyped(json: any, ignoreDiscrimina
         'finishMessage': json['finishMessage'] == null ? undefined : json['finishMessage'],
         'headerHtml': json['headerHtml'] == null ? undefined : json['headerHtml'],
         'footerHtml': json['footerHtml'] == null ? undefined : json['footerHtml'],
+        'theme': json['theme'] == null ? undefined : SurveyThemeConfigDtoFromJSON(json['theme']),
         'collectName': json['collectName'] == null ? undefined : json['collectName'],
         'collectEmail': json['collectEmail'] == null ? undefined : json['collectEmail'],
         'collectPhone': json['collectPhone'] == null ? undefined : json['collectPhone'],
         'collectAddress': json['collectAddress'] == null ? undefined : json['collectAddress'],
+        'dataCollectionFields': json['dataCollectionFields'] == null ? undefined : ((json['dataCollectionFields'] as Array<any>).map(DataCollectionFieldResponseFromJSON)),
         'pages': json['pages'] == null ? undefined : ((json['pages'] as Array<any>).map(CampaignPreviewResponsePagesInnerFromJSON)),
     };
 }
@@ -240,10 +268,12 @@ export function CampaignPreviewResponseToJSONTyped(value?: CampaignPreviewRespon
         'finishMessage': value['finishMessage'],
         'headerHtml': value['headerHtml'],
         'footerHtml': value['footerHtml'],
+        'theme': SurveyThemeConfigDtoToJSON(value['theme']),
         'collectName': value['collectName'],
         'collectEmail': value['collectEmail'],
         'collectPhone': value['collectPhone'],
         'collectAddress': value['collectAddress'],
+        'dataCollectionFields': value['dataCollectionFields'] == null ? undefined : ((value['dataCollectionFields'] as Array<any>).map(DataCollectionFieldResponseToJSON)),
         'pages': value['pages'] == null ? undefined : ((value['pages'] as Array<any>).map(CampaignPreviewResponsePagesInnerToJSON)),
     };
 }

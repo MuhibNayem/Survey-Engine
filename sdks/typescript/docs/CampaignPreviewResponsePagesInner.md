@@ -9,7 +9,8 @@ Name | Type
 `id` | string
 `title` | string
 `sortOrder` | number
-`questions` | [Array&lt;CampaignPreviewResponsePagesInnerQuestionsInner&gt;](CampaignPreviewResponsePagesInnerQuestionsInner.md)
+`categories` | [Array&lt;CampaignPreviewResponsePagesInnerCategoriesInner&gt;](CampaignPreviewResponsePagesInnerCategoriesInner.md)
+`questions` | [Array&lt;CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner&gt;](CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner.md)
 
 ## Example
 
@@ -21,6 +22,7 @@ const example = {
   "id": null,
   "title": null,
   "sortOrder": null,
+  "categories": null,
   "questions": null,
 } satisfies CampaignPreviewResponsePagesInner
 

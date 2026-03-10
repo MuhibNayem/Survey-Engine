@@ -6,12 +6,14 @@
 
 Name | Type
 ------------ | -------------
+`responseId` | string
 `campaignId` | string
 `respondentIdentifier` | string
 `respondentIp` | string
 `respondentDeviceFingerprint` | string
 `responderToken` | string
 `responderAccessCode` | string
+`respondentMetadata` | { [key: string]: string; }
 `answers` | [Array&lt;ResponseSubmissionRequestAnswersInner&gt;](ResponseSubmissionRequestAnswersInner.md)
 
 ## Example
@@ -21,12 +23,14 @@ import type { ResponseSubmissionRequest } from '@survey-engine/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
+  "responseId": null,
   "campaignId": null,
   "respondentIdentifier": null,
   "respondentIp": null,
   "respondentDeviceFingerprint": null,
   "responderToken": null,
   "responderAccessCode": null,
+  "respondentMetadata": null,
   "answers": null,
 } satisfies ResponseSubmissionRequest
 

@@ -13,6 +13,14 @@
  */
 
 import { mapValues } from '../runtime';
+import type { DataCollectionFieldResponse } from './DataCollectionFieldResponse';
+import {
+    DataCollectionFieldResponseFromJSON,
+    DataCollectionFieldResponseFromJSONTyped,
+    DataCollectionFieldResponseToJSON,
+    DataCollectionFieldResponseToJSONTyped,
+} from './DataCollectionFieldResponse';
+
 /**
  * 
  * @export
@@ -97,6 +105,12 @@ export interface CampaignResponse {
      * @memberof CampaignResponse
      */
     updatedAt?: Date;
+    /**
+     * 
+     * @type {Array<DataCollectionFieldResponse>}
+     * @memberof CampaignResponse
+     */
+    dataCollectionFields?: Array<DataCollectionFieldResponse>;
 }
 
 
@@ -154,6 +168,7 @@ export function CampaignResponseFromJSONTyped(json: any, ignoreDiscriminator: bo
         'createdAt': json['createdAt'] == null ? undefined : (new Date(json['createdAt'])),
         'updatedBy': json['updatedBy'] == null ? undefined : json['updatedBy'],
         'updatedAt': json['updatedAt'] == null ? undefined : (new Date(json['updatedAt'])),
+        'dataCollectionFields': json['dataCollectionFields'] == null ? undefined : ((json['dataCollectionFields'] as Array<any>).map(DataCollectionFieldResponseFromJSON)),
     };
 }
 
@@ -181,6 +196,7 @@ export function CampaignResponseToJSONTyped(value?: CampaignResponse | null, ign
         'createdAt': value['createdAt'] == null ? value['createdAt'] : value['createdAt'].toISOString(),
         'updatedBy': value['updatedBy'],
         'updatedAt': value['updatedAt'] == null ? value['updatedAt'] : value['updatedAt'].toISOString(),
+        'dataCollectionFields': value['dataCollectionFields'] == null ? undefined : ((value['dataCollectionFields'] as Array<any>).map(DataCollectionFieldResponseToJSON)),
     };
 }
 

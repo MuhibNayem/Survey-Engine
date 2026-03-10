@@ -33,6 +33,7 @@ type CampaignResponse struct {
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
 	UpdatedBy *string `json:"updatedBy,omitempty"`
 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+	DataCollectionFields []DataCollectionFieldResponse `json:"dataCollectionFields,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -471,6 +472,38 @@ func (o *CampaignResponse) SetUpdatedAt(v time.Time) {
 	o.UpdatedAt = &v
 }
 
+// GetDataCollectionFields returns the DataCollectionFields field value if set, zero value otherwise.
+func (o *CampaignResponse) GetDataCollectionFields() []DataCollectionFieldResponse {
+	if o == nil || IsNil(o.DataCollectionFields) {
+		var ret []DataCollectionFieldResponse
+		return ret
+	}
+	return o.DataCollectionFields
+}
+
+// GetDataCollectionFieldsOk returns a tuple with the DataCollectionFields field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CampaignResponse) GetDataCollectionFieldsOk() ([]DataCollectionFieldResponse, bool) {
+	if o == nil || IsNil(o.DataCollectionFields) {
+		return nil, false
+	}
+	return o.DataCollectionFields, true
+}
+
+// HasDataCollectionFields returns a boolean if a field has been set.
+func (o *CampaignResponse) HasDataCollectionFields() bool {
+	if o != nil && !IsNil(o.DataCollectionFields) {
+		return true
+	}
+
+	return false
+}
+
+// SetDataCollectionFields gets a reference to the given []DataCollectionFieldResponse and assigns it to the DataCollectionFields field.
+func (o *CampaignResponse) SetDataCollectionFields(v []DataCollectionFieldResponse) {
+	o.DataCollectionFields = v
+}
+
 func (o CampaignResponse) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -520,6 +553,9 @@ func (o CampaignResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.UpdatedAt) {
 		toSerialize["updatedAt"] = o.UpdatedAt
 	}
+	if !IsNil(o.DataCollectionFields) {
+		toSerialize["dataCollectionFields"] = o.DataCollectionFields
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -555,6 +591,7 @@ func (o *CampaignResponse) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "createdAt")
 		delete(additionalProperties, "updatedBy")
 		delete(additionalProperties, "updatedAt")
+		delete(additionalProperties, "dataCollectionFields")
 		o.AdditionalProperties = additionalProperties
 	}
 

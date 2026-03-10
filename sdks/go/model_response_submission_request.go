@@ -20,12 +20,14 @@ var _ MappedNullable = &ResponseSubmissionRequest{}
 
 // ResponseSubmissionRequest struct for ResponseSubmissionRequest
 type ResponseSubmissionRequest struct {
+	ResponseId *string `json:"responseId,omitempty"`
 	CampaignId string `json:"campaignId"`
 	RespondentIdentifier *string `json:"respondentIdentifier,omitempty"`
 	RespondentIp *string `json:"respondentIp,omitempty"`
 	RespondentDeviceFingerprint *string `json:"respondentDeviceFingerprint,omitempty"`
 	ResponderToken *string `json:"responderToken,omitempty"`
 	ResponderAccessCode *string `json:"responderAccessCode,omitempty"`
+	RespondentMetadata map[string]string `json:"respondentMetadata,omitempty"`
 	Answers []ResponseSubmissionRequestAnswersInner `json:"answers,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
@@ -48,6 +50,38 @@ func NewResponseSubmissionRequest(campaignId string) *ResponseSubmissionRequest 
 func NewResponseSubmissionRequestWithDefaults() *ResponseSubmissionRequest {
 	this := ResponseSubmissionRequest{}
 	return &this
+}
+
+// GetResponseId returns the ResponseId field value if set, zero value otherwise.
+func (o *ResponseSubmissionRequest) GetResponseId() string {
+	if o == nil || IsNil(o.ResponseId) {
+		var ret string
+		return ret
+	}
+	return *o.ResponseId
+}
+
+// GetResponseIdOk returns a tuple with the ResponseId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ResponseSubmissionRequest) GetResponseIdOk() (*string, bool) {
+	if o == nil || IsNil(o.ResponseId) {
+		return nil, false
+	}
+	return o.ResponseId, true
+}
+
+// HasResponseId returns a boolean if a field has been set.
+func (o *ResponseSubmissionRequest) HasResponseId() bool {
+	if o != nil && !IsNil(o.ResponseId) {
+		return true
+	}
+
+	return false
+}
+
+// SetResponseId gets a reference to the given string and assigns it to the ResponseId field.
+func (o *ResponseSubmissionRequest) SetResponseId(v string) {
+	o.ResponseId = &v
 }
 
 // GetCampaignId returns the CampaignId field value
@@ -234,6 +268,38 @@ func (o *ResponseSubmissionRequest) SetResponderAccessCode(v string) {
 	o.ResponderAccessCode = &v
 }
 
+// GetRespondentMetadata returns the RespondentMetadata field value if set, zero value otherwise.
+func (o *ResponseSubmissionRequest) GetRespondentMetadata() map[string]string {
+	if o == nil || IsNil(o.RespondentMetadata) {
+		var ret map[string]string
+		return ret
+	}
+	return o.RespondentMetadata
+}
+
+// GetRespondentMetadataOk returns a tuple with the RespondentMetadata field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ResponseSubmissionRequest) GetRespondentMetadataOk() (map[string]string, bool) {
+	if o == nil || IsNil(o.RespondentMetadata) {
+		return map[string]string{}, false
+	}
+	return o.RespondentMetadata, true
+}
+
+// HasRespondentMetadata returns a boolean if a field has been set.
+func (o *ResponseSubmissionRequest) HasRespondentMetadata() bool {
+	if o != nil && !IsNil(o.RespondentMetadata) {
+		return true
+	}
+
+	return false
+}
+
+// SetRespondentMetadata gets a reference to the given map[string]string and assigns it to the RespondentMetadata field.
+func (o *ResponseSubmissionRequest) SetRespondentMetadata(v map[string]string) {
+	o.RespondentMetadata = v
+}
+
 // GetAnswers returns the Answers field value if set, zero value otherwise.
 func (o *ResponseSubmissionRequest) GetAnswers() []ResponseSubmissionRequestAnswersInner {
 	if o == nil || IsNil(o.Answers) {
@@ -276,6 +342,9 @@ func (o ResponseSubmissionRequest) MarshalJSON() ([]byte, error) {
 
 func (o ResponseSubmissionRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.ResponseId) {
+		toSerialize["responseId"] = o.ResponseId
+	}
 	toSerialize["campaignId"] = o.CampaignId
 	if !IsNil(o.RespondentIdentifier) {
 		toSerialize["respondentIdentifier"] = o.RespondentIdentifier
@@ -291,6 +360,9 @@ func (o ResponseSubmissionRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ResponderAccessCode) {
 		toSerialize["responderAccessCode"] = o.ResponderAccessCode
+	}
+	if !IsNil(o.RespondentMetadata) {
+		toSerialize["respondentMetadata"] = o.RespondentMetadata
 	}
 	if !IsNil(o.Answers) {
 		toSerialize["answers"] = o.Answers
@@ -338,12 +410,14 @@ func (o *ResponseSubmissionRequest) UnmarshalJSON(data []byte) (err error) {
 	additionalProperties := make(map[string]interface{})
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "responseId")
 		delete(additionalProperties, "campaignId")
 		delete(additionalProperties, "respondentIdentifier")
 		delete(additionalProperties, "respondentIp")
 		delete(additionalProperties, "respondentDeviceFingerprint")
 		delete(additionalProperties, "responderToken")
 		delete(additionalProperties, "responderAccessCode")
+		delete(additionalProperties, "respondentMetadata")
 		delete(additionalProperties, "answers")
 		o.AdditionalProperties = additionalProperties
 	}

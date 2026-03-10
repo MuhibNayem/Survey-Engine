@@ -4,12 +4,14 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**ResponseId** | Pointer to **string** |  | [optional] 
 **CampaignId** | **string** |  | 
 **RespondentIdentifier** | Pointer to **string** |  | [optional] 
 **RespondentIp** | Pointer to **string** |  | [optional] 
 **RespondentDeviceFingerprint** | Pointer to **string** |  | [optional] 
 **ResponderToken** | Pointer to **string** |  | [optional] 
 **ResponderAccessCode** | Pointer to **string** |  | [optional] 
+**RespondentMetadata** | Pointer to **map[string]string** |  | [optional] 
 **Answers** | Pointer to [**[]ResponseSubmissionRequestAnswersInner**](ResponseSubmissionRequestAnswersInner.md) |  | [optional] 
 
 ## Methods
@@ -30,6 +32,31 @@ will change when the set of required properties is changed
 NewResponseSubmissionRequestWithDefaults instantiates a new ResponseSubmissionRequest object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
+
+### GetResponseId
+
+`func (o *ResponseSubmissionRequest) GetResponseId() string`
+
+GetResponseId returns the ResponseId field if non-nil, zero value otherwise.
+
+### GetResponseIdOk
+
+`func (o *ResponseSubmissionRequest) GetResponseIdOk() (*string, bool)`
+
+GetResponseIdOk returns a tuple with the ResponseId field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetResponseId
+
+`func (o *ResponseSubmissionRequest) SetResponseId(v string)`
+
+SetResponseId sets ResponseId field to given value.
+
+### HasResponseId
+
+`func (o *ResponseSubmissionRequest) HasResponseId() bool`
+
+HasResponseId returns a boolean if a field has been set.
 
 ### GetCampaignId
 
@@ -175,6 +202,31 @@ SetResponderAccessCode sets ResponderAccessCode field to given value.
 `func (o *ResponseSubmissionRequest) HasResponderAccessCode() bool`
 
 HasResponderAccessCode returns a boolean if a field has been set.
+
+### GetRespondentMetadata
+
+`func (o *ResponseSubmissionRequest) GetRespondentMetadata() map[string]string`
+
+GetRespondentMetadata returns the RespondentMetadata field if non-nil, zero value otherwise.
+
+### GetRespondentMetadataOk
+
+`func (o *ResponseSubmissionRequest) GetRespondentMetadataOk() (*map[string]string, bool)`
+
+GetRespondentMetadataOk returns a tuple with the RespondentMetadata field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetRespondentMetadata
+
+`func (o *ResponseSubmissionRequest) SetRespondentMetadata(v map[string]string)`
+
+SetRespondentMetadata sets RespondentMetadata field to given value.
+
+### HasRespondentMetadata
+
+`func (o *ResponseSubmissionRequest) HasRespondentMetadata() bool`
+
+HasRespondentMetadata returns a boolean if a field has been set.
 
 ### GetAnswers
 

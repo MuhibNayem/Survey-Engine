@@ -50,7 +50,7 @@ import org.openapitools.client.JSON;
 /**
  * SurveyResponseResponseAnswersInner
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-11T04:33:32.444010+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class SurveyResponseResponseAnswersInner {
   public static final String SERIALIZED_NAME_ID = "id";
   @SerializedName(SERIALIZED_NAME_ID)
@@ -67,10 +67,91 @@ public class SurveyResponseResponseAnswersInner {
   @javax.annotation.Nullable
   private UUID questionVersionId;
 
+  public static final String SERIALIZED_NAME_QUESTION_VERSION_NUMBER = "questionVersionNumber";
+  @SerializedName(SERIALIZED_NAME_QUESTION_VERSION_NUMBER)
+  @javax.annotation.Nullable
+  private Integer questionVersionNumber;
+
+  public static final String SERIALIZED_NAME_QUESTION_TEXT = "questionText";
+  @SerializedName(SERIALIZED_NAME_QUESTION_TEXT)
+  @javax.annotation.Nullable
+  private String questionText;
+
+  /**
+   * Gets or Sets questionType
+   */
+  @JsonAdapter(QuestionTypeEnum.Adapter.class)
+  public enum QuestionTypeEnum {
+    RANK("RANK"),
+    
+    RATING_SCALE("RATING_SCALE"),
+    
+    SINGLE_CHOICE("SINGLE_CHOICE"),
+    
+    MULTIPLE_CHOICE("MULTIPLE_CHOICE");
+
+    private String value;
+
+    QuestionTypeEnum(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    public static QuestionTypeEnum fromValue(String value) {
+      for (QuestionTypeEnum b : QuestionTypeEnum.values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+
+    public static class Adapter extends TypeAdapter<QuestionTypeEnum> {
+      @Override
+      public void write(final JsonWriter jsonWriter, final QuestionTypeEnum enumeration) throws IOException {
+        jsonWriter.value(enumeration.getValue());
+      }
+
+      @Override
+      public QuestionTypeEnum read(final JsonReader jsonReader) throws IOException {
+        String value =  jsonReader.nextString();
+        return QuestionTypeEnum.fromValue(value);
+      }
+    }
+
+    public static void validateJsonElement(JsonElement jsonElement) throws IOException {
+      String value = jsonElement.getAsString();
+      QuestionTypeEnum.fromValue(value);
+    }
+  }
+
+  public static final String SERIALIZED_NAME_QUESTION_TYPE = "questionType";
+  @SerializedName(SERIALIZED_NAME_QUESTION_TYPE)
+  @javax.annotation.Nullable
+  private QuestionTypeEnum questionType;
+
+  public static final String SERIALIZED_NAME_OPTION_CONFIG = "optionConfig";
+  @SerializedName(SERIALIZED_NAME_OPTION_CONFIG)
+  @javax.annotation.Nullable
+  private String optionConfig;
+
   public static final String SERIALIZED_NAME_VALUE = "value";
   @SerializedName(SERIALIZED_NAME_VALUE)
   @javax.annotation.Nullable
   private String value;
+
+  public static final String SERIALIZED_NAME_REMARK = "remark";
+  @SerializedName(SERIALIZED_NAME_REMARK)
+  @javax.annotation.Nullable
+  private String remark;
 
   public static final String SERIALIZED_NAME_SCORE = "score";
   @SerializedName(SERIALIZED_NAME_SCORE)
@@ -137,6 +218,82 @@ public class SurveyResponseResponseAnswersInner {
   }
 
 
+  public SurveyResponseResponseAnswersInner questionVersionNumber(@javax.annotation.Nullable Integer questionVersionNumber) {
+    this.questionVersionNumber = questionVersionNumber;
+    return this;
+  }
+
+  /**
+   * Get questionVersionNumber
+   * @return questionVersionNumber
+   */
+  @javax.annotation.Nullable
+  public Integer getQuestionVersionNumber() {
+    return questionVersionNumber;
+  }
+
+  public void setQuestionVersionNumber(@javax.annotation.Nullable Integer questionVersionNumber) {
+    this.questionVersionNumber = questionVersionNumber;
+  }
+
+
+  public SurveyResponseResponseAnswersInner questionText(@javax.annotation.Nullable String questionText) {
+    this.questionText = questionText;
+    return this;
+  }
+
+  /**
+   * Get questionText
+   * @return questionText
+   */
+  @javax.annotation.Nullable
+  public String getQuestionText() {
+    return questionText;
+  }
+
+  public void setQuestionText(@javax.annotation.Nullable String questionText) {
+    this.questionText = questionText;
+  }
+
+
+  public SurveyResponseResponseAnswersInner questionType(@javax.annotation.Nullable QuestionTypeEnum questionType) {
+    this.questionType = questionType;
+    return this;
+  }
+
+  /**
+   * Get questionType
+   * @return questionType
+   */
+  @javax.annotation.Nullable
+  public QuestionTypeEnum getQuestionType() {
+    return questionType;
+  }
+
+  public void setQuestionType(@javax.annotation.Nullable QuestionTypeEnum questionType) {
+    this.questionType = questionType;
+  }
+
+
+  public SurveyResponseResponseAnswersInner optionConfig(@javax.annotation.Nullable String optionConfig) {
+    this.optionConfig = optionConfig;
+    return this;
+  }
+
+  /**
+   * Get optionConfig
+   * @return optionConfig
+   */
+  @javax.annotation.Nullable
+  public String getOptionConfig() {
+    return optionConfig;
+  }
+
+  public void setOptionConfig(@javax.annotation.Nullable String optionConfig) {
+    this.optionConfig = optionConfig;
+  }
+
+
   public SurveyResponseResponseAnswersInner value(@javax.annotation.Nullable String value) {
     this.value = value;
     return this;
@@ -153,6 +310,25 @@ public class SurveyResponseResponseAnswersInner {
 
   public void setValue(@javax.annotation.Nullable String value) {
     this.value = value;
+  }
+
+
+  public SurveyResponseResponseAnswersInner remark(@javax.annotation.Nullable String remark) {
+    this.remark = remark;
+    return this;
+  }
+
+  /**
+   * Get remark
+   * @return remark
+   */
+  @javax.annotation.Nullable
+  public String getRemark() {
+    return remark;
+  }
+
+  public void setRemark(@javax.annotation.Nullable String remark) {
+    this.remark = remark;
   }
 
 
@@ -232,14 +408,19 @@ public class SurveyResponseResponseAnswersInner {
     return Objects.equals(this.id, surveyResponseResponseAnswersInner.id) &&
         Objects.equals(this.questionId, surveyResponseResponseAnswersInner.questionId) &&
         Objects.equals(this.questionVersionId, surveyResponseResponseAnswersInner.questionVersionId) &&
+        Objects.equals(this.questionVersionNumber, surveyResponseResponseAnswersInner.questionVersionNumber) &&
+        Objects.equals(this.questionText, surveyResponseResponseAnswersInner.questionText) &&
+        Objects.equals(this.questionType, surveyResponseResponseAnswersInner.questionType) &&
+        Objects.equals(this.optionConfig, surveyResponseResponseAnswersInner.optionConfig) &&
         Objects.equals(this.value, surveyResponseResponseAnswersInner.value) &&
+        Objects.equals(this.remark, surveyResponseResponseAnswersInner.remark) &&
         Objects.equals(this.score, surveyResponseResponseAnswersInner.score)&&
         Objects.equals(this.additionalProperties, surveyResponseResponseAnswersInner.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, questionId, questionVersionId, value, score, additionalProperties);
+    return Objects.hash(id, questionId, questionVersionId, questionVersionNumber, questionText, questionType, optionConfig, value, remark, score, additionalProperties);
   }
 
   @Override
@@ -249,7 +430,12 @@ public class SurveyResponseResponseAnswersInner {
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    questionId: ").append(toIndentedString(questionId)).append("\n");
     sb.append("    questionVersionId: ").append(toIndentedString(questionVersionId)).append("\n");
+    sb.append("    questionVersionNumber: ").append(toIndentedString(questionVersionNumber)).append("\n");
+    sb.append("    questionText: ").append(toIndentedString(questionText)).append("\n");
+    sb.append("    questionType: ").append(toIndentedString(questionType)).append("\n");
+    sb.append("    optionConfig: ").append(toIndentedString(optionConfig)).append("\n");
     sb.append("    value: ").append(toIndentedString(value)).append("\n");
+    sb.append("    remark: ").append(toIndentedString(remark)).append("\n");
     sb.append("    score: ").append(toIndentedString(score)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -273,7 +459,7 @@ public class SurveyResponseResponseAnswersInner {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "questionId", "questionVersionId", "value", "score"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "questionId", "questionVersionId", "questionVersionNumber", "questionText", "questionType", "optionConfig", "value", "remark", "score"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -301,8 +487,24 @@ public class SurveyResponseResponseAnswersInner {
       if ((jsonObj.get("questionVersionId") != null && !jsonObj.get("questionVersionId").isJsonNull()) && !jsonObj.get("questionVersionId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `questionVersionId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("questionVersionId").toString()));
       }
+      if ((jsonObj.get("questionText") != null && !jsonObj.get("questionText").isJsonNull()) && !jsonObj.get("questionText").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `questionText` to be a primitive type in the JSON string but got `%s`", jsonObj.get("questionText").toString()));
+      }
+      if ((jsonObj.get("questionType") != null && !jsonObj.get("questionType").isJsonNull()) && !jsonObj.get("questionType").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `questionType` to be a primitive type in the JSON string but got `%s`", jsonObj.get("questionType").toString()));
+      }
+      // validate the optional field `questionType`
+      if (jsonObj.get("questionType") != null && !jsonObj.get("questionType").isJsonNull()) {
+        QuestionTypeEnum.validateJsonElement(jsonObj.get("questionType"));
+      }
+      if ((jsonObj.get("optionConfig") != null && !jsonObj.get("optionConfig").isJsonNull()) && !jsonObj.get("optionConfig").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `optionConfig` to be a primitive type in the JSON string but got `%s`", jsonObj.get("optionConfig").toString()));
+      }
       if ((jsonObj.get("value") != null && !jsonObj.get("value").isJsonNull()) && !jsonObj.get("value").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `value` to be a primitive type in the JSON string but got `%s`", jsonObj.get("value").toString()));
+      }
+      if ((jsonObj.get("remark") != null && !jsonObj.get("remark").isJsonNull()) && !jsonObj.get("remark").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `remark` to be a primitive type in the JSON string but got `%s`", jsonObj.get("remark").toString()));
       }
   }
 

@@ -22,7 +22,9 @@ import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.openapitools.client.model.ResponseSubmissionRequestAnswersInner;
 
@@ -52,8 +54,13 @@ import org.openapitools.client.JSON;
 /**
  * ResponseSubmissionRequest
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-11T04:33:32.444010+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class ResponseSubmissionRequest {
+  public static final String SERIALIZED_NAME_RESPONSE_ID = "responseId";
+  @SerializedName(SERIALIZED_NAME_RESPONSE_ID)
+  @javax.annotation.Nullable
+  private UUID responseId;
+
   public static final String SERIALIZED_NAME_CAMPAIGN_ID = "campaignId";
   @SerializedName(SERIALIZED_NAME_CAMPAIGN_ID)
   @javax.annotation.Nonnull
@@ -84,6 +91,11 @@ public class ResponseSubmissionRequest {
   @javax.annotation.Nullable
   private String responderAccessCode;
 
+  public static final String SERIALIZED_NAME_RESPONDENT_METADATA = "respondentMetadata";
+  @SerializedName(SERIALIZED_NAME_RESPONDENT_METADATA)
+  @javax.annotation.Nullable
+  private Map<String, String> respondentMetadata = new HashMap<>();
+
   public static final String SERIALIZED_NAME_ANSWERS = "answers";
   @SerializedName(SERIALIZED_NAME_ANSWERS)
   @javax.annotation.Nullable
@@ -91,6 +103,25 @@ public class ResponseSubmissionRequest {
 
   public ResponseSubmissionRequest() {
   }
+
+  public ResponseSubmissionRequest responseId(@javax.annotation.Nullable UUID responseId) {
+    this.responseId = responseId;
+    return this;
+  }
+
+  /**
+   * Get responseId
+   * @return responseId
+   */
+  @javax.annotation.Nullable
+  public UUID getResponseId() {
+    return responseId;
+  }
+
+  public void setResponseId(@javax.annotation.Nullable UUID responseId) {
+    this.responseId = responseId;
+  }
+
 
   public ResponseSubmissionRequest campaignId(@javax.annotation.Nonnull UUID campaignId) {
     this.campaignId = campaignId;
@@ -206,6 +237,33 @@ public class ResponseSubmissionRequest {
   }
 
 
+  public ResponseSubmissionRequest respondentMetadata(@javax.annotation.Nullable Map<String, String> respondentMetadata) {
+    this.respondentMetadata = respondentMetadata;
+    return this;
+  }
+
+  public ResponseSubmissionRequest putRespondentMetadataItem(String key, String respondentMetadataItem) {
+    if (this.respondentMetadata == null) {
+      this.respondentMetadata = new HashMap<>();
+    }
+    this.respondentMetadata.put(key, respondentMetadataItem);
+    return this;
+  }
+
+  /**
+   * Get respondentMetadata
+   * @return respondentMetadata
+   */
+  @javax.annotation.Nullable
+  public Map<String, String> getRespondentMetadata() {
+    return respondentMetadata;
+  }
+
+  public void setRespondentMetadata(@javax.annotation.Nullable Map<String, String> respondentMetadata) {
+    this.respondentMetadata = respondentMetadata;
+  }
+
+
   public ResponseSubmissionRequest answers(@javax.annotation.Nullable List<ResponseSubmissionRequestAnswersInner> answers) {
     this.answers = answers;
     return this;
@@ -287,31 +345,35 @@ public class ResponseSubmissionRequest {
       return false;
     }
     ResponseSubmissionRequest responseSubmissionRequest = (ResponseSubmissionRequest) o;
-    return Objects.equals(this.campaignId, responseSubmissionRequest.campaignId) &&
+    return Objects.equals(this.responseId, responseSubmissionRequest.responseId) &&
+        Objects.equals(this.campaignId, responseSubmissionRequest.campaignId) &&
         Objects.equals(this.respondentIdentifier, responseSubmissionRequest.respondentIdentifier) &&
         Objects.equals(this.respondentIp, responseSubmissionRequest.respondentIp) &&
         Objects.equals(this.respondentDeviceFingerprint, responseSubmissionRequest.respondentDeviceFingerprint) &&
         Objects.equals(this.responderToken, responseSubmissionRequest.responderToken) &&
         Objects.equals(this.responderAccessCode, responseSubmissionRequest.responderAccessCode) &&
+        Objects.equals(this.respondentMetadata, responseSubmissionRequest.respondentMetadata) &&
         Objects.equals(this.answers, responseSubmissionRequest.answers)&&
         Objects.equals(this.additionalProperties, responseSubmissionRequest.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(campaignId, respondentIdentifier, respondentIp, respondentDeviceFingerprint, responderToken, responderAccessCode, answers, additionalProperties);
+    return Objects.hash(responseId, campaignId, respondentIdentifier, respondentIp, respondentDeviceFingerprint, responderToken, responderAccessCode, respondentMetadata, answers, additionalProperties);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class ResponseSubmissionRequest {\n");
+    sb.append("    responseId: ").append(toIndentedString(responseId)).append("\n");
     sb.append("    campaignId: ").append(toIndentedString(campaignId)).append("\n");
     sb.append("    respondentIdentifier: ").append(toIndentedString(respondentIdentifier)).append("\n");
     sb.append("    respondentIp: ").append(toIndentedString(respondentIp)).append("\n");
     sb.append("    respondentDeviceFingerprint: ").append(toIndentedString(respondentDeviceFingerprint)).append("\n");
     sb.append("    responderToken: ").append(toIndentedString(responderToken)).append("\n");
     sb.append("    responderAccessCode: ").append(toIndentedString(responderAccessCode)).append("\n");
+    sb.append("    respondentMetadata: ").append(toIndentedString(respondentMetadata)).append("\n");
     sb.append("    answers: ").append(toIndentedString(answers)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -335,7 +397,7 @@ public class ResponseSubmissionRequest {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("campaignId", "respondentIdentifier", "respondentIp", "respondentDeviceFingerprint", "responderToken", "responderAccessCode", "answers"));
+    openapiFields = new HashSet<String>(Arrays.asList("responseId", "campaignId", "respondentIdentifier", "respondentIp", "respondentDeviceFingerprint", "responderToken", "responderAccessCode", "respondentMetadata", "answers"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("campaignId"));
@@ -361,6 +423,9 @@ public class ResponseSubmissionRequest {
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
+      if ((jsonObj.get("responseId") != null && !jsonObj.get("responseId").isJsonNull()) && !jsonObj.get("responseId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `responseId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("responseId").toString()));
+      }
       if (!jsonObj.get("campaignId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `campaignId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("campaignId").toString()));
       }

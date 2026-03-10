@@ -78,6 +78,8 @@ type APIClient struct {
 	SurveysAPI *SurveysAPIService
 
 	UserFeaturesAPI *UserFeaturesAPIService
+
+	UserPreferencesAPI *UserPreferencesAPIService
 }
 
 type service struct {
@@ -111,6 +113,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.SuperAdminAPI = (*SuperAdminAPIService)(&c.common)
 	c.SurveysAPI = (*SurveysAPIService)(&c.common)
 	c.UserFeaturesAPI = (*UserFeaturesAPIService)(&c.common)
+	c.UserPreferencesAPI = (*UserPreferencesAPIService)(&c.common)
 
 	return c
 }

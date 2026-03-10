@@ -39,10 +39,40 @@ export interface SurveyResponseResponseAnswersInner {
     questionVersionId?: string;
     /**
      * 
+     * @type {number}
+     * @memberof SurveyResponseResponseAnswersInner
+     */
+    questionVersionNumber?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof SurveyResponseResponseAnswersInner
+     */
+    questionText?: string;
+    /**
+     * 
+     * @type {SurveyResponseResponseAnswersInnerQuestionTypeEnum}
+     * @memberof SurveyResponseResponseAnswersInner
+     */
+    questionType?: SurveyResponseResponseAnswersInnerQuestionTypeEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof SurveyResponseResponseAnswersInner
+     */
+    optionConfig?: string;
+    /**
+     * 
      * @type {string}
      * @memberof SurveyResponseResponseAnswersInner
      */
     value?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof SurveyResponseResponseAnswersInner
+     */
+    remark?: string;
     /**
      * 
      * @type {number}
@@ -50,6 +80,19 @@ export interface SurveyResponseResponseAnswersInner {
      */
     score?: number;
 }
+
+
+/**
+ * @export
+ */
+export const SurveyResponseResponseAnswersInnerQuestionTypeEnum = {
+    Rank: 'RANK',
+    RatingScale: 'RATING_SCALE',
+    SingleChoice: 'SINGLE_CHOICE',
+    MultipleChoice: 'MULTIPLE_CHOICE'
+} as const;
+export type SurveyResponseResponseAnswersInnerQuestionTypeEnum = typeof SurveyResponseResponseAnswersInnerQuestionTypeEnum[keyof typeof SurveyResponseResponseAnswersInnerQuestionTypeEnum];
+
 
 /**
  * Check if a given object implements the SurveyResponseResponseAnswersInner interface.
@@ -71,7 +114,12 @@ export function SurveyResponseResponseAnswersInnerFromJSONTyped(json: any, ignor
         'id': json['id'] == null ? undefined : json['id'],
         'questionId': json['questionId'] == null ? undefined : json['questionId'],
         'questionVersionId': json['questionVersionId'] == null ? undefined : json['questionVersionId'],
+        'questionVersionNumber': json['questionVersionNumber'] == null ? undefined : json['questionVersionNumber'],
+        'questionText': json['questionText'] == null ? undefined : json['questionText'],
+        'questionType': json['questionType'] == null ? undefined : json['questionType'],
+        'optionConfig': json['optionConfig'] == null ? undefined : json['optionConfig'],
         'value': json['value'] == null ? undefined : json['value'],
+        'remark': json['remark'] == null ? undefined : json['remark'],
         'score': json['score'] == null ? undefined : json['score'],
     };
 }
@@ -90,7 +138,12 @@ export function SurveyResponseResponseAnswersInnerToJSONTyped(value?: SurveyResp
         'id': value['id'],
         'questionId': value['questionId'],
         'questionVersionId': value['questionVersionId'],
+        'questionVersionNumber': value['questionVersionNumber'],
+        'questionText': value['questionText'],
+        'questionType': value['questionType'],
+        'optionConfig': value['optionConfig'],
         'value': value['value'],
+        'remark': value['remark'],
         'score': value['score'],
     };
 }

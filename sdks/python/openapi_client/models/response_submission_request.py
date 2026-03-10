@@ -28,15 +28,17 @@ class ResponseSubmissionRequest(BaseModel):
     """
     ResponseSubmissionRequest
     """ # noqa: E501
+    response_id: Optional[UUID] = Field(default=None, alias="responseId")
     campaign_id: UUID = Field(alias="campaignId")
     respondent_identifier: Optional[StrictStr] = Field(default=None, alias="respondentIdentifier")
     respondent_ip: Optional[StrictStr] = Field(default=None, alias="respondentIp")
     respondent_device_fingerprint: Optional[StrictStr] = Field(default=None, alias="respondentDeviceFingerprint")
     responder_token: Optional[StrictStr] = Field(default=None, alias="responderToken")
     responder_access_code: Optional[StrictStr] = Field(default=None, alias="responderAccessCode")
+    respondent_metadata: Optional[Dict[str, StrictStr]] = Field(default=None, alias="respondentMetadata")
     answers: Optional[List[ResponseSubmissionRequestAnswersInner]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["campaignId", "respondentIdentifier", "respondentIp", "respondentDeviceFingerprint", "responderToken", "responderAccessCode", "answers"]
+    __properties: ClassVar[List[str]] = ["responseId", "campaignId", "respondentIdentifier", "respondentIp", "respondentDeviceFingerprint", "responderToken", "responderAccessCode", "respondentMetadata", "answers"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -103,12 +105,14 @@ class ResponseSubmissionRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "responseId": obj.get("responseId"),
             "campaignId": obj.get("campaignId"),
             "respondentIdentifier": obj.get("respondentIdentifier"),
             "respondentIp": obj.get("respondentIp"),
             "respondentDeviceFingerprint": obj.get("respondentDeviceFingerprint"),
             "responderToken": obj.get("responderToken"),
             "responderAccessCode": obj.get("responderAccessCode"),
+            "respondentMetadata": obj.get("respondentMetadata"),
             "answers": [ResponseSubmissionRequestAnswersInner.from_dict(_item) for _item in obj["answers"]] if obj.get("answers") is not None else None
         })
         # store additional fields in additional_properties

@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **question_id** | **UUID** |  | 
 **question_version_id** | **UUID** |  | [optional] 
 **value** | **str** |  | [optional] 
+**remark** | **str** |  | [optional] 
 **score** | **float** |  | [optional] 
 
 ## Example

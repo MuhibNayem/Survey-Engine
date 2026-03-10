@@ -1483,16 +1483,47 @@ const campaignApi = new CampaignsApi(config);
 // 1. Create Campaign
 const campaign = await campaignApi.createCampaign({
   campaignRequest: {
-    name: "Summer 2024 Outreach",
+    name: "Summer 2026 Outreach",
     surveyId: "SURV-UUID-123",
-    accessMode: "PUBLIC"
+    authMode: "PUBLIC"
   }
 });
 
-// 2. Activate
+// 2. Apply runtime settings and structured theme
+await campaignApi.updateCampaignSettings({
+  id: campaign.id,
+  campaignSettingsRequest: {
+    showProgressIndicator: true,
+    allowBackButton: true,
+    dataCollectionFields: [
+      { fieldKey: "department", label: "Department", fieldType: "TEXT", required: true, sortOrder: 0, enabled: true }
+    ],
+    theme: {
+      templateKey: "aurora-premium",
+      paletteKey: "ocean-aurora",
+      branding: {
+        brandLabel: "Confidential Evaluation Ledger",
+        logoUrl: "https://cdn.example.com/logo.svg",
+        logoPosition: "center",
+        fontFamily: "\\"Iowan Old Style\\", Georgia, serif"
+      },
+      header: {
+        enabled: true,
+        eyebrow: "Confidential Evaluation Ledger",
+        title: "Faculty Evaluation Survey",
+        subtitle: "Share your feedback with clarity and confidence."
+      }
+    }
+  }
+});
+
+// 3. Activate
 await campaignApi.activateCampaign({ id: campaign.id });
 
-// 3. Generate Links
+// 4. Pull admin preview for runtime verification
+const preview = await campaignApi.getCampaignPreview({ id: campaign.id });
+
+// 5. Generate Links
 const channels = await campaignApi.generateCampaignChannels({ id: campaign.id });`}
               />
             </div>
@@ -1505,12 +1536,20 @@ import org.openapitools.client.model.CampaignRequest;
 
 CampaignsApi api = new CampaignsApi(client);
 
-// 1. Launch
+// 1. Create
 CampaignResponse camp = api.createCampaign(new CampaignRequest()
     .name("Enterprise Launch")
     .surveyId(UUID.fromString("...")));
 
-// 2. Activate & Distribute
+// 2. Configure theme-aware settings
+api.updateCampaignSettings(camp.getId(), new CampaignSettingsRequest()
+    .showProgressIndicator(true)
+    .allowBackButton(true)
+    .theme(new SurveyThemeConfigDto()
+        .templateKey("aurora-premium")
+        .paletteKey("ocean-aurora")));
+
+// 3. Activate & Distribute
 api.activateCampaign(camp.getId());
 List<DistributionChannelResponse> links = api.generateCampaignChannels(camp.getId());`}
               />
@@ -1523,10 +1562,17 @@ List<DistributionChannelResponse> links = api.generateCampaignChannels(camp.getI
 camp, _, _ := client.CampaignsAPI.CreateCampaign(ctx).
     CampaignRequest(sdk.CampaignRequest{Name: "Go Camp"}).Execute()
 
-// 2. Activate
+// 2. Theme + runtime settings
+client.CampaignsAPI.UpdateCampaignSettings(ctx, camp.Id).
+    CampaignSettingsRequest(sdk.CampaignSettingsRequest{
+        ShowProgressIndicator: sdk.PtrBool(true),
+        AllowBackButton: sdk.PtrBool(true),
+    }).Execute()
+
+// 3. Activate
 client.CampaignsAPI.ActivateCampaign(ctx, camp.Id).Execute()
 
-// 3. Channels
+// 4. Channels
 links, _, _ := client.CampaignsAPI.GenerateCampaignChannels(ctx, camp.Id).Execute()`}
               />
             </div>
@@ -1541,10 +1587,20 @@ api = CampaignsApi(client)
 # 1. Orchestrate
 camp = api.create_campaign(campaign_request={"name": "Growth Survey", "survey_id": "UUID"})
 
-# 2. Launch
+# 2. Configure responder experience
+api.update_campaign_settings(
+    id=camp.id,
+    campaign_settings_request={
+        "show_progress_indicator": True,
+        "allow_back_button": True,
+        "theme": {"template_key": "aurora-premium", "palette_key": "ocean-aurora"}
+    }
+)
+
+# 3. Launch
 api.activate_campaign(id=camp.id)
 
-# 3. Get Distribution Links
+# 4. Get Distribution Links
 channels = api.generate_campaign_channels(id=camp.id)`}
               />
                </div>
@@ -1588,12 +1644,12 @@ channels = api.generate_campaign_channels(id=camp.id)`}
           </div>
           <div class="space-y-4 pt-12">
             <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
-              2. Real-time Persistence
+              2. Draft Resume & Final Submission
             </h3>
             <p class="text-muted-foreground leading-relaxed">
-              Submissions are validated and persisted against the specific
-              campaign runtime. Successfully captured responses are indexed for
-              immediate analytics availability.
+              Save `IN_PROGRESS` drafts, restore them by responder identity or
+              response id, and finalize with enriched answer payloads that can
+              carry respondent metadata and optional per-question remarks.
             </p>
           </div>
         </div>
@@ -1615,37 +1671,87 @@ channels = api.generate_campaign_channels(id=camp.id)`}
                 <div class="space-y-6">
                   <SimpleCodeBlock
                     language="typescript"
-                code={`import { ResponsesApi, ResponseSubmissionRequest } from '@survey-engine/sdk';
+                code={`import { CampaignsApi, ResponsesApi } from '@survey-engine/sdk';
 
+const campaignApi = new CampaignsApi(config);
 const responseApi = new ResponsesApi(config);
 
-// Submit Answers
-await responseApi.submitResponse({
+// 1. Restore an existing draft when the responder returns
+const restored = await campaignApi.loadPublicDraft({
+  id: "CAMPAIGN-ID",
+  responseDraftLookupRequest: {
+    respondentIdentifier: "18301117"
+  }
+});
+
+// 2. Save draft with metadata + remarks
+const draft = await campaignApi.savePublicDraft({
+  id: "CAMPAIGN-ID",
   responseSubmissionRequest: {
-    campaignId: "...",
+    responseId: restored?.id,
+    campaignId: "CAMPAIGN-ID",
+    respondentIdentifier: "18301117",
+    respondentMetadata: {
+      student_id: "18301117",
+      section: "A",
+      course_code: "CSE101"
+    },
     answers: [
-      { questionId: "Q1", value: "Highly Satisfied" },
-      { questionId: "Q2", value: "9" }
+      { questionId: "Q1", value: "5", remark: "Excellent clarity in class." },
+      { questionId: "Q2", value: "4" }
     ]
   }
-});`}
+});
+
+// 3. Final submit reuses the same response row
+await responseApi.submitResponse({
+  responseSubmissionRequest: {
+    responseId: draft.id,
+    campaignId: "CAMPAIGN-ID",
+    respondentIdentifier: "18301117",
+    respondentMetadata: {
+      student_id: "18301117",
+      section: "A",
+      course_code: "CSE101"
+    },
+    answers: [
+      { questionId: "Q1", value: "5", remark: "Excellent clarity in class." },
+      { questionId: "Q2", value: "4", remark: "Would like a slower pace in advanced modules." }
+    ]
+  }
+});
+
+// 4. Private campaigns can explicitly sign out responder sessions
+await campaignApi.logoutResponderSession({ id: "CAMPAIGN-ID" });`}
               />
             </div>
           {:else if activeTab === "java"}
             <div class="space-y-6">
               <SimpleCodeBlock
                 language="java"
-                code={`import org.openapitools.client.api.ResponsesApi;
+                code={`import org.openapitools.client.api.CampaignsApi;
+import org.openapitools.client.api.ResponsesApi;
 import org.openapitools.client.model.ResponseSubmissionRequest;
 import org.openapitools.client.model.ResponseSubmissionRequestAnswersInner;
 
+CampaignsApi campaignApi = new CampaignsApi(client);
 ResponsesApi api = new ResponsesApi(client);
 
-// Submit Answers
-api.submitResponse(new ResponseSubmissionRequest()
-    .campaignId("CAMP-01")
+// Save draft
+SurveyResponseResponse draft = campaignApi.savePublicDraft(UUID.fromString("..."),
+    new ResponseSubmissionRequest()
+    .campaignId(UUID.fromString("..."))
+    .respondentIdentifier("18301117")
     .addAnswersItem(new ResponseSubmissionRequestAnswersInner()
-        .questionId("Q1").value("YES")));`}
+        .questionId(UUID.fromString("..."))
+        .value("5")
+        .remark("Excellent clarity in class.")));
+
+// Final submit
+api.submitResponse(new ResponseSubmissionRequest()
+    .responseId(draft.getId())
+    .campaignId(UUID.fromString("..."))
+    .respondentIdentifier("18301117"));`}
               />
             </div>
           {:else if activeTab === "go"}
@@ -1654,31 +1760,57 @@ api.submitResponse(new ResponseSubmissionRequest()
                 language="go"
                 code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
 
-// Submit Answers
+// Save draft
 req := sdk.ResponseSubmissionRequest{
     CampaignId: "CAMP1",
+    RespondentIdentifier: sdk.PtrString("18301117"),
     Answers: []sdk.ResponseSubmissionRequestAnswersInner{
-        {QuestionId: "Q1", Value: "YES"},
+        {QuestionId: "Q1", Value: sdk.PtrString("5"), Remark: sdk.PtrString("Excellent clarity in class.")},
     },
 }
+draft, _, _ := client.CampaignsAPI.SavePublicDraft(ctx, "CAMP1").
+    ResponseSubmissionRequest(req).Execute()
+
+// Final submit
+req.ResponseId = draft.Id
 client.ResponsesAPI.SubmitResponse(ctx).
-    ResponseSubmissionRequest(req).Execute()`}
+    ResponseSubmissionRequest(req).Execute()
+
+// Private flow sign-out
+client.CampaignsAPI.LogoutResponderSession(ctx, "CAMP1").Execute()`}
               />
             </div>
           {:else if activeTab === "python"}
             <div class="space-y-6">
               <SimpleCodeBlock
                 language="python"
-                code={`from openapi_client.api.responses_api import ResponsesApi
+                code={`from openapi_client.api.campaigns_api import CampaignsApi
+from openapi_client.api.responses_api import ResponsesApi
 from openapi_client.models.response_submission_request import ResponseSubmissionRequest
 
+campaign_api = CampaignsApi(client)
 api = ResponsesApi(client)
 
-# Submit Answers
+# Save draft
+draft = campaign_api.save_public_draft(
+    id="CAMPAIGN-ID",
+    response_submission_request=ResponseSubmissionRequest(
+        campaign_id="CAMPAIGN-ID",
+        respondent_identifier="18301117",
+        answers=[{"question_id": "Q1", "value": "5", "remark": "Excellent clarity in class."}]
+    )
+)
+
+# Final submit
 api.submit_response(response_submission_request=ResponseSubmissionRequest(
-    campaign_id="...",
-    answers=[{"question_id": "Q1", "value": "A1"}]
-))`}
+    response_id=draft.id,
+    campaign_id="CAMPAIGN-ID",
+    respondent_identifier="18301117",
+    answers=[{"question_id": "Q1", "value": "5"}]
+))
+
+# Private session logout
+campaign_api.logout_responder_session(id="CAMPAIGN-ID")`}
               />
                </div>
             {/if}

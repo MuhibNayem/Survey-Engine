@@ -20,10 +20,12 @@ Name | Type | Description | Notes
 **FinishMessage** | Pointer to **string** |  | [optional] 
 **HeaderHtml** | Pointer to **string** |  | [optional] 
 **FooterHtml** | Pointer to **string** |  | [optional] 
+**Theme** | Pointer to [**SurveyThemeConfigDto**](SurveyThemeConfigDto.md) |  | [optional] 
 **CollectName** | Pointer to **bool** |  | [optional] 
 **CollectEmail** | Pointer to **bool** |  | [optional] 
 **CollectPhone** | Pointer to **bool** |  | [optional] 
 **CollectAddress** | Pointer to **bool** |  | [optional] 
+**DataCollectionFields** | Pointer to [**[]DataCollectionFieldResponse**](DataCollectionFieldResponse.md) |  | [optional] 
 
 ## Methods
 
@@ -444,6 +446,31 @@ SetFooterHtml sets FooterHtml field to given value.
 
 HasFooterHtml returns a boolean if a field has been set.
 
+### GetTheme
+
+`func (o *CampaignSettingsResponse) GetTheme() SurveyThemeConfigDto`
+
+GetTheme returns the Theme field if non-nil, zero value otherwise.
+
+### GetThemeOk
+
+`func (o *CampaignSettingsResponse) GetThemeOk() (*SurveyThemeConfigDto, bool)`
+
+GetThemeOk returns a tuple with the Theme field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTheme
+
+`func (o *CampaignSettingsResponse) SetTheme(v SurveyThemeConfigDto)`
+
+SetTheme sets Theme field to given value.
+
+### HasTheme
+
+`func (o *CampaignSettingsResponse) HasTheme() bool`
+
+HasTheme returns a boolean if a field has been set.
+
 ### GetCollectName
 
 `func (o *CampaignSettingsResponse) GetCollectName() bool`
@@ -543,6 +570,31 @@ SetCollectAddress sets CollectAddress field to given value.
 `func (o *CampaignSettingsResponse) HasCollectAddress() bool`
 
 HasCollectAddress returns a boolean if a field has been set.
+
+### GetDataCollectionFields
+
+`func (o *CampaignSettingsResponse) GetDataCollectionFields() []DataCollectionFieldResponse`
+
+GetDataCollectionFields returns the DataCollectionFields field if non-nil, zero value otherwise.
+
+### GetDataCollectionFieldsOk
+
+`func (o *CampaignSettingsResponse) GetDataCollectionFieldsOk() (*[]DataCollectionFieldResponse, bool)`
+
+GetDataCollectionFieldsOk returns a tuple with the DataCollectionFields field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDataCollectionFields
+
+`func (o *CampaignSettingsResponse) SetDataCollectionFields(v []DataCollectionFieldResponse)`
+
+SetDataCollectionFields sets DataCollectionFields field to given value.
+
+### HasDataCollectionFields
+
+`func (o *CampaignSettingsResponse) HasDataCollectionFields() bool`
+
+HasDataCollectionFields returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

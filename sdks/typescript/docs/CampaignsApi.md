@@ -12,8 +12,12 @@ All URIs are relative to *http://localhost*
 | [**getCampaignPreview**](CampaignsApi.md#getcampaignpreview) | **GET** /api/v1/campaigns/{id}/preview | Get admin preview payload for a campaign |
 | [**getCampaignSettings**](CampaignsApi.md#getcampaignsettings) | **GET** /api/v1/campaigns/{id}/settings | Get campaign runtime settings |
 | [**getPublicCampaignPreview**](CampaignsApi.md#getpubliccampaignpreview) | **GET** /api/v1/public/campaigns/{id}/preview | Get responder-facing preview payload (public endpoint) |
+| [**getResponderSessionStatus**](CampaignsApi.md#getrespondersessionstatus) | **GET** /api/v1/public/campaigns/{id}/auth/session | Get current private responder session status for a campaign |
 | [**listCampaignChannels**](CampaignsApi.md#listcampaignchannels) | **GET** /api/v1/campaigns/{id}/channels | List generated channels for a campaign |
 | [**listCampaigns**](CampaignsApi.md#listcampaigns) | **GET** /api/v1/campaigns | List active campaigns |
+| [**loadPublicDraft**](CampaignsApi.md#loadpublicdraft) | **POST** /api/v1/public/campaigns/{id}/responses/draft/load | Load an existing in-progress responder draft |
+| [**logoutResponderSession**](CampaignsApi.md#logoutrespondersession) | **POST** /api/v1/public/campaigns/{id}/auth/logout | Revoke the current private responder session for a campaign |
+| [**savePublicDraft**](CampaignsApi.md#savepublicdraft) | **POST** /api/v1/public/campaigns/{id}/responses/draft | Create or update an in-progress responder draft |
 | [**updateCampaign**](CampaignsApi.md#updatecampaign) | **PUT** /api/v1/campaigns/{id} | Update campaign metadata |
 | [**updateCampaignSettings**](CampaignsApi.md#updatecampaignsettings) | **PUT** /api/v1/campaigns/{id}/settings | Update campaign runtime settings |
 
@@ -599,6 +603,74 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+## getResponderSessionStatus
+
+> ResponderSessionStatusResponse getResponderSessionStatus(id)
+
+Get current private responder session status for a campaign
+
+Why this endpoint is needed: Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.  What this endpoint does: It returns whether a valid responder session cookie is currently active for the target private campaign.  How this endpoint does it: The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload. 
+
+### Example
+
+```ts
+import {
+  Configuration,
+  CampaignsApi,
+} from '@survey-engine/sdk';
+import type { GetResponderSessionStatusRequest } from '@survey-engine/sdk';
+
+async function example() {
+  console.log("🚀 Testing @survey-engine/sdk SDK...");
+  const api = new CampaignsApi();
+
+  const body = {
+    // string
+    id: 38400000-8cf0-11bd-b23e-10b96e4ef00d,
+  } satisfies GetResponderSessionStatusRequest;
+
+  try {
+    const data = await api.getResponderSessionStatus(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | `string` |  | [Defaults to `undefined`] |
+
+### Return type
+
+[**ResponderSessionStatusResponse**](ResponderSessionStatusResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Responder session status returned |  -  |
+| **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
 ## listCampaignChannels
 
 > Array&lt;DistributionChannelResponse&gt; listCampaignChannels(id)
@@ -732,6 +804,219 @@ This endpoint does not need any parameter.
 |-------------|-------------|------------------|
 | **200** | Campaign list returned |  -  |
 | **401** | Authentication missing or invalid |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## loadPublicDraft
+
+> SurveyResponseResponse loadPublicDraft(id, responseDraftLookupRequest)
+
+Load an existing in-progress responder draft
+
+Why this endpoint is needed: Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.  What this endpoint does: It returns the matching in-progress draft when one exists for the supplied identity or response id.  How this endpoint does it: The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists. 
+
+### Example
+
+```ts
+import {
+  Configuration,
+  CampaignsApi,
+} from '@survey-engine/sdk';
+import type { LoadPublicDraftRequest } from '@survey-engine/sdk';
+
+async function example() {
+  console.log("🚀 Testing @survey-engine/sdk SDK...");
+  const api = new CampaignsApi();
+
+  const body = {
+    // string
+    id: 38400000-8cf0-11bd-b23e-10b96e4ef00d,
+    // ResponseDraftLookupRequest
+    responseDraftLookupRequest: ...,
+  } satisfies LoadPublicDraftRequest;
+
+  try {
+    const data = await api.loadPublicDraft(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | `string` |  | [Defaults to `undefined`] |
+| **responseDraftLookupRequest** | [ResponseDraftLookupRequest](ResponseDraftLookupRequest.md) |  | |
+
+### Return type
+
+[**SurveyResponseResponse**](SurveyResponseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Draft restored |  -  |
+| **204** | No draft exists for the supplied identity |  -  |
+| **400** | Request validation failed or business rule validation failed |  -  |
+| **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## logoutResponderSession
+
+> logoutResponderSession(id)
+
+Revoke the current private responder session for a campaign
+
+Why this endpoint is needed: Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.  What this endpoint does: It revokes the current responder session and clears the responder session cookie.  How this endpoint does it: The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie. 
+
+### Example
+
+```ts
+import {
+  Configuration,
+  CampaignsApi,
+} from '@survey-engine/sdk';
+import type { LogoutResponderSessionRequest } from '@survey-engine/sdk';
+
+async function example() {
+  console.log("🚀 Testing @survey-engine/sdk SDK...");
+  const api = new CampaignsApi();
+
+  const body = {
+    // string
+    id: 38400000-8cf0-11bd-b23e-10b96e4ef00d,
+  } satisfies LogoutResponderSessionRequest;
+
+  try {
+    const data = await api.logoutResponderSession(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | `string` |  | [Defaults to `undefined`] |
+
+### Return type
+
+`void` (Empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **204** | Responder session revoked and cookie cleared |  -  |
+| **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## savePublicDraft
+
+> SurveyResponseResponse savePublicDraft(id, responseSubmissionRequest)
+
+Create or update an in-progress responder draft
+
+Why this endpoint is needed: Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.  What this endpoint does: It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.  How this endpoint does it: The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state. 
+
+### Example
+
+```ts
+import {
+  Configuration,
+  CampaignsApi,
+} from '@survey-engine/sdk';
+import type { SavePublicDraftRequest } from '@survey-engine/sdk';
+
+async function example() {
+  console.log("🚀 Testing @survey-engine/sdk SDK...");
+  const api = new CampaignsApi();
+
+  const body = {
+    // string
+    id: 38400000-8cf0-11bd-b23e-10b96e4ef00d,
+    // ResponseSubmissionRequest
+    responseSubmissionRequest: ...,
+  } satisfies SavePublicDraftRequest;
+
+  try {
+    const data = await api.savePublicDraft(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | `string` |  | [Defaults to `undefined`] |
+| **responseSubmissionRequest** | [ResponseSubmissionRequest](ResponseSubmissionRequest.md) |  | |
+
+### Return type
+
+[**SurveyResponseResponse**](SurveyResponseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | Draft saved |  -  |
+| **400** | Request validation failed or business rule validation failed |  -  |
+| **404** | Referenced resource does not exist or is not visible in tenant scope |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

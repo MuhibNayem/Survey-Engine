@@ -22,6 +22,10 @@ import type {
   CampaignSettingsResponse,
   DistributionChannelResponse,
   ErrorResponse,
+  ResponderSessionStatusResponse,
+  ResponseDraftLookupRequest,
+  ResponseSubmissionRequest,
+  SurveyResponseResponse,
 } from '../models/index';
 import {
     CampaignPreviewResponseFromJSON,
@@ -38,6 +42,14 @@ import {
     DistributionChannelResponseToJSON,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
+    ResponderSessionStatusResponseFromJSON,
+    ResponderSessionStatusResponseToJSON,
+    ResponseDraftLookupRequestFromJSON,
+    ResponseDraftLookupRequestToJSON,
+    ResponseSubmissionRequestFromJSON,
+    ResponseSubmissionRequestToJSON,
+    SurveyResponseResponseFromJSON,
+    SurveyResponseResponseToJSON,
 } from '../models/index';
 
 export interface ActivateCampaignRequest {
@@ -72,8 +84,26 @@ export interface GetPublicCampaignPreviewRequest {
     id: string;
 }
 
+export interface GetResponderSessionStatusRequest {
+    id: string;
+}
+
 export interface ListCampaignChannelsRequest {
     id: string;
+}
+
+export interface LoadPublicDraftRequest {
+    id: string;
+    responseDraftLookupRequest: ResponseDraftLookupRequest;
+}
+
+export interface LogoutResponderSessionRequest {
+    id: string;
+}
+
+export interface SavePublicDraftRequest {
+    id: string;
+    responseSubmissionRequest: ResponseSubmissionRequest;
 }
 
 export interface UpdateCampaignRequest {
@@ -525,6 +555,53 @@ export class CampaignsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Creates request options for getResponderSessionStatus without sending the request
+     */
+    async getResponderSessionStatusRequestOpts(requestParameters: GetResponderSessionStatusRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling getResponderSessionStatus().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/api/v1/public/campaigns/{id}/auth/session`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Why this endpoint is needed: Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.  What this endpoint does: It returns whether a valid responder session cookie is currently active for the target private campaign.  How this endpoint does it: The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload. 
+     * Get current private responder session status for a campaign
+     */
+    async getResponderSessionStatusRaw(requestParameters: GetResponderSessionStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ResponderSessionStatusResponse>> {
+        const requestOptions = await this.getResponderSessionStatusRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ResponderSessionStatusResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Why this endpoint is needed: Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.  What this endpoint does: It returns whether a valid responder session cookie is currently active for the target private campaign.  How this endpoint does it: The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload. 
+     * Get current private responder session status for a campaign
+     */
+    async getResponderSessionStatus(requestParameters: GetResponderSessionStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ResponderSessionStatusResponse> {
+        const response = await this.getResponderSessionStatusRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Creates request options for listCampaignChannels without sending the request
      */
     async listCampaignChannelsRequestOpts(requestParameters: ListCampaignChannelsRequest): Promise<runtime.RequestOpts> {
@@ -623,6 +700,173 @@ export class CampaignsApi extends runtime.BaseAPI {
      */
     async listCampaigns(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<CampaignResponse>> {
         const response = await this.listCampaignsRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for loadPublicDraft without sending the request
+     */
+    async loadPublicDraftRequestOpts(requestParameters: LoadPublicDraftRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling loadPublicDraft().'
+            );
+        }
+
+        if (requestParameters['responseDraftLookupRequest'] == null) {
+            throw new runtime.RequiredError(
+                'responseDraftLookupRequest',
+                'Required parameter "responseDraftLookupRequest" was null or undefined when calling loadPublicDraft().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/v1/public/campaigns/{id}/responses/draft/load`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: ResponseDraftLookupRequestToJSON(requestParameters['responseDraftLookupRequest']),
+        };
+    }
+
+    /**
+     * Why this endpoint is needed: Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.  What this endpoint does: It returns the matching in-progress draft when one exists for the supplied identity or response id.  How this endpoint does it: The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists. 
+     * Load an existing in-progress responder draft
+     */
+    async loadPublicDraftRaw(requestParameters: LoadPublicDraftRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SurveyResponseResponse>> {
+        const requestOptions = await this.loadPublicDraftRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SurveyResponseResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Why this endpoint is needed: Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.  What this endpoint does: It returns the matching in-progress draft when one exists for the supplied identity or response id.  How this endpoint does it: The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists. 
+     * Load an existing in-progress responder draft
+     */
+    async loadPublicDraft(requestParameters: LoadPublicDraftRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SurveyResponseResponse | null | undefined > {
+        const response = await this.loadPublicDraftRaw(requestParameters, initOverrides);
+        switch (response.raw.status) {
+            case 200:
+                return await response.value();
+            case 204:
+                return null;
+            default:
+                return await response.value();
+        }
+    }
+
+    /**
+     * Creates request options for logoutResponderSession without sending the request
+     */
+    async logoutResponderSessionRequestOpts(requestParameters: LogoutResponderSessionRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling logoutResponderSession().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/api/v1/public/campaigns/{id}/auth/logout`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Why this endpoint is needed: Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.  What this endpoint does: It revokes the current responder session and clears the responder session cookie.  How this endpoint does it: The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie. 
+     * Revoke the current private responder session for a campaign
+     */
+    async logoutResponderSessionRaw(requestParameters: LogoutResponderSessionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        const requestOptions = await this.logoutResponderSessionRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Why this endpoint is needed: Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.  What this endpoint does: It revokes the current responder session and clears the responder session cookie.  How this endpoint does it: The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie. 
+     * Revoke the current private responder session for a campaign
+     */
+    async logoutResponderSession(requestParameters: LogoutResponderSessionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.logoutResponderSessionRaw(requestParameters, initOverrides);
+    }
+
+    /**
+     * Creates request options for savePublicDraft without sending the request
+     */
+    async savePublicDraftRequestOpts(requestParameters: SavePublicDraftRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling savePublicDraft().'
+            );
+        }
+
+        if (requestParameters['responseSubmissionRequest'] == null) {
+            throw new runtime.RequiredError(
+                'responseSubmissionRequest',
+                'Required parameter "responseSubmissionRequest" was null or undefined when calling savePublicDraft().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/api/v1/public/campaigns/{id}/responses/draft`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: ResponseSubmissionRequestToJSON(requestParameters['responseSubmissionRequest']),
+        };
+    }
+
+    /**
+     * Why this endpoint is needed: Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.  What this endpoint does: It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.  How this endpoint does it: The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state. 
+     * Create or update an in-progress responder draft
+     */
+    async savePublicDraftRaw(requestParameters: SavePublicDraftRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SurveyResponseResponse>> {
+        const requestOptions = await this.savePublicDraftRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SurveyResponseResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Why this endpoint is needed: Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.  What this endpoint does: It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.  How this endpoint does it: The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state. 
+     * Create or update an in-progress responder draft
+     */
+    async savePublicDraft(requestParameters: SavePublicDraftRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SurveyResponseResponse> {
+        const response = await this.savePublicDraftRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

@@ -7,7 +7,12 @@ Name | Type | Description | Notes
 **Id** | Pointer to **string** |  | [optional] 
 **QuestionId** | Pointer to **string** |  | [optional] 
 **QuestionVersionId** | Pointer to **string** |  | [optional] 
+**QuestionVersionNumber** | Pointer to **int32** |  | [optional] 
+**QuestionText** | Pointer to **string** |  | [optional] 
+**QuestionType** | Pointer to **string** |  | [optional] 
+**OptionConfig** | Pointer to **string** |  | [optional] 
 **Value** | Pointer to **string** |  | [optional] 
+**Remark** | Pointer to **string** |  | [optional] 
 **Score** | Pointer to **float32** |  | [optional] 
 
 ## Methods
@@ -104,6 +109,106 @@ SetQuestionVersionId sets QuestionVersionId field to given value.
 
 HasQuestionVersionId returns a boolean if a field has been set.
 
+### GetQuestionVersionNumber
+
+`func (o *SurveyResponseResponseAnswersInner) GetQuestionVersionNumber() int32`
+
+GetQuestionVersionNumber returns the QuestionVersionNumber field if non-nil, zero value otherwise.
+
+### GetQuestionVersionNumberOk
+
+`func (o *SurveyResponseResponseAnswersInner) GetQuestionVersionNumberOk() (*int32, bool)`
+
+GetQuestionVersionNumberOk returns a tuple with the QuestionVersionNumber field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetQuestionVersionNumber
+
+`func (o *SurveyResponseResponseAnswersInner) SetQuestionVersionNumber(v int32)`
+
+SetQuestionVersionNumber sets QuestionVersionNumber field to given value.
+
+### HasQuestionVersionNumber
+
+`func (o *SurveyResponseResponseAnswersInner) HasQuestionVersionNumber() bool`
+
+HasQuestionVersionNumber returns a boolean if a field has been set.
+
+### GetQuestionText
+
+`func (o *SurveyResponseResponseAnswersInner) GetQuestionText() string`
+
+GetQuestionText returns the QuestionText field if non-nil, zero value otherwise.
+
+### GetQuestionTextOk
+
+`func (o *SurveyResponseResponseAnswersInner) GetQuestionTextOk() (*string, bool)`
+
+GetQuestionTextOk returns a tuple with the QuestionText field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetQuestionText
+
+`func (o *SurveyResponseResponseAnswersInner) SetQuestionText(v string)`
+
+SetQuestionText sets QuestionText field to given value.
+
+### HasQuestionText
+
+`func (o *SurveyResponseResponseAnswersInner) HasQuestionText() bool`
+
+HasQuestionText returns a boolean if a field has been set.
+
+### GetQuestionType
+
+`func (o *SurveyResponseResponseAnswersInner) GetQuestionType() string`
+
+GetQuestionType returns the QuestionType field if non-nil, zero value otherwise.
+
+### GetQuestionTypeOk
+
+`func (o *SurveyResponseResponseAnswersInner) GetQuestionTypeOk() (*string, bool)`
+
+GetQuestionTypeOk returns a tuple with the QuestionType field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetQuestionType
+
+`func (o *SurveyResponseResponseAnswersInner) SetQuestionType(v string)`
+
+SetQuestionType sets QuestionType field to given value.
+
+### HasQuestionType
+
+`func (o *SurveyResponseResponseAnswersInner) HasQuestionType() bool`
+
+HasQuestionType returns a boolean if a field has been set.
+
+### GetOptionConfig
+
+`func (o *SurveyResponseResponseAnswersInner) GetOptionConfig() string`
+
+GetOptionConfig returns the OptionConfig field if non-nil, zero value otherwise.
+
+### GetOptionConfigOk
+
+`func (o *SurveyResponseResponseAnswersInner) GetOptionConfigOk() (*string, bool)`
+
+GetOptionConfigOk returns a tuple with the OptionConfig field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetOptionConfig
+
+`func (o *SurveyResponseResponseAnswersInner) SetOptionConfig(v string)`
+
+SetOptionConfig sets OptionConfig field to given value.
+
+### HasOptionConfig
+
+`func (o *SurveyResponseResponseAnswersInner) HasOptionConfig() bool`
+
+HasOptionConfig returns a boolean if a field has been set.
+
 ### GetValue
 
 `func (o *SurveyResponseResponseAnswersInner) GetValue() string`
@@ -128,6 +233,31 @@ SetValue sets Value field to given value.
 `func (o *SurveyResponseResponseAnswersInner) HasValue() bool`
 
 HasValue returns a boolean if a field has been set.
+
+### GetRemark
+
+`func (o *SurveyResponseResponseAnswersInner) GetRemark() string`
+
+GetRemark returns the Remark field if non-nil, zero value otherwise.
+
+### GetRemarkOk
+
+`func (o *SurveyResponseResponseAnswersInner) GetRemarkOk() (*string, bool)`
+
+GetRemarkOk returns a tuple with the Remark field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetRemark
+
+`func (o *SurveyResponseResponseAnswersInner) SetRemark(v string)`
+
+SetRemark sets Remark field to given value.
+
+### HasRemark
+
+`func (o *SurveyResponseResponseAnswersInner) HasRemark() bool`
+
+HasRemark returns a boolean if a field has been set.
 
 ### GetScore
 

@@ -23,6 +23,7 @@ type ResponseSubmissionRequestAnswersInner struct {
 	QuestionId string `json:"questionId"`
 	QuestionVersionId *string `json:"questionVersionId,omitempty"`
 	Value *string `json:"value,omitempty"`
+	Remark *string `json:"remark,omitempty"`
 	Score *float32 `json:"score,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
@@ -135,6 +136,38 @@ func (o *ResponseSubmissionRequestAnswersInner) SetValue(v string) {
 	o.Value = &v
 }
 
+// GetRemark returns the Remark field value if set, zero value otherwise.
+func (o *ResponseSubmissionRequestAnswersInner) GetRemark() string {
+	if o == nil || IsNil(o.Remark) {
+		var ret string
+		return ret
+	}
+	return *o.Remark
+}
+
+// GetRemarkOk returns a tuple with the Remark field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ResponseSubmissionRequestAnswersInner) GetRemarkOk() (*string, bool) {
+	if o == nil || IsNil(o.Remark) {
+		return nil, false
+	}
+	return o.Remark, true
+}
+
+// HasRemark returns a boolean if a field has been set.
+func (o *ResponseSubmissionRequestAnswersInner) HasRemark() bool {
+	if o != nil && !IsNil(o.Remark) {
+		return true
+	}
+
+	return false
+}
+
+// SetRemark gets a reference to the given string and assigns it to the Remark field.
+func (o *ResponseSubmissionRequestAnswersInner) SetRemark(v string) {
+	o.Remark = &v
+}
+
 // GetScore returns the Score field value if set, zero value otherwise.
 func (o *ResponseSubmissionRequestAnswersInner) GetScore() float32 {
 	if o == nil || IsNil(o.Score) {
@@ -183,6 +216,9 @@ func (o ResponseSubmissionRequestAnswersInner) ToMap() (map[string]interface{}, 
 	}
 	if !IsNil(o.Value) {
 		toSerialize["value"] = o.Value
+	}
+	if !IsNil(o.Remark) {
+		toSerialize["remark"] = o.Remark
 	}
 	if !IsNil(o.Score) {
 		toSerialize["score"] = o.Score
@@ -233,6 +269,7 @@ func (o *ResponseSubmissionRequestAnswersInner) UnmarshalJSON(data []byte) (err 
 		delete(additionalProperties, "questionId")
 		delete(additionalProperties, "questionVersionId")
 		delete(additionalProperties, "value")
+		delete(additionalProperties, "remark")
 		delete(additionalProperties, "score")
 		o.AdditionalProperties = additionalProperties
 	}

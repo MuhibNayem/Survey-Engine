@@ -13,6 +13,21 @@
  */
 
 import { mapValues } from '../runtime';
+import type { SurveyThemeConfigDto } from './SurveyThemeConfigDto';
+import {
+    SurveyThemeConfigDtoFromJSON,
+    SurveyThemeConfigDtoFromJSONTyped,
+    SurveyThemeConfigDtoToJSON,
+    SurveyThemeConfigDtoToJSONTyped,
+} from './SurveyThemeConfigDto';
+import type { DataCollectionFieldRequest } from './DataCollectionFieldRequest';
+import {
+    DataCollectionFieldRequestFromJSON,
+    DataCollectionFieldRequestFromJSONTyped,
+    DataCollectionFieldRequestToJSON,
+    DataCollectionFieldRequestToJSONTyped,
+} from './DataCollectionFieldRequest';
+
 /**
  * 
  * @export
@@ -111,6 +126,12 @@ export interface CampaignSettingsRequest {
     footerHtml?: string;
     /**
      * 
+     * @type {SurveyThemeConfigDto}
+     * @memberof CampaignSettingsRequest
+     */
+    theme?: SurveyThemeConfigDto;
+    /**
+     * 
      * @type {boolean}
      * @memberof CampaignSettingsRequest
      */
@@ -133,6 +154,12 @@ export interface CampaignSettingsRequest {
      * @memberof CampaignSettingsRequest
      */
     collectAddress?: boolean;
+    /**
+     * 
+     * @type {Array<DataCollectionFieldRequest>}
+     * @memberof CampaignSettingsRequest
+     */
+    dataCollectionFields?: Array<DataCollectionFieldRequest>;
 }
 
 /**
@@ -167,10 +194,12 @@ export function CampaignSettingsRequestFromJSONTyped(json: any, ignoreDiscrimina
         'finishMessage': json['finishMessage'] == null ? undefined : json['finishMessage'],
         'headerHtml': json['headerHtml'] == null ? undefined : json['headerHtml'],
         'footerHtml': json['footerHtml'] == null ? undefined : json['footerHtml'],
+        'theme': json['theme'] == null ? undefined : SurveyThemeConfigDtoFromJSON(json['theme']),
         'collectName': json['collectName'] == null ? undefined : json['collectName'],
         'collectEmail': json['collectEmail'] == null ? undefined : json['collectEmail'],
         'collectPhone': json['collectPhone'] == null ? undefined : json['collectPhone'],
         'collectAddress': json['collectAddress'] == null ? undefined : json['collectAddress'],
+        'dataCollectionFields': json['dataCollectionFields'] == null ? undefined : ((json['dataCollectionFields'] as Array<any>).map(DataCollectionFieldRequestFromJSON)),
     };
 }
 
@@ -200,10 +229,12 @@ export function CampaignSettingsRequestToJSONTyped(value?: CampaignSettingsReque
         'finishMessage': value['finishMessage'],
         'headerHtml': value['headerHtml'],
         'footerHtml': value['footerHtml'],
+        'theme': SurveyThemeConfigDtoToJSON(value['theme']),
         'collectName': value['collectName'],
         'collectEmail': value['collectEmail'],
         'collectPhone': value['collectPhone'],
         'collectAddress': value['collectAddress'],
+        'dataCollectionFields': value['dataCollectionFields'] == null ? undefined : ((value['dataCollectionFields'] as Array<any>).map(DataCollectionFieldRequestToJSON)),
     };
 }
 

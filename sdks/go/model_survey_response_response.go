@@ -24,6 +24,7 @@ type SurveyResponseResponse struct {
 	CampaignId *string `json:"campaignId,omitempty"`
 	SurveySnapshotId *string `json:"surveySnapshotId,omitempty"`
 	RespondentIdentifier *string `json:"respondentIdentifier,omitempty"`
+	RespondentMetadata *string `json:"respondentMetadata,omitempty"`
 	Status *string `json:"status,omitempty"`
 	StartedAt *time.Time `json:"startedAt,omitempty"`
 	SubmittedAt *time.Time `json:"submittedAt,omitempty"`
@@ -180,6 +181,38 @@ func (o *SurveyResponseResponse) HasRespondentIdentifier() bool {
 // SetRespondentIdentifier gets a reference to the given string and assigns it to the RespondentIdentifier field.
 func (o *SurveyResponseResponse) SetRespondentIdentifier(v string) {
 	o.RespondentIdentifier = &v
+}
+
+// GetRespondentMetadata returns the RespondentMetadata field value if set, zero value otherwise.
+func (o *SurveyResponseResponse) GetRespondentMetadata() string {
+	if o == nil || IsNil(o.RespondentMetadata) {
+		var ret string
+		return ret
+	}
+	return *o.RespondentMetadata
+}
+
+// GetRespondentMetadataOk returns a tuple with the RespondentMetadata field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SurveyResponseResponse) GetRespondentMetadataOk() (*string, bool) {
+	if o == nil || IsNil(o.RespondentMetadata) {
+		return nil, false
+	}
+	return o.RespondentMetadata, true
+}
+
+// HasRespondentMetadata returns a boolean if a field has been set.
+func (o *SurveyResponseResponse) HasRespondentMetadata() bool {
+	if o != nil && !IsNil(o.RespondentMetadata) {
+		return true
+	}
+
+	return false
+}
+
+// SetRespondentMetadata gets a reference to the given string and assigns it to the RespondentMetadata field.
+func (o *SurveyResponseResponse) SetRespondentMetadata(v string) {
+	o.RespondentMetadata = &v
 }
 
 // GetStatus returns the Status field value if set, zero value otherwise.
@@ -460,6 +493,9 @@ func (o SurveyResponseResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.RespondentIdentifier) {
 		toSerialize["respondentIdentifier"] = o.RespondentIdentifier
 	}
+	if !IsNil(o.RespondentMetadata) {
+		toSerialize["respondentMetadata"] = o.RespondentMetadata
+	}
 	if !IsNil(o.Status) {
 		toSerialize["status"] = o.Status
 	}
@@ -510,6 +546,7 @@ func (o *SurveyResponseResponse) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "campaignId")
 		delete(additionalProperties, "surveySnapshotId")
 		delete(additionalProperties, "respondentIdentifier")
+		delete(additionalProperties, "respondentMetadata")
 		delete(additionalProperties, "status")
 		delete(additionalProperties, "startedAt")
 		delete(additionalProperties, "submittedAt")

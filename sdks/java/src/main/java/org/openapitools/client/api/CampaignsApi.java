@@ -34,6 +34,10 @@ import org.openapitools.client.model.CampaignSettingsRequest;
 import org.openapitools.client.model.CampaignSettingsResponse;
 import org.openapitools.client.model.DistributionChannelResponse;
 import org.openapitools.client.model.ErrorResponse;
+import org.openapitools.client.model.ResponderSessionStatusResponse;
+import org.openapitools.client.model.ResponseDraftLookupRequest;
+import org.openapitools.client.model.ResponseSubmissionRequest;
+import org.openapitools.client.model.SurveyResponseResponse;
 import java.util.UUID;
 
 import java.lang.reflect.Type;
@@ -1156,6 +1160,137 @@ public class CampaignsApi {
         return localVarCall;
     }
     /**
+     * Build call for getResponderSessionStatus
+     * @param id  (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Responder session status returned </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getResponderSessionStatusCall(@javax.annotation.Nonnull UUID id, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/public/campaigns/{id}/auth/session"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getResponderSessionStatusValidateBeforeCall(@javax.annotation.Nonnull UUID id, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling getResponderSessionStatus(Async)");
+        }
+
+        return getResponderSessionStatusCall(id, _callback);
+
+    }
+
+    /**
+     * Get current private responder session status for a campaign
+     * Why this endpoint is needed: Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.  What this endpoint does: It returns whether a valid responder session cookie is currently active for the target private campaign.  How this endpoint does it: The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload. 
+     * @param id  (required)
+     * @return ResponderSessionStatusResponse
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Responder session status returned </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public ResponderSessionStatusResponse getResponderSessionStatus(@javax.annotation.Nonnull UUID id) throws ApiException {
+        ApiResponse<ResponderSessionStatusResponse> localVarResp = getResponderSessionStatusWithHttpInfo(id);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Get current private responder session status for a campaign
+     * Why this endpoint is needed: Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.  What this endpoint does: It returns whether a valid responder session cookie is currently active for the target private campaign.  How this endpoint does it: The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload. 
+     * @param id  (required)
+     * @return ApiResponse&lt;ResponderSessionStatusResponse&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Responder session status returned </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<ResponderSessionStatusResponse> getResponderSessionStatusWithHttpInfo(@javax.annotation.Nonnull UUID id) throws ApiException {
+        okhttp3.Call localVarCall = getResponderSessionStatusValidateBeforeCall(id, null);
+        Type localVarReturnType = new TypeToken<ResponderSessionStatusResponse>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Get current private responder session status for a campaign (asynchronously)
+     * Why this endpoint is needed: Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.  What this endpoint does: It returns whether a valid responder session cookie is currently active for the target private campaign.  How this endpoint does it: The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload. 
+     * @param id  (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Responder session status returned </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getResponderSessionStatusAsync(@javax.annotation.Nonnull UUID id, final ApiCallback<ResponderSessionStatusResponse> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getResponderSessionStatusValidateBeforeCall(id, _callback);
+        Type localVarReturnType = new TypeToken<ResponderSessionStatusResponse>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for listCampaignChannels
      * @param id  (required)
      * @param _callback Callback for upload/download progress
@@ -1408,6 +1543,427 @@ public class CampaignsApi {
 
         okhttp3.Call localVarCall = listCampaignsValidateBeforeCall(_callback);
         Type localVarReturnType = new TypeToken<List<CampaignResponse>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for loadPublicDraft
+     * @param id  (required)
+     * @param responseDraftLookupRequest  (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Draft restored </td><td>  -  </td></tr>
+        <tr><td> 204 </td><td> No draft exists for the supplied identity </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Request validation failed or business rule validation failed </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call loadPublicDraftCall(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseDraftLookupRequest responseDraftLookupRequest, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = responseDraftLookupRequest;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/public/campaigns/{id}/responses/draft/load"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call loadPublicDraftValidateBeforeCall(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseDraftLookupRequest responseDraftLookupRequest, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling loadPublicDraft(Async)");
+        }
+
+        // verify the required parameter 'responseDraftLookupRequest' is set
+        if (responseDraftLookupRequest == null) {
+            throw new ApiException("Missing the required parameter 'responseDraftLookupRequest' when calling loadPublicDraft(Async)");
+        }
+
+        return loadPublicDraftCall(id, responseDraftLookupRequest, _callback);
+
+    }
+
+    /**
+     * Load an existing in-progress responder draft
+     * Why this endpoint is needed: Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.  What this endpoint does: It returns the matching in-progress draft when one exists for the supplied identity or response id.  How this endpoint does it: The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists. 
+     * @param id  (required)
+     * @param responseDraftLookupRequest  (required)
+     * @return SurveyResponseResponse
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Draft restored </td><td>  -  </td></tr>
+        <tr><td> 204 </td><td> No draft exists for the supplied identity </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Request validation failed or business rule validation failed </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public SurveyResponseResponse loadPublicDraft(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseDraftLookupRequest responseDraftLookupRequest) throws ApiException {
+        ApiResponse<SurveyResponseResponse> localVarResp = loadPublicDraftWithHttpInfo(id, responseDraftLookupRequest);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Load an existing in-progress responder draft
+     * Why this endpoint is needed: Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.  What this endpoint does: It returns the matching in-progress draft when one exists for the supplied identity or response id.  How this endpoint does it: The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists. 
+     * @param id  (required)
+     * @param responseDraftLookupRequest  (required)
+     * @return ApiResponse&lt;SurveyResponseResponse&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Draft restored </td><td>  -  </td></tr>
+        <tr><td> 204 </td><td> No draft exists for the supplied identity </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Request validation failed or business rule validation failed </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<SurveyResponseResponse> loadPublicDraftWithHttpInfo(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseDraftLookupRequest responseDraftLookupRequest) throws ApiException {
+        okhttp3.Call localVarCall = loadPublicDraftValidateBeforeCall(id, responseDraftLookupRequest, null);
+        Type localVarReturnType = new TypeToken<SurveyResponseResponse>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Load an existing in-progress responder draft (asynchronously)
+     * Why this endpoint is needed: Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.  What this endpoint does: It returns the matching in-progress draft when one exists for the supplied identity or response id.  How this endpoint does it: The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists. 
+     * @param id  (required)
+     * @param responseDraftLookupRequest  (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Draft restored </td><td>  -  </td></tr>
+        <tr><td> 204 </td><td> No draft exists for the supplied identity </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Request validation failed or business rule validation failed </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call loadPublicDraftAsync(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseDraftLookupRequest responseDraftLookupRequest, final ApiCallback<SurveyResponseResponse> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = loadPublicDraftValidateBeforeCall(id, responseDraftLookupRequest, _callback);
+        Type localVarReturnType = new TypeToken<SurveyResponseResponse>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for logoutResponderSession
+     * @param id  (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Responder session revoked and cookie cleared </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call logoutResponderSessionCall(@javax.annotation.Nonnull UUID id, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/public/campaigns/{id}/auth/logout"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call logoutResponderSessionValidateBeforeCall(@javax.annotation.Nonnull UUID id, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling logoutResponderSession(Async)");
+        }
+
+        return logoutResponderSessionCall(id, _callback);
+
+    }
+
+    /**
+     * Revoke the current private responder session for a campaign
+     * Why this endpoint is needed: Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.  What this endpoint does: It revokes the current responder session and clears the responder session cookie.  How this endpoint does it: The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie. 
+     * @param id  (required)
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Responder session revoked and cookie cleared </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public void logoutResponderSession(@javax.annotation.Nonnull UUID id) throws ApiException {
+        logoutResponderSessionWithHttpInfo(id);
+    }
+
+    /**
+     * Revoke the current private responder session for a campaign
+     * Why this endpoint is needed: Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.  What this endpoint does: It revokes the current responder session and clears the responder session cookie.  How this endpoint does it: The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie. 
+     * @param id  (required)
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Responder session revoked and cookie cleared </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> logoutResponderSessionWithHttpInfo(@javax.annotation.Nonnull UUID id) throws ApiException {
+        okhttp3.Call localVarCall = logoutResponderSessionValidateBeforeCall(id, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     * Revoke the current private responder session for a campaign (asynchronously)
+     * Why this endpoint is needed: Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.  What this endpoint does: It revokes the current responder session and clears the responder session cookie.  How this endpoint does it: The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie. 
+     * @param id  (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 204 </td><td> Responder session revoked and cookie cleared </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call logoutResponderSessionAsync(@javax.annotation.Nonnull UUID id, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = logoutResponderSessionValidateBeforeCall(id, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for savePublicDraft
+     * @param id  (required)
+     * @param responseSubmissionRequest  (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Draft saved </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Request validation failed or business rule validation failed </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call savePublicDraftCall(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseSubmissionRequest responseSubmissionRequest, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = responseSubmissionRequest;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/public/campaigns/{id}/responses/draft"
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call savePublicDraftValidateBeforeCall(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseSubmissionRequest responseSubmissionRequest, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling savePublicDraft(Async)");
+        }
+
+        // verify the required parameter 'responseSubmissionRequest' is set
+        if (responseSubmissionRequest == null) {
+            throw new ApiException("Missing the required parameter 'responseSubmissionRequest' when calling savePublicDraft(Async)");
+        }
+
+        return savePublicDraftCall(id, responseSubmissionRequest, _callback);
+
+    }
+
+    /**
+     * Create or update an in-progress responder draft
+     * Why this endpoint is needed: Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.  What this endpoint does: It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.  How this endpoint does it: The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state. 
+     * @param id  (required)
+     * @param responseSubmissionRequest  (required)
+     * @return SurveyResponseResponse
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Draft saved </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Request validation failed or business rule validation failed </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public SurveyResponseResponse savePublicDraft(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseSubmissionRequest responseSubmissionRequest) throws ApiException {
+        ApiResponse<SurveyResponseResponse> localVarResp = savePublicDraftWithHttpInfo(id, responseSubmissionRequest);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Create or update an in-progress responder draft
+     * Why this endpoint is needed: Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.  What this endpoint does: It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.  How this endpoint does it: The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state. 
+     * @param id  (required)
+     * @param responseSubmissionRequest  (required)
+     * @return ApiResponse&lt;SurveyResponseResponse&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Draft saved </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Request validation failed or business rule validation failed </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<SurveyResponseResponse> savePublicDraftWithHttpInfo(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseSubmissionRequest responseSubmissionRequest) throws ApiException {
+        okhttp3.Call localVarCall = savePublicDraftValidateBeforeCall(id, responseSubmissionRequest, null);
+        Type localVarReturnType = new TypeToken<SurveyResponseResponse>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Create or update an in-progress responder draft (asynchronously)
+     * Why this endpoint is needed: Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.  What this endpoint does: It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.  How this endpoint does it: The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state. 
+     * @param id  (required)
+     * @param responseSubmissionRequest  (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Draft saved </td><td>  -  </td></tr>
+        <tr><td> 400 </td><td> Request validation failed or business rule validation failed </td><td>  -  </td></tr>
+        <tr><td> 404 </td><td> Referenced resource does not exist or is not visible in tenant scope </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call savePublicDraftAsync(@javax.annotation.Nonnull UUID id, @javax.annotation.Nonnull ResponseSubmissionRequest responseSubmissionRequest, final ApiCallback<SurveyResponseResponse> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = savePublicDraftValidateBeforeCall(id, responseSubmissionRequest, _callback);
+        Type localVarReturnType = new TypeToken<SurveyResponseResponse>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

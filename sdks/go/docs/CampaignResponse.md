@@ -17,6 +17,7 @@ Name | Type | Description | Notes
 **CreatedAt** | Pointer to **time.Time** |  | [optional] 
 **UpdatedBy** | Pointer to **string** |  | [optional] 
 **UpdatedAt** | Pointer to **time.Time** |  | [optional] 
+**DataCollectionFields** | Pointer to [**[]DataCollectionFieldResponse**](DataCollectionFieldResponse.md) |  | [optional] 
 
 ## Methods
 
@@ -361,6 +362,31 @@ SetUpdatedAt sets UpdatedAt field to given value.
 `func (o *CampaignResponse) HasUpdatedAt() bool`
 
 HasUpdatedAt returns a boolean if a field has been set.
+
+### GetDataCollectionFields
+
+`func (o *CampaignResponse) GetDataCollectionFields() []DataCollectionFieldResponse`
+
+GetDataCollectionFields returns the DataCollectionFields field if non-nil, zero value otherwise.
+
+### GetDataCollectionFieldsOk
+
+`func (o *CampaignResponse) GetDataCollectionFieldsOk() (*[]DataCollectionFieldResponse, bool)`
+
+GetDataCollectionFieldsOk returns a tuple with the DataCollectionFields field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDataCollectionFields
+
+`func (o *CampaignResponse) SetDataCollectionFields(v []DataCollectionFieldResponse)`
+
+SetDataCollectionFields sets DataCollectionFields field to given value.
+
+### HasDataCollectionFields
+
+`func (o *CampaignResponse) HasDataCollectionFields() bool`
+
+HasDataCollectionFields returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

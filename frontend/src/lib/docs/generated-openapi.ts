@@ -61,6 +61,10 @@ export const generatedOpenApi = {
     {
       "name": "User Features",
       "description": "User-level feature access and completion tracking endpoints."
+    },
+    {
+      "name": "User Preferences",
+      "description": "Authenticated admin preference storage for UI state, theme mode, and onboarding progress."
     }
   ],
   "operations": [
@@ -633,6 +637,127 @@ export const generatedOpenApi = {
           "type": "boolean",
           "required": false,
           "defaultValue": "true"
+        }
+      ]
+    },
+    {
+      "id": "getUserPreferences",
+      "method": "GET",
+      "endpoint": "/admin/preferences",
+      "path": "/api/v1/admin/preferences",
+      "summary": "Get all preferences for the current admin user",
+      "description": "Why this endpoint is needed:\nThe admin application persists per-user UI state such as theme mode, completed onboarding flows, and dismissed hints.\n\nWhat this endpoint does:\nIt returns the preference map for the currently authenticated admin.\n\nHow this endpoint does it:\nThe service resolves the current admin from auth context, loads the tenant-scoped preference record, and maps it to UserPreferenceDTO.\n",
+      "tags": [
+        "User Preferences"
+      ],
+      "pathParams": [],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "updateUserPreferences",
+      "method": "PATCH",
+      "endpoint": "/admin/preferences",
+      "path": "/api/v1/admin/preferences",
+      "summary": "Update multiple preferences for the current admin user",
+      "description": "Why this endpoint is needed:\nModern UI flows often save several preference keys together, such as theme mode and onboarding completion checkpoints.\n\nWhat this endpoint does:\nIt updates multiple string-based preference values in a single call.\n\nHow this endpoint does it:\nThe service merges the incoming key-value map into the current admin user's preference store and persists the result.\n",
+      "tags": [
+        "User Preferences"
+      ],
+      "pathParams": [],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "resetUserPreferences",
+      "method": "DELETE",
+      "endpoint": "/admin/preferences",
+      "path": "/api/v1/admin/preferences",
+      "summary": "Reset all preferences for the current admin user",
+      "description": "Why this endpoint is needed:\nSupport and onboarding workflows need a clean reset path so tours, theme defaults, and dismissed tips can be replayed.\n\nWhat this endpoint does:\nIt clears all stored preferences for the current admin user.\n\nHow this endpoint does it:\nThe service deletes the current admin preference map and returns success without a body.\n",
+      "tags": [
+        "User Preferences"
+      ],
+      "pathParams": [],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "setFeatureCompletionStatus",
+      "method": "POST",
+      "endpoint": "/admin/preferences/{featureKey}/complete",
+      "path": "/api/v1/admin/preferences/{featureKey}/complete",
+      "summary": "Mark a feature or onboarding item as completed or incomplete",
+      "description": "Why this endpoint is needed:\nGuided tours and feature education flows need an explicit server-side completion write path that survives browsers and devices.\n\nWhat this endpoint does:\nIt stores the completion status for one feature key for the current admin user.\n\nHow this endpoint does it:\nThe service updates the completion map in user preferences and returns success without a body.\n",
+      "tags": [
+        "User Preferences"
+      ],
+      "pathParams": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [
+        {
+          "name": "completed",
+          "type": "boolean",
+          "required": false,
+          "defaultValue": "true"
+        }
+      ],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "getFeatureCompletionStatus",
+      "method": "GET",
+      "endpoint": "/admin/preferences/{featureKey}/completed",
+      "path": "/api/v1/admin/preferences/{featureKey}/completed",
+      "summary": "Check whether a feature or onboarding item is completed",
+      "description": "Why this endpoint is needed:\nOnboarding and contextual-help UX need a direct completion check for a single feature key.\n\nWhat this endpoint does:\nIt returns whether the current admin has marked the target feature as completed.\n\nHow this endpoint does it:\nThe service resolves the current admin user and reads the completion flag from stored preferences.\n",
+      "tags": [
+        "User Preferences"
+      ],
+      "pathParams": [
+        {
+          "name": "featureKey",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "setUserPreference",
+      "method": "PATCH",
+      "endpoint": "/admin/preferences/{key}",
+      "path": "/api/v1/admin/preferences/{key}",
+      "summary": "Update one preference key for the current admin user",
+      "description": "Why this endpoint is needed:\nLightweight UI interactions such as theme changes and dismiss actions often update only one preference key.\n\nWhat this endpoint does:\nIt sets one preference value for the current admin user.\n\nHow this endpoint does it:\nThe controller accepts a raw string body and the service stores it under the requested key.\n",
+      "tags": [
+        "User Preferences"
+      ],
+      "pathParams": [
+        {
+          "name": "key",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": [
+        {
+          "name": "payload",
+          "type": "string",
+          "required": true
         }
       ]
     },
@@ -1481,6 +1606,11 @@ export const generatedOpenApi = {
           "required": false
         },
         {
+          "name": "theme",
+          "type": "object",
+          "required": false
+        },
+        {
           "name": "collectName",
           "type": "boolean",
           "required": false
@@ -1498,6 +1628,11 @@ export const generatedOpenApi = {
         {
           "name": "collectAddress",
           "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "dataCollectionFields",
+          "type": "object[]",
           "required": false
         }
       ]
@@ -1701,6 +1836,50 @@ export const generatedOpenApi = {
       "requestBody": []
     },
     {
+      "id": "logoutResponderSession",
+      "method": "POST",
+      "endpoint": "/public/campaigns/{id}/auth/logout",
+      "path": "/api/v1/public/campaigns/{id}/auth/logout",
+      "summary": "Revoke the current private responder session for a campaign",
+      "description": "Why this endpoint is needed:\nPrivate survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.\n\nWhat this endpoint does:\nIt revokes the current responder session and clears the responder session cookie.\n\nHow this endpoint does it:\nThe controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie.\n",
+      "tags": [
+        "Campaigns"
+      ],
+      "pathParams": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Path parameter"
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
+      "id": "getResponderSessionStatus",
+      "method": "GET",
+      "endpoint": "/public/campaigns/{id}/auth/session",
+      "path": "/api/v1/public/campaigns/{id}/auth/session",
+      "summary": "Get current private responder session status for a campaign",
+      "description": "Why this endpoint is needed:\nPrivate responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.\n\nWhat this endpoint does:\nIt returns whether a valid responder session cookie is currently active for the target private campaign.\n\nHow this endpoint does it:\nThe controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload.\n",
+      "tags": [
+        "Campaigns"
+      ],
+      "pathParams": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Path parameter"
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": []
+    },
+    {
       "id": "getPublicCampaignPreview",
       "method": "GET",
       "endpoint": "/public/campaigns/{id}/preview",
@@ -1721,6 +1900,117 @@ export const generatedOpenApi = {
       "queryParams": [],
       "headers": [],
       "requestBody": []
+    },
+    {
+      "id": "savePublicDraft",
+      "method": "POST",
+      "endpoint": "/public/campaigns/{id}/responses/draft",
+      "path": "/api/v1/public/campaigns/{id}/responses/draft",
+      "summary": "Create or update an in-progress responder draft",
+      "description": "Why this endpoint is needed:\nResponders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.\n\nWhat this endpoint does:\nIt creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.\n\nHow this endpoint does it:\nThe service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state.\n",
+      "tags": [
+        "Campaigns"
+      ],
+      "pathParams": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Path parameter"
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": [
+        {
+          "name": "responseId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "campaignId",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "respondentIdentifier",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "respondentIp",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "respondentDeviceFingerprint",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responderToken",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responderAccessCode",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "respondentMetadata",
+          "type": "object",
+          "required": false
+        },
+        {
+          "name": "answers",
+          "type": "object[]",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "loadPublicDraft",
+      "method": "POST",
+      "endpoint": "/public/campaigns/{id}/responses/draft/load",
+      "path": "/api/v1/public/campaigns/{id}/responses/draft/load",
+      "summary": "Load an existing in-progress responder draft",
+      "description": "Why this endpoint is needed:\nResponder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.\n\nWhat this endpoint does:\nIt returns the matching in-progress draft when one exists for the supplied identity or response id.\n\nHow this endpoint does it:\nThe service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists.\n",
+      "tags": [
+        "Campaigns"
+      ],
+      "pathParams": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Path parameter"
+        }
+      ],
+      "queryParams": [],
+      "headers": [],
+      "requestBody": [
+        {
+          "name": "responseId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "respondentIdentifier",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responderToken",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responderAccessCode",
+          "type": "string",
+          "required": false
+        }
+      ]
     },
     {
       "id": "listQuestions",
@@ -1877,6 +2167,11 @@ export const generatedOpenApi = {
       "headers": [],
       "requestBody": [
         {
+          "name": "responseId",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "campaignId",
           "type": "string",
           "required": true
@@ -1904,6 +2199,11 @@ export const generatedOpenApi = {
         {
           "name": "responderAccessCode",
           "type": "string",
+          "required": false
+        },
+        {
+          "name": "respondentMetadata",
+          "type": "object",
           "required": false
         },
         {

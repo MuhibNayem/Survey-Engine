@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **CampaignId** | Pointer to **string** |  | [optional] 
 **SurveySnapshotId** | Pointer to **string** |  | [optional] 
 **RespondentIdentifier** | Pointer to **string** |  | [optional] 
+**RespondentMetadata** | Pointer to **string** |  | [optional] 
 **Status** | Pointer to **string** |  | [optional] 
 **StartedAt** | Pointer to **time.Time** |  | [optional] 
 **SubmittedAt** | Pointer to **time.Time** |  | [optional] 
@@ -135,6 +136,31 @@ SetRespondentIdentifier sets RespondentIdentifier field to given value.
 `func (o *SurveyResponseResponse) HasRespondentIdentifier() bool`
 
 HasRespondentIdentifier returns a boolean if a field has been set.
+
+### GetRespondentMetadata
+
+`func (o *SurveyResponseResponse) GetRespondentMetadata() string`
+
+GetRespondentMetadata returns the RespondentMetadata field if non-nil, zero value otherwise.
+
+### GetRespondentMetadataOk
+
+`func (o *SurveyResponseResponse) GetRespondentMetadataOk() (*string, bool)`
+
+GetRespondentMetadataOk returns a tuple with the RespondentMetadata field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetRespondentMetadata
+
+`func (o *SurveyResponseResponse) SetRespondentMetadata(v string)`
+
+SetRespondentMetadata sets RespondentMetadata field to given value.
+
+### HasRespondentMetadata
+
+`func (o *SurveyResponseResponse) HasRespondentMetadata() bool`
+
+HasRespondentMetadata returns a boolean if a field has been set.
 
 ### GetStatus
 

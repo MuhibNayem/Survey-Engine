@@ -19,6 +19,7 @@ Name | Type
 `createdAt` | Date
 `updatedBy` | string
 `updatedAt` | Date
+`dataCollectionFields` | [Array&lt;DataCollectionFieldResponse&gt;](DataCollectionFieldResponse.md)
 
 ## Example
 
@@ -40,6 +41,7 @@ const example = {
   "createdAt": null,
   "updatedBy": null,
   "updatedAt": null,
+  "dataCollectionFields": null,
 } satisfies CampaignResponse
 
 console.log(example)

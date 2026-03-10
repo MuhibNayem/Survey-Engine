@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 **QuestionId** | **string** |  | 
 **QuestionVersionId** | Pointer to **string** |  | [optional] 
 **Value** | Pointer to **string** |  | [optional] 
+**Remark** | Pointer to **string** |  | [optional] 
 **Score** | Pointer to **float32** |  | [optional] 
 
 ## Methods
@@ -97,6 +98,31 @@ SetValue sets Value field to given value.
 `func (o *ResponseSubmissionRequestAnswersInner) HasValue() bool`
 
 HasValue returns a boolean if a field has been set.
+
+### GetRemark
+
+`func (o *ResponseSubmissionRequestAnswersInner) GetRemark() string`
+
+GetRemark returns the Remark field if non-nil, zero value otherwise.
+
+### GetRemarkOk
+
+`func (o *ResponseSubmissionRequestAnswersInner) GetRemarkOk() (*string, bool)`
+
+GetRemarkOk returns a tuple with the Remark field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetRemark
+
+`func (o *ResponseSubmissionRequestAnswersInner) SetRemark(v string)`
+
+SetRemark sets Remark field to given value.
+
+### HasRemark
+
+`func (o *ResponseSubmissionRequestAnswersInner) HasRemark() bool`
+
+HasRemark returns a boolean if a field has been set.
 
 ### GetScore
 

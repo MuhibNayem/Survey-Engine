@@ -9,6 +9,7 @@ Name | Type
 `questionId` | string
 `questionVersionId` | string
 `value` | string
+`remark` | string
 `score` | number
 
 ## Example
@@ -21,6 +22,7 @@ const example = {
   "questionId": null,
   "questionVersionId": null,
   "value": null,
+  "remark": null,
   "score": null,
 } satisfies ResponseSubmissionRequestAnswersInner
 

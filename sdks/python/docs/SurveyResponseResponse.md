@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **campaign_id** | **UUID** |  | [optional] 
 **survey_snapshot_id** | **UUID** |  | [optional] 
 **respondent_identifier** | **str** |  | [optional] 
+**respondent_metadata** | **str** |  | [optional] 
 **status** | **str** |  | [optional] 
 **started_at** | **datetime** |  | [optional] 
 **submitted_at** | **datetime** |  | [optional] 

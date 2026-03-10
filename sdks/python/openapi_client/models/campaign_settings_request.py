@@ -20,6 +20,8 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from openapi_client.models.data_collection_field_request import DataCollectionFieldRequest
+from openapi_client.models.survey_theme_config_dto import SurveyThemeConfigDto
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -42,12 +44,14 @@ class CampaignSettingsRequest(BaseModel):
     finish_message: Optional[StrictStr] = Field(default=None, alias="finishMessage")
     header_html: Optional[StrictStr] = Field(default=None, alias="headerHtml")
     footer_html: Optional[StrictStr] = Field(default=None, alias="footerHtml")
+    theme: Optional[SurveyThemeConfigDto] = None
     collect_name: Optional[StrictBool] = Field(default=None, alias="collectName")
     collect_email: Optional[StrictBool] = Field(default=None, alias="collectEmail")
     collect_phone: Optional[StrictBool] = Field(default=None, alias="collectPhone")
     collect_address: Optional[StrictBool] = Field(default=None, alias="collectAddress")
+    data_collection_fields: Optional[List[DataCollectionFieldRequest]] = Field(default=None, alias="dataCollectionFields")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["password", "captchaEnabled", "oneResponsePerDevice", "ipRestrictionEnabled", "emailRestrictionEnabled", "responseQuota", "closeDate", "sessionTimeoutMinutes", "showQuestionNumbers", "showProgressIndicator", "allowBackButton", "startMessage", "finishMessage", "headerHtml", "footerHtml", "collectName", "collectEmail", "collectPhone", "collectAddress"]
+    __properties: ClassVar[List[str]] = ["password", "captchaEnabled", "oneResponsePerDevice", "ipRestrictionEnabled", "emailRestrictionEnabled", "responseQuota", "closeDate", "sessionTimeoutMinutes", "showQuestionNumbers", "showProgressIndicator", "allowBackButton", "startMessage", "finishMessage", "headerHtml", "footerHtml", "theme", "collectName", "collectEmail", "collectPhone", "collectAddress", "dataCollectionFields"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -90,6 +94,16 @@ class CampaignSettingsRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of theme
+        if self.theme:
+            _dict['theme'] = self.theme.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in data_collection_fields (list)
+        _items = []
+        if self.data_collection_fields:
+            for _item_data_collection_fields in self.data_collection_fields:
+                if _item_data_collection_fields:
+                    _items.append(_item_data_collection_fields.to_dict())
+            _dict['dataCollectionFields'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -122,10 +136,12 @@ class CampaignSettingsRequest(BaseModel):
             "finishMessage": obj.get("finishMessage"),
             "headerHtml": obj.get("headerHtml"),
             "footerHtml": obj.get("footerHtml"),
+            "theme": SurveyThemeConfigDto.from_dict(obj["theme"]) if obj.get("theme") is not None else None,
             "collectName": obj.get("collectName"),
             "collectEmail": obj.get("collectEmail"),
             "collectPhone": obj.get("collectPhone"),
-            "collectAddress": obj.get("collectAddress")
+            "collectAddress": obj.get("collectAddress"),
+            "dataCollectionFields": [DataCollectionFieldRequest.from_dict(_item) for _item in obj["dataCollectionFields"]] if obj.get("dataCollectionFields") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

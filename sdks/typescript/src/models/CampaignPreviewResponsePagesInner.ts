@@ -13,13 +13,20 @@
  */
 
 import { mapValues } from '../runtime';
-import type { CampaignPreviewResponsePagesInnerQuestionsInner } from './CampaignPreviewResponsePagesInnerQuestionsInner';
+import type { CampaignPreviewResponsePagesInnerCategoriesInner } from './CampaignPreviewResponsePagesInnerCategoriesInner';
 import {
-    CampaignPreviewResponsePagesInnerQuestionsInnerFromJSON,
-    CampaignPreviewResponsePagesInnerQuestionsInnerFromJSONTyped,
-    CampaignPreviewResponsePagesInnerQuestionsInnerToJSON,
-    CampaignPreviewResponsePagesInnerQuestionsInnerToJSONTyped,
-} from './CampaignPreviewResponsePagesInnerQuestionsInner';
+    CampaignPreviewResponsePagesInnerCategoriesInnerFromJSON,
+    CampaignPreviewResponsePagesInnerCategoriesInnerFromJSONTyped,
+    CampaignPreviewResponsePagesInnerCategoriesInnerToJSON,
+    CampaignPreviewResponsePagesInnerCategoriesInnerToJSONTyped,
+} from './CampaignPreviewResponsePagesInnerCategoriesInner';
+import type { CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner } from './CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner';
+import {
+    CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInnerFromJSON,
+    CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInnerFromJSONTyped,
+    CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInnerToJSON,
+    CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInnerToJSONTyped,
+} from './CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner';
 
 /**
  * 
@@ -47,10 +54,16 @@ export interface CampaignPreviewResponsePagesInner {
     sortOrder?: number;
     /**
      * 
-     * @type {Array<CampaignPreviewResponsePagesInnerQuestionsInner>}
+     * @type {Array<CampaignPreviewResponsePagesInnerCategoriesInner>}
      * @memberof CampaignPreviewResponsePagesInner
      */
-    questions?: Array<CampaignPreviewResponsePagesInnerQuestionsInner>;
+    categories?: Array<CampaignPreviewResponsePagesInnerCategoriesInner>;
+    /**
+     * 
+     * @type {Array<CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner>}
+     * @memberof CampaignPreviewResponsePagesInner
+     */
+    questions?: Array<CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner>;
 }
 
 /**
@@ -73,7 +86,8 @@ export function CampaignPreviewResponsePagesInnerFromJSONTyped(json: any, ignore
         'id': json['id'] == null ? undefined : json['id'],
         'title': json['title'] == null ? undefined : json['title'],
         'sortOrder': json['sortOrder'] == null ? undefined : json['sortOrder'],
-        'questions': json['questions'] == null ? undefined : ((json['questions'] as Array<any>).map(CampaignPreviewResponsePagesInnerQuestionsInnerFromJSON)),
+        'categories': json['categories'] == null ? undefined : ((json['categories'] as Array<any>).map(CampaignPreviewResponsePagesInnerCategoriesInnerFromJSON)),
+        'questions': json['questions'] == null ? undefined : ((json['questions'] as Array<any>).map(CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInnerFromJSON)),
     };
 }
 
@@ -91,7 +105,8 @@ export function CampaignPreviewResponsePagesInnerToJSONTyped(value?: CampaignPre
         'id': value['id'],
         'title': value['title'],
         'sortOrder': value['sortOrder'],
-        'questions': value['questions'] == null ? undefined : ((value['questions'] as Array<any>).map(CampaignPreviewResponsePagesInnerQuestionsInnerToJSON)),
+        'categories': value['categories'] == null ? undefined : ((value['categories'] as Array<any>).map(CampaignPreviewResponsePagesInnerCategoriesInnerToJSON)),
+        'questions': value['questions'] == null ? undefined : ((value['questions'] as Array<any>).map(CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInnerToJSON)),
     };
 }
 

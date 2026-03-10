@@ -50,7 +50,7 @@ import org.openapitools.client.JSON;
 /**
  * ResponseSubmissionRequestAnswersInner
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-11T04:33:32.444010+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class ResponseSubmissionRequestAnswersInner {
   public static final String SERIALIZED_NAME_QUESTION_ID = "questionId";
   @SerializedName(SERIALIZED_NAME_QUESTION_ID)
@@ -66,6 +66,11 @@ public class ResponseSubmissionRequestAnswersInner {
   @SerializedName(SERIALIZED_NAME_VALUE)
   @javax.annotation.Nullable
   private String value;
+
+  public static final String SERIALIZED_NAME_REMARK = "remark";
+  @SerializedName(SERIALIZED_NAME_REMARK)
+  @javax.annotation.Nullable
+  private String remark;
 
   public static final String SERIALIZED_NAME_SCORE = "score";
   @SerializedName(SERIALIZED_NAME_SCORE)
@@ -129,6 +134,25 @@ public class ResponseSubmissionRequestAnswersInner {
 
   public void setValue(@javax.annotation.Nullable String value) {
     this.value = value;
+  }
+
+
+  public ResponseSubmissionRequestAnswersInner remark(@javax.annotation.Nullable String remark) {
+    this.remark = remark;
+    return this;
+  }
+
+  /**
+   * Get remark
+   * @return remark
+   */
+  @javax.annotation.Nullable
+  public String getRemark() {
+    return remark;
+  }
+
+  public void setRemark(@javax.annotation.Nullable String remark) {
+    this.remark = remark;
   }
 
 
@@ -208,13 +232,14 @@ public class ResponseSubmissionRequestAnswersInner {
     return Objects.equals(this.questionId, responseSubmissionRequestAnswersInner.questionId) &&
         Objects.equals(this.questionVersionId, responseSubmissionRequestAnswersInner.questionVersionId) &&
         Objects.equals(this.value, responseSubmissionRequestAnswersInner.value) &&
+        Objects.equals(this.remark, responseSubmissionRequestAnswersInner.remark) &&
         Objects.equals(this.score, responseSubmissionRequestAnswersInner.score)&&
         Objects.equals(this.additionalProperties, responseSubmissionRequestAnswersInner.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(questionId, questionVersionId, value, score, additionalProperties);
+    return Objects.hash(questionId, questionVersionId, value, remark, score, additionalProperties);
   }
 
   @Override
@@ -224,6 +249,7 @@ public class ResponseSubmissionRequestAnswersInner {
     sb.append("    questionId: ").append(toIndentedString(questionId)).append("\n");
     sb.append("    questionVersionId: ").append(toIndentedString(questionVersionId)).append("\n");
     sb.append("    value: ").append(toIndentedString(value)).append("\n");
+    sb.append("    remark: ").append(toIndentedString(remark)).append("\n");
     sb.append("    score: ").append(toIndentedString(score)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -247,7 +273,7 @@ public class ResponseSubmissionRequestAnswersInner {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("questionId", "questionVersionId", "value", "score"));
+    openapiFields = new HashSet<String>(Arrays.asList("questionId", "questionVersionId", "value", "remark", "score"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("questionId"));
@@ -281,6 +307,9 @@ public class ResponseSubmissionRequestAnswersInner {
       }
       if ((jsonObj.get("value") != null && !jsonObj.get("value").isJsonNull()) && !jsonObj.get("value").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `value` to be a primitive type in the JSON string but got `%s`", jsonObj.get("value").toString()));
+      }
+      if ((jsonObj.get("remark") != null && !jsonObj.get("remark").isJsonNull()) && !jsonObj.get("remark").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `remark` to be a primitive type in the JSON string but got `%s`", jsonObj.get("remark").toString()));
       }
   }
 

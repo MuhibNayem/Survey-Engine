@@ -39,6 +39,12 @@ export interface ResponseSubmissionRequestAnswersInner {
     value?: string;
     /**
      * 
+     * @type {string}
+     * @memberof ResponseSubmissionRequestAnswersInner
+     */
+    remark?: string;
+    /**
+     * 
      * @type {number}
      * @memberof ResponseSubmissionRequestAnswersInner
      */
@@ -66,6 +72,7 @@ export function ResponseSubmissionRequestAnswersInnerFromJSONTyped(json: any, ig
         'questionId': json['questionId'],
         'questionVersionId': json['questionVersionId'] == null ? undefined : json['questionVersionId'],
         'value': json['value'] == null ? undefined : json['value'],
+        'remark': json['remark'] == null ? undefined : json['remark'],
         'score': json['score'] == null ? undefined : json['score'],
     };
 }
@@ -84,6 +91,7 @@ export function ResponseSubmissionRequestAnswersInnerToJSONTyped(value?: Respons
         'questionId': value['questionId'],
         'questionVersionId': value['questionVersionId'],
         'value': value['value'],
+        'remark': value['remark'],
         'score': value['score'],
     };
 }

@@ -11,6 +11,7 @@
 |**campaignId** | **UUID** |  |  [optional] |
 |**surveySnapshotId** | **UUID** |  |  [optional] |
 |**respondentIdentifier** | **String** |  |  [optional] |
+|**respondentMetadata** | **String** |  |  [optional] |
 |**status** | [**StatusEnum**](#StatusEnum) |  |  [optional] |
 |**startedAt** | **OffsetDateTime** |  |  [optional] |
 |**submittedAt** | **OffsetDateTime** |  |  [optional] |

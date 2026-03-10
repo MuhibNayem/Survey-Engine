@@ -20,7 +20,8 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
-from openapi_client.models.campaign_preview_response_pages_inner_questions_inner import CampaignPreviewResponsePagesInnerQuestionsInner
+from openapi_client.models.campaign_preview_response_pages_inner_categories_inner import CampaignPreviewResponsePagesInnerCategoriesInner
+from openapi_client.models.campaign_preview_response_pages_inner_categories_inner_questions_inner import CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -31,9 +32,10 @@ class CampaignPreviewResponsePagesInner(BaseModel):
     id: Optional[UUID] = None
     title: Optional[StrictStr] = None
     sort_order: Optional[StrictInt] = Field(default=None, alias="sortOrder")
-    questions: Optional[List[CampaignPreviewResponsePagesInnerQuestionsInner]] = None
+    categories: Optional[List[CampaignPreviewResponsePagesInnerCategoriesInner]] = None
+    questions: Optional[List[CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "title", "sortOrder", "questions"]
+    __properties: ClassVar[List[str]] = ["id", "title", "sortOrder", "categories", "questions"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -76,6 +78,13 @@ class CampaignPreviewResponsePagesInner(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in categories (list)
+        _items = []
+        if self.categories:
+            for _item_categories in self.categories:
+                if _item_categories:
+                    _items.append(_item_categories.to_dict())
+            _dict['categories'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in questions (list)
         _items = []
         if self.questions:
@@ -103,7 +112,8 @@ class CampaignPreviewResponsePagesInner(BaseModel):
             "id": obj.get("id"),
             "title": obj.get("title"),
             "sortOrder": obj.get("sortOrder"),
-            "questions": [CampaignPreviewResponsePagesInnerQuestionsInner.from_dict(_item) for _item in obj["questions"]] if obj.get("questions") is not None else None
+            "categories": [CampaignPreviewResponsePagesInnerCategoriesInner.from_dict(_item) for _item in obj["categories"]] if obj.get("categories") is not None else None,
+            "questions": [CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner.from_dict(_item) for _item in obj["questions"]] if obj.get("questions") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

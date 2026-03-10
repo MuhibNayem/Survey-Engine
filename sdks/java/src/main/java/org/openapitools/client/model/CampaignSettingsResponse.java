@@ -21,8 +21,12 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
+import org.openapitools.client.model.DataCollectionFieldResponse;
+import org.openapitools.client.model.SurveyThemeConfigDto;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -50,7 +54,7 @@ import org.openapitools.client.JSON;
 /**
  * CampaignSettingsResponse
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-11T04:33:32.444010+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class CampaignSettingsResponse {
   public static final String SERIALIZED_NAME_CAMPAIGN_ID = "campaignId";
   @SerializedName(SERIALIZED_NAME_CAMPAIGN_ID)
@@ -132,6 +136,11 @@ public class CampaignSettingsResponse {
   @javax.annotation.Nullable
   private String footerHtml;
 
+  public static final String SERIALIZED_NAME_THEME = "theme";
+  @SerializedName(SERIALIZED_NAME_THEME)
+  @javax.annotation.Nullable
+  private SurveyThemeConfigDto theme;
+
   public static final String SERIALIZED_NAME_COLLECT_NAME = "collectName";
   @SerializedName(SERIALIZED_NAME_COLLECT_NAME)
   @javax.annotation.Nullable
@@ -151,6 +160,11 @@ public class CampaignSettingsResponse {
   @SerializedName(SERIALIZED_NAME_COLLECT_ADDRESS)
   @javax.annotation.Nullable
   private Boolean collectAddress;
+
+  public static final String SERIALIZED_NAME_DATA_COLLECTION_FIELDS = "dataCollectionFields";
+  @SerializedName(SERIALIZED_NAME_DATA_COLLECTION_FIELDS)
+  @javax.annotation.Nullable
+  private List<DataCollectionFieldResponse> dataCollectionFields = new ArrayList<>();
 
   public CampaignSettingsResponse() {
   }
@@ -459,6 +473,25 @@ public class CampaignSettingsResponse {
   }
 
 
+  public CampaignSettingsResponse theme(@javax.annotation.Nullable SurveyThemeConfigDto theme) {
+    this.theme = theme;
+    return this;
+  }
+
+  /**
+   * Get theme
+   * @return theme
+   */
+  @javax.annotation.Nullable
+  public SurveyThemeConfigDto getTheme() {
+    return theme;
+  }
+
+  public void setTheme(@javax.annotation.Nullable SurveyThemeConfigDto theme) {
+    this.theme = theme;
+  }
+
+
   public CampaignSettingsResponse collectName(@javax.annotation.Nullable Boolean collectName) {
     this.collectName = collectName;
     return this;
@@ -534,6 +567,33 @@ public class CampaignSettingsResponse {
     this.collectAddress = collectAddress;
   }
 
+
+  public CampaignSettingsResponse dataCollectionFields(@javax.annotation.Nullable List<DataCollectionFieldResponse> dataCollectionFields) {
+    this.dataCollectionFields = dataCollectionFields;
+    return this;
+  }
+
+  public CampaignSettingsResponse addDataCollectionFieldsItem(DataCollectionFieldResponse dataCollectionFieldsItem) {
+    if (this.dataCollectionFields == null) {
+      this.dataCollectionFields = new ArrayList<>();
+    }
+    this.dataCollectionFields.add(dataCollectionFieldsItem);
+    return this;
+  }
+
+  /**
+   * Get dataCollectionFields
+   * @return dataCollectionFields
+   */
+  @javax.annotation.Nullable
+  public List<DataCollectionFieldResponse> getDataCollectionFields() {
+    return dataCollectionFields;
+  }
+
+  public void setDataCollectionFields(@javax.annotation.Nullable List<DataCollectionFieldResponse> dataCollectionFields) {
+    this.dataCollectionFields = dataCollectionFields;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -605,16 +665,18 @@ public class CampaignSettingsResponse {
         Objects.equals(this.finishMessage, campaignSettingsResponse.finishMessage) &&
         Objects.equals(this.headerHtml, campaignSettingsResponse.headerHtml) &&
         Objects.equals(this.footerHtml, campaignSettingsResponse.footerHtml) &&
+        Objects.equals(this.theme, campaignSettingsResponse.theme) &&
         Objects.equals(this.collectName, campaignSettingsResponse.collectName) &&
         Objects.equals(this.collectEmail, campaignSettingsResponse.collectEmail) &&
         Objects.equals(this.collectPhone, campaignSettingsResponse.collectPhone) &&
-        Objects.equals(this.collectAddress, campaignSettingsResponse.collectAddress)&&
+        Objects.equals(this.collectAddress, campaignSettingsResponse.collectAddress) &&
+        Objects.equals(this.dataCollectionFields, campaignSettingsResponse.dataCollectionFields)&&
         Objects.equals(this.additionalProperties, campaignSettingsResponse.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(campaignId, password, captchaEnabled, oneResponsePerDevice, ipRestrictionEnabled, emailRestrictionEnabled, responseQuota, closeDate, sessionTimeoutMinutes, showQuestionNumbers, showProgressIndicator, allowBackButton, startMessage, finishMessage, headerHtml, footerHtml, collectName, collectEmail, collectPhone, collectAddress, additionalProperties);
+    return Objects.hash(campaignId, password, captchaEnabled, oneResponsePerDevice, ipRestrictionEnabled, emailRestrictionEnabled, responseQuota, closeDate, sessionTimeoutMinutes, showQuestionNumbers, showProgressIndicator, allowBackButton, startMessage, finishMessage, headerHtml, footerHtml, theme, collectName, collectEmail, collectPhone, collectAddress, dataCollectionFields, additionalProperties);
   }
 
   @Override
@@ -637,10 +699,12 @@ public class CampaignSettingsResponse {
     sb.append("    finishMessage: ").append(toIndentedString(finishMessage)).append("\n");
     sb.append("    headerHtml: ").append(toIndentedString(headerHtml)).append("\n");
     sb.append("    footerHtml: ").append(toIndentedString(footerHtml)).append("\n");
+    sb.append("    theme: ").append(toIndentedString(theme)).append("\n");
     sb.append("    collectName: ").append(toIndentedString(collectName)).append("\n");
     sb.append("    collectEmail: ").append(toIndentedString(collectEmail)).append("\n");
     sb.append("    collectPhone: ").append(toIndentedString(collectPhone)).append("\n");
     sb.append("    collectAddress: ").append(toIndentedString(collectAddress)).append("\n");
+    sb.append("    dataCollectionFields: ").append(toIndentedString(dataCollectionFields)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -663,7 +727,7 @@ public class CampaignSettingsResponse {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("campaignId", "password", "captchaEnabled", "oneResponsePerDevice", "ipRestrictionEnabled", "emailRestrictionEnabled", "responseQuota", "closeDate", "sessionTimeoutMinutes", "showQuestionNumbers", "showProgressIndicator", "allowBackButton", "startMessage", "finishMessage", "headerHtml", "footerHtml", "collectName", "collectEmail", "collectPhone", "collectAddress"));
+    openapiFields = new HashSet<String>(Arrays.asList("campaignId", "password", "captchaEnabled", "oneResponsePerDevice", "ipRestrictionEnabled", "emailRestrictionEnabled", "responseQuota", "closeDate", "sessionTimeoutMinutes", "showQuestionNumbers", "showProgressIndicator", "allowBackButton", "startMessage", "finishMessage", "headerHtml", "footerHtml", "theme", "collectName", "collectEmail", "collectPhone", "collectAddress", "dataCollectionFields"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -699,6 +763,24 @@ public class CampaignSettingsResponse {
       }
       if ((jsonObj.get("footerHtml") != null && !jsonObj.get("footerHtml").isJsonNull()) && !jsonObj.get("footerHtml").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `footerHtml` to be a primitive type in the JSON string but got `%s`", jsonObj.get("footerHtml").toString()));
+      }
+      // validate the optional field `theme`
+      if (jsonObj.get("theme") != null && !jsonObj.get("theme").isJsonNull()) {
+        SurveyThemeConfigDto.validateJsonElement(jsonObj.get("theme"));
+      }
+      if (jsonObj.get("dataCollectionFields") != null && !jsonObj.get("dataCollectionFields").isJsonNull()) {
+        JsonArray jsonArraydataCollectionFields = jsonObj.getAsJsonArray("dataCollectionFields");
+        if (jsonArraydataCollectionFields != null) {
+          // ensure the json data is an array
+          if (!jsonObj.get("dataCollectionFields").isJsonArray()) {
+            throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `dataCollectionFields` to be an array in the JSON string but got `%s`", jsonObj.get("dataCollectionFields").toString()));
+          }
+
+          // validate the optional field `dataCollectionFields` (array)
+          for (int i = 0; i < jsonArraydataCollectionFields.size(); i++) {
+            DataCollectionFieldResponse.validateJsonElement(jsonArraydataCollectionFields.get(i));
+          };
+        }
       }
   }
 

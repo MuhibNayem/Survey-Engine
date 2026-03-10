@@ -16,4 +16,5 @@ from openapi_client.api.subscription_api import SubscriptionApi
 from openapi_client.api.super_admin_api import SuperAdminApi
 from openapi_client.api.surveys_api import SurveysApi
 from openapi_client.api.user_features_api import UserFeaturesApi
+from openapi_client.api.user_preferences_api import UserPreferencesApi
 

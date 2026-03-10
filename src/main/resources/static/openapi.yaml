@@ -53,6 +53,8 @@ tags:
     description: Enterprise feature management APIs for tours, tooltips, banners, and feature flags. Super admin endpoints for feature governance and tenant configuration.
   - name: User Features
     description: User-level feature access and completion tracking endpoints.
+  - name: User Preferences
+    description: Authenticated admin preference storage for UI state, theme mode, and onboarding progress.
 
 security:
   - bearerAuth: []
@@ -224,6 +226,165 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CsrfTokenResponse'
+
+  /api/v1/admin/preferences:
+    get:
+      tags: [User Preferences]
+      operationId: getUserPreferences
+      summary: Get all preferences for the current admin user
+      description: |
+        Why this endpoint is needed:
+        The admin application persists per-user UI state such as theme mode, completed onboarding flows, and dismissed hints.
+
+        What this endpoint does:
+        It returns the preference map for the currently authenticated admin.
+
+        How this endpoint does it:
+        The service resolves the current admin from auth context, loads the tenant-scoped preference record, and maps it to UserPreferenceDTO.
+      responses:
+        '200':
+          description: Current user preferences returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferenceDTO'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    patch:
+      tags: [User Preferences]
+      operationId: updateUserPreferences
+      summary: Update multiple preferences for the current admin user
+      description: |
+        Why this endpoint is needed:
+        Modern UI flows often save several preference keys together, such as theme mode and onboarding completion checkpoints.
+
+        What this endpoint does:
+        It updates multiple string-based preference values in a single call.
+
+        How this endpoint does it:
+        The service merges the incoming key-value map into the current admin user's preference store and persists the result.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        '200':
+          description: Preferences updated
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      tags: [User Preferences]
+      operationId: resetUserPreferences
+      summary: Reset all preferences for the current admin user
+      description: |
+        Why this endpoint is needed:
+        Support and onboarding workflows need a clean reset path so tours, theme defaults, and dismissed tips can be replayed.
+
+        What this endpoint does:
+        It clears all stored preferences for the current admin user.
+
+        How this endpoint does it:
+        The service deletes the current admin preference map and returns success without a body.
+      responses:
+        '200':
+          description: Preferences reset
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/admin/preferences/{key}:
+    patch:
+      tags: [User Preferences]
+      operationId: setUserPreference
+      summary: Update one preference key for the current admin user
+      description: |
+        Why this endpoint is needed:
+        Lightweight UI interactions such as theme changes and dismiss actions often update only one preference key.
+
+        What this endpoint does:
+        It sets one preference value for the current admin user.
+
+        How this endpoint does it:
+        The controller accepts a raw string body and the service stores it under the requested key.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Preference updated
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/admin/preferences/{featureKey}/completed:
+    get:
+      tags: [User Preferences]
+      operationId: getFeatureCompletionStatus
+      summary: Check whether a feature or onboarding item is completed
+      description: |
+        Why this endpoint is needed:
+        Onboarding and contextual-help UX need a direct completion check for a single feature key.
+
+        What this endpoint does:
+        It returns whether the current admin has marked the target feature as completed.
+
+        How this endpoint does it:
+        The service resolves the current admin user and reads the completion flag from stored preferences.
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Completion state returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  completed: { type: boolean }
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/admin/preferences/{featureKey}/complete:
+    post:
+      tags: [User Preferences]
+      operationId: setFeatureCompletionStatus
+      summary: Mark a feature or onboarding item as completed or incomplete
+      description: |
+        Why this endpoint is needed:
+        Guided tours and feature education flows need an explicit server-side completion write path that survives browsers and devices.
+
+        What this endpoint does:
+        It stores the completion status for one feature key for the current admin user.
+
+        How this endpoint does it:
+        The service updates the completion map in user preferences and returns success without a body.
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema: { type: string }
+        - name: completed
+          in: query
+          required: false
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Completion state updated
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
   /api/v1/admin/auth/token/register:
     post:
@@ -1464,6 +1625,128 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CampaignPreviewResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/public/campaigns/{id}/auth/session:
+    get:
+      tags: [Campaigns]
+      operationId: getResponderSessionStatus
+      security: []
+      summary: Get current private responder session status for a campaign
+      description: |
+        Why this endpoint is needed:
+        Private responder runtime needs a non-destructive way to detect whether an authenticated responder session already exists after SSO redirect or page refresh.
+
+        What this endpoint does:
+        It returns whether a valid responder session cookie is currently active for the target private campaign.
+
+        How this endpoint does it:
+        The controller resolves the campaign, validates that it is private, reads the responder session cookie, and returns a simple authenticated/email payload.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Responder session status returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponderSessionStatusResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/public/campaigns/{id}/auth/logout:
+    post:
+      tags: [Campaigns]
+      operationId: logoutResponderSession
+      security: []
+      summary: Revoke the current private responder session for a campaign
+      description: |
+        Why this endpoint is needed:
+        Private survey sessions require explicit sign-out on shared or managed devices without relying only on expiry.
+
+        What this endpoint does:
+        It revokes the current responder session and clears the responder session cookie.
+
+        How this endpoint does it:
+        The controller resolves the campaign, revokes the matching responder session for the current cookie, and returns a no-content response with a clearing cookie.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Responder session revoked and cookie cleared
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/public/campaigns/{id}/responses/draft:
+    post:
+      tags: [Campaigns]
+      operationId: savePublicDraft
+      security: []
+      summary: Create or update an in-progress responder draft
+      description: |
+        Why this endpoint is needed:
+        Responders need an interruption-safe draft path so multi-page surveys can be resumed later without losing answers or metadata.
+
+        What this endpoint does:
+        It creates a new IN_PROGRESS response or updates an existing draft response for the target campaign.
+
+        How this endpoint does it:
+        The service validates campaign access rules, upserts the response row, merges answers by question, persists respondent metadata, and returns the current draft state.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseSubmissionRequest'
+      responses:
+        '200':
+          description: Draft saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SurveyResponseResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/public/campaigns/{id}/responses/draft/load:
+    post:
+      tags: [Campaigns]
+      operationId: loadPublicDraft
+      security: []
+      summary: Load an existing in-progress responder draft
+      description: |
+        Why this endpoint is needed:
+        Responder runtime must restore saved survey state after refresh, return visit, or successful private SSO authentication.
+
+        What this endpoint does:
+        It returns the matching in-progress draft when one exists for the supplied identity or response id.
+
+        How this endpoint does it:
+        The service looks up the latest open response by explicit response id or responder identity, validates access mode, and returns 204 when no draft exists.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseDraftLookupRequest'
+      responses:
+        '200':
+          description: Draft restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SurveyResponseResponse'
+        '204':
+          description: No draft exists for the supplied identity
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFoundError'
 
@@ -3054,6 +3337,10 @@ components:
         createdAt: { type: string, format: date-time }
         updatedBy: { type: string }
         updatedAt: { type: string, format: date-time }
+        dataCollectionFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataCollectionFieldResponse'
 
     CampaignSettingsRequest:
       type: object
@@ -3073,10 +3360,16 @@ components:
         finishMessage: { type: string }
         headerHtml: { type: string }
         footerHtml: { type: string }
+        theme:
+          $ref: '#/components/schemas/SurveyThemeConfigDto'
         collectName: { type: boolean }
         collectEmail: { type: boolean }
         collectPhone: { type: boolean }
         collectAddress: { type: boolean }
+        dataCollectionFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataCollectionFieldRequest'
 
     CampaignSettingsResponse:
       type: object
@@ -3097,10 +3390,16 @@ components:
         finishMessage: { type: string }
         headerHtml: { type: string }
         footerHtml: { type: string }
+        theme:
+          $ref: '#/components/schemas/SurveyThemeConfigDto'
         collectName: { type: boolean }
         collectEmail: { type: boolean }
         collectPhone: { type: boolean }
         collectAddress: { type: boolean }
+        dataCollectionFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataCollectionFieldResponse'
 
     CampaignPreviewResponse:
       type: object
@@ -3120,10 +3419,16 @@ components:
         finishMessage: { type: string }
         headerHtml: { type: string }
         footerHtml: { type: string }
+        theme:
+          $ref: '#/components/schemas/SurveyThemeConfigDto'
         collectName: { type: boolean }
         collectEmail: { type: boolean }
         collectPhone: { type: boolean }
         collectAddress: { type: boolean }
+        dataCollectionFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataCollectionFieldResponse'
         pages:
           type: array
           items:
@@ -3132,6 +3437,34 @@ components:
               id: { type: string, format: uuid }
               title: { type: string }
               sortOrder: { type: integer }
+              categories:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    categoryVersionId: { type: string, format: uuid }
+                    versionNumber: { type: integer }
+                    name: { type: string }
+                    description: { type: string }
+                    weightPercentage: { type: number }
+                    sortOrder: { type: integer }
+                    questions:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id: { type: string, format: uuid }
+                          questionId: { type: string, format: uuid }
+                          questionVersionId: { type: string, format: uuid }
+                          categoryVersionId: { type: string, format: uuid }
+                          categoryWeightPercentage: { type: number }
+                          text: { type: string }
+                          type: { type: string, enum: [RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE] }
+                          maxScore: { type: number }
+                          mandatory: { type: boolean }
+                          sortOrder: { type: integer }
+                          optionConfig: { type: string }
+                          answerConfig: { type: string }
               questions:
                 type: array
                 items:
@@ -3141,6 +3474,7 @@ components:
                     questionId: { type: string, format: uuid }
                     questionVersionId: { type: string, format: uuid }
                     categoryVersionId: { type: string, format: uuid }
+                    categoryWeightPercentage: { type: number }
                     text: { type: string }
                     type: { type: string, enum: [RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE] }
                     maxScore: { type: number }
@@ -3296,12 +3630,17 @@ components:
       type: object
       required: [campaignId]
       properties:
+        responseId: { type: string, format: uuid }
         campaignId: { type: string, format: uuid }
         respondentIdentifier: { type: string }
         respondentIp: { type: string }
         respondentDeviceFingerprint: { type: string }
         responderToken: { type: string }
         responderAccessCode: { type: string }
+        respondentMetadata:
+          type: object
+          additionalProperties:
+            type: string
         answers:
           type: array
           items:
@@ -3311,6 +3650,7 @@ components:
               questionId: { type: string, format: uuid }
               questionVersionId: { type: string, format: uuid }
               value: { type: string }
+              remark: { type: string }
               score: { type: number }
 
     SurveyResponseResponse:
@@ -3320,6 +3660,7 @@ components:
         campaignId: { type: string, format: uuid }
         surveySnapshotId: { type: string, format: uuid }
         respondentIdentifier: { type: string }
+        respondentMetadata: { type: string }
         status: { type: string, enum: [IN_PROGRESS, SUBMITTED, LOCKED, REOPENED] }
         startedAt: { type: string, format: date-time }
         submittedAt: { type: string, format: date-time }
@@ -3335,8 +3676,150 @@ components:
               id: { type: string, format: uuid }
               questionId: { type: string, format: uuid }
               questionVersionId: { type: string, format: uuid }
+              questionVersionNumber: { type: integer }
+              questionText: { type: string }
+              questionType: { type: string, enum: [RANK, RATING_SCALE, SINGLE_CHOICE, MULTIPLE_CHOICE] }
+              optionConfig: { type: string }
               value: { type: string }
+              remark: { type: string }
               score: { type: number }
+
+    ResponseDraftLookupRequest:
+      type: object
+      properties:
+        responseId: { type: string, format: uuid }
+        respondentIdentifier: { type: string }
+        responderToken: { type: string }
+        responderAccessCode: { type: string }
+
+    ResponderSessionStatusResponse:
+      type: object
+      properties:
+        authenticated: { type: boolean }
+        email: { type: string }
+
+    DataCollectionFieldRequest:
+      type: object
+      properties:
+        fieldKey: { type: string }
+        label: { type: string }
+        fieldType: { type: string, enum: [TEXT, EMAIL, PHONE, NUMBER, TEXTAREA] }
+        required: { type: boolean }
+        sortOrder: { type: integer }
+        enabled: { type: boolean }
+
+    DataCollectionFieldResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fieldKey: { type: string }
+        label: { type: string }
+        fieldType: { type: string, enum: [TEXT, EMAIL, PHONE, NUMBER, TEXTAREA] }
+        required: { type: boolean }
+        sortOrder: { type: integer }
+        enabled: { type: boolean }
+
+    SurveyThemeConfigDto:
+      type: object
+      properties:
+        templateKey: { type: string }
+        paletteKey: { type: string }
+        palette:
+          $ref: '#/components/schemas/SurveyThemePalette'
+        branding:
+          $ref: '#/components/schemas/SurveyThemeBranding'
+        layout:
+          $ref: '#/components/schemas/SurveyThemeLayout'
+        motion:
+          $ref: '#/components/schemas/SurveyThemeMotion'
+        header:
+          $ref: '#/components/schemas/SurveyThemeHeader'
+        footer:
+          $ref: '#/components/schemas/SurveyThemeFooter'
+        advanced:
+          $ref: '#/components/schemas/SurveyThemeAdvanced'
+
+    SurveyThemePalette:
+      type: object
+      properties:
+        background: { type: string }
+        shell: { type: string }
+        panel: { type: string }
+        card: { type: string }
+        border: { type: string }
+        textPrimary: { type: string }
+        textSecondary: { type: string }
+        primary: { type: string }
+        primaryText: { type: string }
+        accent: { type: string }
+        accentSoft: { type: string }
+        headerBackground: { type: string }
+        headerText: { type: string }
+        footerBackground: { type: string }
+        footerText: { type: string }
+
+    SurveyThemeBranding:
+      type: object
+      properties:
+        brandLabel: { type: string }
+        logoUrl: { type: string }
+        logoPosition: { type: string, enum: [left, center, right] }
+        fontFamily: { type: string }
+
+    SurveyThemeLayout:
+      type: object
+      properties:
+        contentWidth: { type: string, enum: [narrow, standard, wide] }
+        headerStyle: { type: string, enum: [hero, compact, editorial, minimal] }
+        headerAlignment: { type: string, enum: [left, center, right] }
+        footerStyle: { type: string, enum: [minimal, support, legal, editorial] }
+        footerAlignment: { type: string, enum: [left, center, right] }
+        sectionStyle: { type: string, enum: [panel, flat, editorial] }
+        questionCardStyle: { type: string, enum: [soft, solid, minimal] }
+        categorySeparatorStyle: { type: string, enum: [divider, chapter, minimal] }
+
+    SurveyThemeMotion:
+      type: object
+      properties:
+        animationPreset: { type: string, enum: [none, subtle, premium] }
+
+    SurveyThemeHeader:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        eyebrow: { type: string }
+        title: { type: string }
+        subtitle: { type: string }
+        note: { type: string }
+
+    SurveyThemeFooter:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        line1: { type: string }
+        line2: { type: string }
+        legal: { type: string }
+
+    SurveyThemeAdvanced:
+      type: object
+      properties:
+        useCustomHeaderHtml: { type: boolean }
+        useCustomFooterHtml: { type: boolean }
+        customHeaderHtml: { type: string }
+        customFooterHtml: { type: string }
+        customCss: { type: string }
+
+    UserPreferenceDTO:
+      type: object
+      properties:
+        preferences:
+          type: object
+          additionalProperties:
+            type: string
+        featureCompletion:
+          type: object
+          additionalProperties:
+            type: boolean
 
     ReopenRequest:
       type: object

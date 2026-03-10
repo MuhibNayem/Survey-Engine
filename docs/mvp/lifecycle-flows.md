@@ -1,7 +1,7 @@
 # Survey Engine MVP Lifecycle Flows (Step-by-Step Guide)
 ## Product: Headless Multi-Tenant Survey Engine (MVP)
-## Version: 2.0 - Enterprise Feature Management Added
-## Date: March 10, 2026
+## Version: 2.1 - Theme Studio, Draft Resume, and Private Session Flow
+## Date: March 11, 2026
 
 ## Purpose
 This document explains each MVP flow in execution order with practical guidance:
@@ -346,8 +346,13 @@ Create a live delivery instance from a published survey and control runtime beha
 
 3. Configure runtime settings (`PUT /api/v1/campaigns/{id}/settings`).
 - Why: Set operational controls before launch.
-- How: Configure quota, restrictions, close time, UX controls, etc.
+- How: Configure quota, restrictions, close time, UX controls, responder metadata fields, and structured `theme` settings.
 - Result: Runtime enforcement rules stored. If `closeDate <= now`, system immediately auto-locks open campaign responses in `IN_PROGRESS`/`REOPENED`.
+
+3a. Design the responder experience in Theme Studio (same settings payload contract).
+- Why: Premium survey presentation is now part of launch quality, not a separate frontend-only concern.
+- How: Edit the `theme` object inside campaign settings with template, palette, branding, layout, motion, structured header/footer, and optional advanced overrides.
+- Result: Admin preview, public preview, and live responder runtime render from the same theme contract.
 
 4. Activate campaign (`POST /api/v1/campaigns/{id}/activate`).
 - Why: Only active campaigns accept submissions.
@@ -458,7 +463,7 @@ Configure responder authentication once per tenant so private campaigns can enfo
 ## 7. Private Responder OIDC Flow (Recommended)
 
 ### Goal
-Authenticate private responders through subscriber SSO and submit with one-time access code.
+Authenticate private responders through subscriber SSO, establish a stable responder session, and allow draft resume without repeated authentication loops.
 
 ### Preconditions
 1. Campaign `authMode=PRIVATE` and active.
@@ -479,17 +484,34 @@ Authenticate private responders through subscriber SSO and submit with one-time 
 
 3. IdP callback (`GET /api/v1/auth/respondent/oidc/callback?state=...&code=...`).
 - Why: Completes authorization code flow.
-- How: Engine validates state, exchanges code for token(s), validates claims and trust.
-- Result: One-time short-lived `responderAccessCode` issued.
+- How: Engine validates state, exchanges code for token(s), validates claims and trust, creates server-side responder session cookie, and redirects back to survey runtime.
+- Result: Stable app-side responder session established for this campaign.
 
-4. Submit response with one-time access code (`POST /api/v1/responses`).
-- Why: Avoid passing long-lived responder tokens in URL/query during final submit.
-- How: Include `campaignId`, answers, `responderAccessCode`.
-- Result: Code consumed once; response accepted and locked.
+4. Runtime checks existing responder session (`GET /api/v1/public/campaigns/{campaignId}/auth/session`).
+- Why: Frontend must know whether the private responder is already authenticated after redirect or refresh.
+- How: Browser calls session status endpoint with existing cookies.
+- Result: Responder runtime opens directly when authenticated.
 
-5. Handle failures deterministically.
+5. Optional draft restore (`POST /api/v1/public/campaigns/{campaignId}/responses/draft/load`).
+- Why: A private responder may be returning to an in-progress survey.
+- How: Frontend loads the latest matching draft using response id or responder identity resolved from session.
+- Result: Saved answers and respondent metadata are restored.
+
+6. Submit or save draft.
+- Save draft: `POST /api/v1/public/campaigns/{campaignId}/responses/draft`
+- Final submit: `POST /api/v1/responses`
+- Why: Private responders need both interruption-safe draft persistence and final submission.
+- How: Draft flow uses existing responder session; final submit reuses the same response row when continuing a draft.
+- Result: No repeated auth prompt is required while session remains active.
+
+7. Explicit responder logout (`POST /api/v1/public/campaigns/{campaignId}/auth/logout`).
+- Why: Shared-device hygiene and enterprise session control.
+- How: Frontend calls logout endpoint and backend revokes the responder session cookie.
+- Result: Private survey reverts to auth-required state until next SSO login.
+
+8. Handle failures deterministically.
 - Why: Consistent support behavior.
-- How: Invalid/expired state, invalid claims, or mismatched code yields access-denied style error.
+- How: Invalid/expired state, invalid claims, revoked session, or expired responder session yields access-denied style error.
 - Result: No response persisted for failed auth.
 
 ---
@@ -546,19 +568,29 @@ Collect responses with proper runtime checks, auth checks, and post-submit integ
 
 ### Step-by-step
 
-1. Submit response (`POST /api/v1/responses`).
-- Why: Primary data ingestion point.
-- How: Provide campaignId + answers (+ private credential if required).
+1. Optionally create or update a draft (`POST /api/v1/public/campaigns/{campaignId}/responses/draft`).
+- Why: Responders may need to pause before completion.
+- How: Provide `campaignId`, optional `responseId`, current answers, and optional respondent metadata.
+- Result: Response is stored in `IN_PROGRESS`.
+
+2. Restore draft when returning (`POST /api/v1/public/campaigns/{campaignId}/responses/draft/load`).
+- Why: Draft flow only works if the saved state can be reopened.
+- How: Use stored `responseId` or responder identity/session to look up the draft.
+- Result: Previously saved answers and metadata are rehydrated.
+
+3. Submit response (`POST /api/v1/responses`).
+- Why: Primary data ingestion point for final completion.
+- How: Provide campaignId + answers (+ private credential/session if required).
 - Result: Access and settings checks begin.
 
-2. Access mode check.
+4. Access mode check.
 - Why: Enforce campaign privacy policy.
 - How:
   - Public: no responder credential needed.
-  - Private: requires `responderToken` or `responderAccessCode`.
+  - Private: requires trusted responder session or valid responder credential during initial handoff.
 - Result: Unauthorized submissions rejected early.
 
-3. Runtime settings checks.
+5. Runtime settings checks.
 - Why: Enforce campaign controls.
 - How: Validate exactly these submit-time checks:
 - `responseQuota`
@@ -569,12 +601,12 @@ Collect responses with proper runtime checks, auth checks, and post-submit integ
 - Note: `sessionTimeoutMinutes`, `captchaEnabled`, and presentation settings are configuration fields but are not submit-time blockers in current MVP response service.
 - Result: Only policy-compliant responses proceed.
 
-4. Persist response and answers.
-- Why: Save complete submission record.
-- How: Store response entity + answer entities.
-- Result: Response state created.
+6. Persist response, answers, and remarks.
+- Why: Save complete submission record without duplicating rows on repeated draft saves.
+- How: Store or merge response entity, answer entities, optional per-answer `remark`, and respondent metadata.
+- Result: Response state is created or updated in place.
 
-5. Compute weighted score automatically when campaign default profile exists.
+7. Compute weighted score automatically when campaign default profile exists.
 - Why: Simplified flow should not require separate manual scoring action.
 - How:
   - Aggregate validated answer scores by category.
@@ -582,37 +614,44 @@ Collect responses with proper runtime checks, auth checks, and post-submit integ
   - Persist `weightProfileId`, `weightedTotalScore`, and `scoredAt` in response.
 - Result: Response is both submitted and scored in one transaction.
 
-6. Auto-lock on successful submit.
+8. Auto-lock on successful submit.
 - Why: Avoid unintended post-submit mutation.
 - How: Response status moved to locked.
 - Result: Integrity-preserving final state.
 
-7. Auto-lock on close transition (campaign `closeDate` reached/passed).
+9. Auto-lock on close transition (campaign `closeDate` reached/passed).
 - Why: Ensure unresolved open responses do not remain mutable after campaign closes.
 - How:
   - Scheduled enforcement scans expired campaign close dates.
   - For each expired campaign, all `IN_PROGRESS` and `REOPENED` responses are moved to `LOCKED`.
 - Result: Post-close response set is consistently locked.
 
-8. Admin review operations:
+10. Admin review operations:
 - `GET /api/v1/responses/{id}` (single)
 - `GET /api/v1/responses/campaign/{campaignId}` (campaign list)
 - Why: Support operations and review.
+- Result: Response detail includes versioned question text, question type, option config, respondent metadata, and optional remarks.
 
-9. Manual lock/reopen operations:
+11. Manual lock/reopen operations:
 - `POST /api/v1/responses/{id}/lock`
 - `POST /api/v1/responses/{id}/reopen`
 - Why: Controlled exception handling for corrections.
 
-10. Campaign analytics retrieval (`GET /api/v1/responses/analytics/{campaignId}`).
+12. Campaign analytics retrieval (`GET /api/v1/responses/analytics/{campaignId}`).
 - Why: Campaign-level completion and activity insights.
 - How: Optional `metadata.<key>=<value>` query params are supported for filtered analytics.
 - Result: Aggregated response metrics.
 
-11. Response listing with metadata filters (`GET /api/v1/responses/campaign/{campaignId}`).
+13. Response listing with metadata filters (`GET /api/v1/responses/campaign/{campaignId}`).
 - Why: Operations teams often need segmented response views.
 - How: Pass query params as `metadata.<field>=<value>` plus pagination params.
 - Result: Paged response set filtered by metadata dimensions.
+
+### Additional runtime notes
+
+* `startedAt` is anchored to the first persisted draft/response creation point, not only final submit time.
+* Draft save and final submit update answers by `questionId`, avoiding duplicate-row constraint failures on repeated saves.
+* Rating-scale questions can render as numbers or stars based on question `optionConfig.displayMode`.
 
 ---
 

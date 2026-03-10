@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from uuid import UUID
 from typing import Optional, Set
@@ -30,10 +30,25 @@ class SurveyResponseResponseAnswersInner(BaseModel):
     id: Optional[UUID] = None
     question_id: Optional[UUID] = Field(default=None, alias="questionId")
     question_version_id: Optional[UUID] = Field(default=None, alias="questionVersionId")
+    question_version_number: Optional[StrictInt] = Field(default=None, alias="questionVersionNumber")
+    question_text: Optional[StrictStr] = Field(default=None, alias="questionText")
+    question_type: Optional[StrictStr] = Field(default=None, alias="questionType")
+    option_config: Optional[StrictStr] = Field(default=None, alias="optionConfig")
     value: Optional[StrictStr] = None
+    remark: Optional[StrictStr] = None
     score: Optional[Union[StrictFloat, StrictInt]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "questionId", "questionVersionId", "value", "score"]
+    __properties: ClassVar[List[str]] = ["id", "questionId", "questionVersionId", "questionVersionNumber", "questionText", "questionType", "optionConfig", "value", "remark", "score"]
+
+    @field_validator('question_type')
+    def question_type_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['RANK', 'RATING_SCALE', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE']):
+            raise ValueError("must be one of enum values ('RANK', 'RATING_SCALE', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -96,7 +111,12 @@ class SurveyResponseResponseAnswersInner(BaseModel):
             "id": obj.get("id"),
             "questionId": obj.get("questionId"),
             "questionVersionId": obj.get("questionVersionId"),
+            "questionVersionNumber": obj.get("questionVersionNumber"),
+            "questionText": obj.get("questionText"),
+            "questionType": obj.get("questionType"),
+            "optionConfig": obj.get("optionConfig"),
             "value": obj.get("value"),
+            "remark": obj.get("remark"),
             "score": obj.get("score")
         })
         # store additional fields in additional_properties

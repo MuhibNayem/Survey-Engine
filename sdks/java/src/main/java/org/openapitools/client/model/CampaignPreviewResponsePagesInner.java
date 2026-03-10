@@ -24,7 +24,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import org.openapitools.client.model.CampaignPreviewResponsePagesInnerQuestionsInner;
+import org.openapitools.client.model.CampaignPreviewResponsePagesInnerCategoriesInner;
+import org.openapitools.client.model.CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -52,7 +53,7 @@ import org.openapitools.client.JSON;
 /**
  * CampaignPreviewResponsePagesInner
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-11T04:33:32.444010+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class CampaignPreviewResponsePagesInner {
   public static final String SERIALIZED_NAME_ID = "id";
   @SerializedName(SERIALIZED_NAME_ID)
@@ -69,10 +70,15 @@ public class CampaignPreviewResponsePagesInner {
   @javax.annotation.Nullable
   private Integer sortOrder;
 
+  public static final String SERIALIZED_NAME_CATEGORIES = "categories";
+  @SerializedName(SERIALIZED_NAME_CATEGORIES)
+  @javax.annotation.Nullable
+  private List<CampaignPreviewResponsePagesInnerCategoriesInner> categories = new ArrayList<>();
+
   public static final String SERIALIZED_NAME_QUESTIONS = "questions";
   @SerializedName(SERIALIZED_NAME_QUESTIONS)
   @javax.annotation.Nullable
-  private List<CampaignPreviewResponsePagesInnerQuestionsInner> questions = new ArrayList<>();
+  private List<CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner> questions = new ArrayList<>();
 
   public CampaignPreviewResponsePagesInner() {
   }
@@ -134,12 +140,39 @@ public class CampaignPreviewResponsePagesInner {
   }
 
 
-  public CampaignPreviewResponsePagesInner questions(@javax.annotation.Nullable List<CampaignPreviewResponsePagesInnerQuestionsInner> questions) {
+  public CampaignPreviewResponsePagesInner categories(@javax.annotation.Nullable List<CampaignPreviewResponsePagesInnerCategoriesInner> categories) {
+    this.categories = categories;
+    return this;
+  }
+
+  public CampaignPreviewResponsePagesInner addCategoriesItem(CampaignPreviewResponsePagesInnerCategoriesInner categoriesItem) {
+    if (this.categories == null) {
+      this.categories = new ArrayList<>();
+    }
+    this.categories.add(categoriesItem);
+    return this;
+  }
+
+  /**
+   * Get categories
+   * @return categories
+   */
+  @javax.annotation.Nullable
+  public List<CampaignPreviewResponsePagesInnerCategoriesInner> getCategories() {
+    return categories;
+  }
+
+  public void setCategories(@javax.annotation.Nullable List<CampaignPreviewResponsePagesInnerCategoriesInner> categories) {
+    this.categories = categories;
+  }
+
+
+  public CampaignPreviewResponsePagesInner questions(@javax.annotation.Nullable List<CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner> questions) {
     this.questions = questions;
     return this;
   }
 
-  public CampaignPreviewResponsePagesInner addQuestionsItem(CampaignPreviewResponsePagesInnerQuestionsInner questionsItem) {
+  public CampaignPreviewResponsePagesInner addQuestionsItem(CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner questionsItem) {
     if (this.questions == null) {
       this.questions = new ArrayList<>();
     }
@@ -152,11 +185,11 @@ public class CampaignPreviewResponsePagesInner {
    * @return questions
    */
   @javax.annotation.Nullable
-  public List<CampaignPreviewResponsePagesInnerQuestionsInner> getQuestions() {
+  public List<CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner> getQuestions() {
     return questions;
   }
 
-  public void setQuestions(@javax.annotation.Nullable List<CampaignPreviewResponsePagesInnerQuestionsInner> questions) {
+  public void setQuestions(@javax.annotation.Nullable List<CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner> questions) {
     this.questions = questions;
   }
 
@@ -218,13 +251,14 @@ public class CampaignPreviewResponsePagesInner {
     return Objects.equals(this.id, campaignPreviewResponsePagesInner.id) &&
         Objects.equals(this.title, campaignPreviewResponsePagesInner.title) &&
         Objects.equals(this.sortOrder, campaignPreviewResponsePagesInner.sortOrder) &&
+        Objects.equals(this.categories, campaignPreviewResponsePagesInner.categories) &&
         Objects.equals(this.questions, campaignPreviewResponsePagesInner.questions)&&
         Objects.equals(this.additionalProperties, campaignPreviewResponsePagesInner.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, title, sortOrder, questions, additionalProperties);
+    return Objects.hash(id, title, sortOrder, categories, questions, additionalProperties);
   }
 
   @Override
@@ -234,6 +268,7 @@ public class CampaignPreviewResponsePagesInner {
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    title: ").append(toIndentedString(title)).append("\n");
     sb.append("    sortOrder: ").append(toIndentedString(sortOrder)).append("\n");
+    sb.append("    categories: ").append(toIndentedString(categories)).append("\n");
     sb.append("    questions: ").append(toIndentedString(questions)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
@@ -257,7 +292,7 @@ public class CampaignPreviewResponsePagesInner {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "title", "sortOrder", "questions"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "title", "sortOrder", "categories", "questions"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -282,6 +317,20 @@ public class CampaignPreviewResponsePagesInner {
       if ((jsonObj.get("title") != null && !jsonObj.get("title").isJsonNull()) && !jsonObj.get("title").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `title` to be a primitive type in the JSON string but got `%s`", jsonObj.get("title").toString()));
       }
+      if (jsonObj.get("categories") != null && !jsonObj.get("categories").isJsonNull()) {
+        JsonArray jsonArraycategories = jsonObj.getAsJsonArray("categories");
+        if (jsonArraycategories != null) {
+          // ensure the json data is an array
+          if (!jsonObj.get("categories").isJsonArray()) {
+            throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `categories` to be an array in the JSON string but got `%s`", jsonObj.get("categories").toString()));
+          }
+
+          // validate the optional field `categories` (array)
+          for (int i = 0; i < jsonArraycategories.size(); i++) {
+            CampaignPreviewResponsePagesInnerCategoriesInner.validateJsonElement(jsonArraycategories.get(i));
+          };
+        }
+      }
       if (jsonObj.get("questions") != null && !jsonObj.get("questions").isJsonNull()) {
         JsonArray jsonArrayquestions = jsonObj.getAsJsonArray("questions");
         if (jsonArrayquestions != null) {
@@ -292,7 +341,7 @@ public class CampaignPreviewResponsePagesInner {
 
           // validate the optional field `questions` (array)
           for (int i = 0; i < jsonArrayquestions.size(); i++) {
-            CampaignPreviewResponsePagesInnerQuestionsInner.validateJsonElement(jsonArrayquestions.get(i));
+            CampaignPreviewResponsePagesInnerCategoriesInnerQuestionsInner.validateJsonElement(jsonArrayquestions.get(i));
           };
         }
       }

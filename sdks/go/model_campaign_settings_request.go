@@ -35,10 +35,12 @@ type CampaignSettingsRequest struct {
 	FinishMessage *string `json:"finishMessage,omitempty"`
 	HeaderHtml *string `json:"headerHtml,omitempty"`
 	FooterHtml *string `json:"footerHtml,omitempty"`
+	Theme *SurveyThemeConfigDto `json:"theme,omitempty"`
 	CollectName *bool `json:"collectName,omitempty"`
 	CollectEmail *bool `json:"collectEmail,omitempty"`
 	CollectPhone *bool `json:"collectPhone,omitempty"`
 	CollectAddress *bool `json:"collectAddress,omitempty"`
+	DataCollectionFields []DataCollectionFieldRequest `json:"dataCollectionFields,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -541,6 +543,38 @@ func (o *CampaignSettingsRequest) SetFooterHtml(v string) {
 	o.FooterHtml = &v
 }
 
+// GetTheme returns the Theme field value if set, zero value otherwise.
+func (o *CampaignSettingsRequest) GetTheme() SurveyThemeConfigDto {
+	if o == nil || IsNil(o.Theme) {
+		var ret SurveyThemeConfigDto
+		return ret
+	}
+	return *o.Theme
+}
+
+// GetThemeOk returns a tuple with the Theme field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CampaignSettingsRequest) GetThemeOk() (*SurveyThemeConfigDto, bool) {
+	if o == nil || IsNil(o.Theme) {
+		return nil, false
+	}
+	return o.Theme, true
+}
+
+// HasTheme returns a boolean if a field has been set.
+func (o *CampaignSettingsRequest) HasTheme() bool {
+	if o != nil && !IsNil(o.Theme) {
+		return true
+	}
+
+	return false
+}
+
+// SetTheme gets a reference to the given SurveyThemeConfigDto and assigns it to the Theme field.
+func (o *CampaignSettingsRequest) SetTheme(v SurveyThemeConfigDto) {
+	o.Theme = &v
+}
+
 // GetCollectName returns the CollectName field value if set, zero value otherwise.
 func (o *CampaignSettingsRequest) GetCollectName() bool {
 	if o == nil || IsNil(o.CollectName) {
@@ -669,6 +703,38 @@ func (o *CampaignSettingsRequest) SetCollectAddress(v bool) {
 	o.CollectAddress = &v
 }
 
+// GetDataCollectionFields returns the DataCollectionFields field value if set, zero value otherwise.
+func (o *CampaignSettingsRequest) GetDataCollectionFields() []DataCollectionFieldRequest {
+	if o == nil || IsNil(o.DataCollectionFields) {
+		var ret []DataCollectionFieldRequest
+		return ret
+	}
+	return o.DataCollectionFields
+}
+
+// GetDataCollectionFieldsOk returns a tuple with the DataCollectionFields field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CampaignSettingsRequest) GetDataCollectionFieldsOk() ([]DataCollectionFieldRequest, bool) {
+	if o == nil || IsNil(o.DataCollectionFields) {
+		return nil, false
+	}
+	return o.DataCollectionFields, true
+}
+
+// HasDataCollectionFields returns a boolean if a field has been set.
+func (o *CampaignSettingsRequest) HasDataCollectionFields() bool {
+	if o != nil && !IsNil(o.DataCollectionFields) {
+		return true
+	}
+
+	return false
+}
+
+// SetDataCollectionFields gets a reference to the given []DataCollectionFieldRequest and assigns it to the DataCollectionFields field.
+func (o *CampaignSettingsRequest) SetDataCollectionFields(v []DataCollectionFieldRequest) {
+	o.DataCollectionFields = v
+}
+
 func (o CampaignSettingsRequest) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -724,6 +790,9 @@ func (o CampaignSettingsRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.FooterHtml) {
 		toSerialize["footerHtml"] = o.FooterHtml
 	}
+	if !IsNil(o.Theme) {
+		toSerialize["theme"] = o.Theme
+	}
 	if !IsNil(o.CollectName) {
 		toSerialize["collectName"] = o.CollectName
 	}
@@ -735,6 +804,9 @@ func (o CampaignSettingsRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CollectAddress) {
 		toSerialize["collectAddress"] = o.CollectAddress
+	}
+	if !IsNil(o.DataCollectionFields) {
+		toSerialize["dataCollectionFields"] = o.DataCollectionFields
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -773,10 +845,12 @@ func (o *CampaignSettingsRequest) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "finishMessage")
 		delete(additionalProperties, "headerHtml")
 		delete(additionalProperties, "footerHtml")
+		delete(additionalProperties, "theme")
 		delete(additionalProperties, "collectName")
 		delete(additionalProperties, "collectEmail")
 		delete(additionalProperties, "collectPhone")
 		delete(additionalProperties, "collectAddress")
+		delete(additionalProperties, "dataCollectionFields")
 		o.AdditionalProperties = additionalProperties
 	}
 

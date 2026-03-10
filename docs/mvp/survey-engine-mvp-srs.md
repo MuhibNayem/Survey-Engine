@@ -5,8 +5,8 @@
 | Field | Value |
 | ----- | ----- |
 | Document Title | Survey Engine MVP SRS |
-| Version | 3.0 - Enterprise Feature Management Added |
-| Date | March 10, 2026 |
+| Version | 3.1 - Theme Studio, Draft Resume, and Private Session Flow |
+| Date | March 11, 2026 |
 | Prepared For | Product and Engineering |
 | Classification | Internal |
 | Status | Reflects implemented code and schema |
@@ -27,10 +27,14 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * Question bank and category CRUD with live mutable bank definitions.
 * Survey CRUD with draft-time pinning, lifecycle transitions, and immutable published snapshots.
 * Campaign CRUD, runtime settings, activation, and distribution channel generation.
+* Structured campaign theming via Theme Studio, including palette, branding, layout, motion, and advanced header/footer overrides.
 * Responder submission, response locking, reopen workflow, and basic analytics.
+* Draft-capable response lifecycle with `IN_PROGRESS` persistence, save/resume flow, and stable responder draft restoration.
 * Campaign access mode (`PUBLIC`/`PRIVATE`) with tenant-level external auth profile for private responder access.
+* Private responder session cookies for OIDC-based campaigns, including responder-side logout.
 * Automated campaign scoring using category weights pinned from survey structure.
 * Optional manual scoring profile APIs retained for advanced/administrative use (not part of default frontend flow).
+* Optional per-question remarks and configurable rating-scale display mode (`NUMBERS` / `STARS`).
 * SaaS subscription domain (tenant subscription, plan catalog, mock payment success flow).
 * Super-admin plan catalog management and tenant plan quota enforcement.
 * Super-admin tenant operations: tenant listing, suspend/activate, impersonation, and subscription override.
@@ -39,13 +43,14 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * **NEW: First-time user tracking with backend-persisted onboarding progress.**
 * **NEW: Guided help system with multi-layer access control (global/tenant/plan/role/rollout).**
 * **NEW: Super admin UI for feature governance and tenant-level configuration.**
+* **NEW: Persisted admin appearance preferences (`light` / `dark` / `system`) with backend synchronization.**
 
 ### **2.2 Out of Scope (Current Codebase)**
 
 * Real payment gateway integration (currently mock-success gateway).  
 * Per-feature usage metering beyond implemented quotas (admin users, active campaigns, responses per campaign).  
 * Full enterprise permission matrix beyond role-based API controls.  
-* Public API for theme template lifecycle (theme tables exist but dedicated theming controller is not implemented).  
+* Standalone theme-template CRUD API outside campaign settings (themeing is currently managed through campaign settings and preview payloads rather than a dedicated public template controller).  
 * Native SAML protocol stack, native LDAP bind integration, and provider-specific SDK integrations for each IdP vendor.
 
 ## **3\. Definitions**
@@ -58,6 +63,7 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 * **Pinned Version**: Immutable question/category copy created at survey draft composition time.  
 * **Weight Profile**: Category weight model used for score computation (default profile is auto-managed per campaign).  
 * **Auth Profile**: Tenant-level respondent auth trust configuration.  
+* **Theme Config**: Structured campaign presentation contract covering palette, branding, layout, motion, and advanced overrides.
 * **Subscription**: Tenant billing state and active plan assignment.  
 * **Plan Definition**: Super-admin managed pricing/quota configuration for plan codes.
 
@@ -176,11 +182,27 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
   * Session timeout
   * Question numbers / progress indicator / back button
   * Start/finish/header/footer messages
+  * Structured theme configuration (`theme`) for palette, branding, layout, motion, and advanced custom HTML/CSS
   * Optional metadata capture flags
+  * Configurable campaign-specific responder metadata fields (`dataCollectionFields`)
 * Runtime checks are enforced during response submission.
 * Close-time locking behavior:
   * At/after `closeDate`, system automatically locks open responses in `IN_PROGRESS` or `REOPENED`.
   * If settings are updated with `closeDate <= now`, locking is triggered immediately.
+
+#### **4.6.1 Theme Studio Contract**
+
+* Campaign settings support structured theme payload persistence through `theme`.
+* Theme contract includes:
+  * `templateKey`, `paletteKey`
+  * `palette` colors
+  * `branding` (`brandLabel`, `logoUrl`, `logoPosition`, `fontFamily`)
+  * `layout` (`contentWidth`, `headerStyle`, `footerStyle`, `sectionStyle`, `questionCardStyle`, `categorySeparatorStyle`, alignments)
+  * `motion.animationPreset`
+  * structured `header` and `footer` content
+  * `advanced` header/footer HTML and custom CSS override fields
+* Public preview payload and admin preview payload both include effective theme configuration.
+* Runtime responder form renders from theme config first and only falls back to legacy `headerHtml` / `footerHtml` when advanced override flags are enabled.
 
 ### **4.7 Distribution**
 
@@ -230,11 +252,12 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 
 #### **4.8.4 Private Campaign Enforcement**
 
-* Private campaign submission requires:
+* Private campaign responder runtime requires:
   * campaign `AuthMode=PRIVATE`
   * tenant auth profile present
   * auth profile mode not `PUBLIC_ANONYMOUS`
-  * valid responder credential (`responderToken` or one-time `responderAccessCode`)
+  * valid responder credential (`responderToken` or one-time `responderAccessCode`) for the initial trust handoff
+  * or a valid server-side responder session cookie after successful OIDC callback
   * anonymous fallback is rejected for private access.
 
 #### **4.8.5 Signed Launch Token Operational Model**
@@ -247,7 +270,7 @@ Define the implemented MVP requirements for a multi-tenant Survey Engine that su
 #### **4.8.6 Security Hardening Requirements (MVP Baseline + Production Targets)**
 
 Implemented baseline:
-* Token transport avoids long-lived responder tokens in URLs for OIDC private flows by using one-time responder access code exchange.  
+* OIDC callback establishes a server-side responder session and clears runtime dependence on long-lived tokens in URLs.  
 * Replay protection is enforced for signed launch token flow (`jti` with server-side replay store).  
 * Strict claim validation is enforced (issuer, audience, expiry, clock skew, required `respondentId` mapping, tenant binding).  
 * Auth failures return deterministic error codes and auth configuration updates are audit logged with before/after snapshots.
@@ -287,11 +310,41 @@ Production targets:
 
 ### **4.9 Responses, Locking, and Analytics**
 
-* Responder can submit to active campaign endpoint.  
-* On successful submit, response is auto-locked.  
+* Responder can save a draft or submit to an active campaign endpoint.  
+* Draft flow creates or updates `IN_PROGRESS` responses and preserves answers plus respondent metadata.  
+* On successful final submit, response is auto-locked.  
 * Admin can lock/reopen responses; reopen is audited with reason/window.  
 * Close transition enforcement auto-locks any still-open (`IN_PROGRESS`/`REOPENED`) responses for expired campaigns.  
 * Analytics endpoint returns totals and completion-related counts per campaign.
+
+#### **4.9.1 Draft and Resume Behavior**
+
+* Public responder draft endpoints:
+  * `POST /api/v1/public/campaigns/{id}/responses/draft`
+  * `POST /api/v1/public/campaigns/{id}/responses/draft/load`
+* Draft lookup supports:
+  * explicit `responseId`
+  * responder identity
+  * private responder session-backed identity after OIDC login
+* Draft save is idempotent for the same response and updates answers in place by `questionId`.
+* Final submit against a saved draft reuses the same response row instead of creating a second response.
+
+#### **4.9.2 Response Payload Enrichment**
+
+* Response detail payload includes:
+  * `respondentMetadata`
+  * answer-level `questionText`
+  * `questionVersionNumber`
+  * `questionType`
+  * `optionConfig`
+  * optional answer `remark`
+
+#### **4.9.3 Question Interaction Enhancements**
+
+* `RATING_SCALE` question rendering can be configured through `optionConfig.displayMode`:
+  * `NUMBERS`
+  * `STARS`
+* Each answer can include an optional `remark` comment persisted with the response.
 
 ### **4.10 Scoring and Weighting**
 
@@ -390,6 +443,20 @@ Production targets:
 * Plan selection flow during first-time onboarding.
 * Contextual help tooltips with permanent dismiss option.
 * Dashboard tour for initial product discovery.
+
+### **4.17 Admin Preference Persistence**
+
+* Admin preference API supports:
+  * get all preferences
+  * patch one preference
+  * patch many preferences
+  * check/mark onboarding completion
+  * reset all preferences
+* Current frontend usage includes persisted admin appearance mode:
+  * `light`
+  * `dark`
+  * `system`
+* Appearance preference is persisted locally and synchronized to backend user preferences for authenticated admins.
 
 ## **5\. Data and Schema Requirements**
 

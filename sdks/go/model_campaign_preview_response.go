@@ -34,10 +34,12 @@ type CampaignPreviewResponse struct {
 	FinishMessage *string `json:"finishMessage,omitempty"`
 	HeaderHtml *string `json:"headerHtml,omitempty"`
 	FooterHtml *string `json:"footerHtml,omitempty"`
+	Theme *SurveyThemeConfigDto `json:"theme,omitempty"`
 	CollectName *bool `json:"collectName,omitempty"`
 	CollectEmail *bool `json:"collectEmail,omitempty"`
 	CollectPhone *bool `json:"collectPhone,omitempty"`
 	CollectAddress *bool `json:"collectAddress,omitempty"`
+	DataCollectionFields []DataCollectionFieldResponse `json:"dataCollectionFields,omitempty"`
 	Pages []CampaignPreviewResponsePagesInner `json:"pages,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
@@ -541,6 +543,38 @@ func (o *CampaignPreviewResponse) SetFooterHtml(v string) {
 	o.FooterHtml = &v
 }
 
+// GetTheme returns the Theme field value if set, zero value otherwise.
+func (o *CampaignPreviewResponse) GetTheme() SurveyThemeConfigDto {
+	if o == nil || IsNil(o.Theme) {
+		var ret SurveyThemeConfigDto
+		return ret
+	}
+	return *o.Theme
+}
+
+// GetThemeOk returns a tuple with the Theme field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CampaignPreviewResponse) GetThemeOk() (*SurveyThemeConfigDto, bool) {
+	if o == nil || IsNil(o.Theme) {
+		return nil, false
+	}
+	return o.Theme, true
+}
+
+// HasTheme returns a boolean if a field has been set.
+func (o *CampaignPreviewResponse) HasTheme() bool {
+	if o != nil && !IsNil(o.Theme) {
+		return true
+	}
+
+	return false
+}
+
+// SetTheme gets a reference to the given SurveyThemeConfigDto and assigns it to the Theme field.
+func (o *CampaignPreviewResponse) SetTheme(v SurveyThemeConfigDto) {
+	o.Theme = &v
+}
+
 // GetCollectName returns the CollectName field value if set, zero value otherwise.
 func (o *CampaignPreviewResponse) GetCollectName() bool {
 	if o == nil || IsNil(o.CollectName) {
@@ -669,6 +703,38 @@ func (o *CampaignPreviewResponse) SetCollectAddress(v bool) {
 	o.CollectAddress = &v
 }
 
+// GetDataCollectionFields returns the DataCollectionFields field value if set, zero value otherwise.
+func (o *CampaignPreviewResponse) GetDataCollectionFields() []DataCollectionFieldResponse {
+	if o == nil || IsNil(o.DataCollectionFields) {
+		var ret []DataCollectionFieldResponse
+		return ret
+	}
+	return o.DataCollectionFields
+}
+
+// GetDataCollectionFieldsOk returns a tuple with the DataCollectionFields field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CampaignPreviewResponse) GetDataCollectionFieldsOk() ([]DataCollectionFieldResponse, bool) {
+	if o == nil || IsNil(o.DataCollectionFields) {
+		return nil, false
+	}
+	return o.DataCollectionFields, true
+}
+
+// HasDataCollectionFields returns a boolean if a field has been set.
+func (o *CampaignPreviewResponse) HasDataCollectionFields() bool {
+	if o != nil && !IsNil(o.DataCollectionFields) {
+		return true
+	}
+
+	return false
+}
+
+// SetDataCollectionFields gets a reference to the given []DataCollectionFieldResponse and assigns it to the DataCollectionFields field.
+func (o *CampaignPreviewResponse) SetDataCollectionFields(v []DataCollectionFieldResponse) {
+	o.DataCollectionFields = v
+}
+
 // GetPages returns the Pages field value if set, zero value otherwise.
 func (o *CampaignPreviewResponse) GetPages() []CampaignPreviewResponsePagesInner {
 	if o == nil || IsNil(o.Pages) {
@@ -756,6 +822,9 @@ func (o CampaignPreviewResponse) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.FooterHtml) {
 		toSerialize["footerHtml"] = o.FooterHtml
 	}
+	if !IsNil(o.Theme) {
+		toSerialize["theme"] = o.Theme
+	}
 	if !IsNil(o.CollectName) {
 		toSerialize["collectName"] = o.CollectName
 	}
@@ -767,6 +836,9 @@ func (o CampaignPreviewResponse) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CollectAddress) {
 		toSerialize["collectAddress"] = o.CollectAddress
+	}
+	if !IsNil(o.DataCollectionFields) {
+		toSerialize["dataCollectionFields"] = o.DataCollectionFields
 	}
 	if !IsNil(o.Pages) {
 		toSerialize["pages"] = o.Pages
@@ -808,10 +880,12 @@ func (o *CampaignPreviewResponse) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "finishMessage")
 		delete(additionalProperties, "headerHtml")
 		delete(additionalProperties, "footerHtml")
+		delete(additionalProperties, "theme")
 		delete(additionalProperties, "collectName")
 		delete(additionalProperties, "collectEmail")
 		delete(additionalProperties, "collectPhone")
 		delete(additionalProperties, "collectAddress")
+		delete(additionalProperties, "dataCollectionFields")
 		delete(additionalProperties, "pages")
 		o.AdditionalProperties = additionalProperties
 	}

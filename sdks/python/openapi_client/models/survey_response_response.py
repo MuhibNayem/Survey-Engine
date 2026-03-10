@@ -33,6 +33,7 @@ class SurveyResponseResponse(BaseModel):
     campaign_id: Optional[UUID] = Field(default=None, alias="campaignId")
     survey_snapshot_id: Optional[UUID] = Field(default=None, alias="surveySnapshotId")
     respondent_identifier: Optional[StrictStr] = Field(default=None, alias="respondentIdentifier")
+    respondent_metadata: Optional[StrictStr] = Field(default=None, alias="respondentMetadata")
     status: Optional[StrictStr] = None
     started_at: Optional[datetime] = Field(default=None, alias="startedAt")
     submitted_at: Optional[datetime] = Field(default=None, alias="submittedAt")
@@ -42,7 +43,7 @@ class SurveyResponseResponse(BaseModel):
     scored_at: Optional[datetime] = Field(default=None, alias="scoredAt")
     answers: Optional[List[SurveyResponseResponseAnswersInner]] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "campaignId", "surveySnapshotId", "respondentIdentifier", "status", "startedAt", "submittedAt", "lockedAt", "weightProfileId", "weightedTotalScore", "scoredAt", "answers"]
+    __properties: ClassVar[List[str]] = ["id", "campaignId", "surveySnapshotId", "respondentIdentifier", "respondentMetadata", "status", "startedAt", "submittedAt", "lockedAt", "weightProfileId", "weightedTotalScore", "scoredAt", "answers"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -123,6 +124,7 @@ class SurveyResponseResponse(BaseModel):
             "campaignId": obj.get("campaignId"),
             "surveySnapshotId": obj.get("surveySnapshotId"),
             "respondentIdentifier": obj.get("respondentIdentifier"),
+            "respondentMetadata": obj.get("respondentMetadata"),
             "status": obj.get("status"),
             "startedAt": obj.get("startedAt"),
             "submittedAt": obj.get("submittedAt"),

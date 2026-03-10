@@ -5,12 +5,14 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**response_id** | **UUID** |  | [optional] 
 **campaign_id** | **UUID** |  | 
 **respondent_identifier** | **str** |  | [optional] 
 **respondent_ip** | **str** |  | [optional] 
 **respondent_device_fingerprint** | **str** |  | [optional] 
 **responder_token** | **str** |  | [optional] 
 **responder_access_code** | **str** |  | [optional] 
+**respondent_metadata** | **Dict[str, str]** |  | [optional] 
 **answers** | [**List[ResponseSubmissionRequestAnswersInner]**](ResponseSubmissionRequestAnswersInner.md) |  | [optional] 
 
 ## Example

@@ -50,7 +50,7 @@ import org.openapitools.client.JSON;
 /**
  * OidcCallbackResponse
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-10T10:06:02.786165952+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-03-11T04:33:32.444010+06:00[Asia/Dhaka]", comments = "Generator version: 7.20.0")
 public class OidcCallbackResponse {
   public static final String SERIALIZED_NAME_ACCESS_CODE = "accessCode";
   @SerializedName(SERIALIZED_NAME_ACCESS_CODE)

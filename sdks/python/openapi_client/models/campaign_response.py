@@ -21,6 +21,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from openapi_client.models.data_collection_field_response import DataCollectionFieldResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -41,8 +42,9 @@ class CampaignResponse(BaseModel):
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_by: Optional[StrictStr] = Field(default=None, alias="updatedBy")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
+    data_collection_fields: Optional[List[DataCollectionFieldResponse]] = Field(default=None, alias="dataCollectionFields")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "name", "description", "surveyId", "surveySnapshotId", "defaultWeightProfileId", "authMode", "status", "active", "createdBy", "createdAt", "updatedBy", "updatedAt"]
+    __properties: ClassVar[List[str]] = ["id", "name", "description", "surveyId", "surveySnapshotId", "defaultWeightProfileId", "authMode", "status", "active", "createdBy", "createdAt", "updatedBy", "updatedAt", "dataCollectionFields"]
 
     @field_validator('auth_mode')
     def auth_mode_validate_enum(cls, value):
@@ -105,6 +107,13 @@ class CampaignResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in data_collection_fields (list)
+        _items = []
+        if self.data_collection_fields:
+            for _item_data_collection_fields in self.data_collection_fields:
+                if _item_data_collection_fields:
+                    _items.append(_item_data_collection_fields.to_dict())
+            _dict['dataCollectionFields'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -134,7 +143,8 @@ class CampaignResponse(BaseModel):
             "createdBy": obj.get("createdBy"),
             "createdAt": obj.get("createdAt"),
             "updatedBy": obj.get("updatedBy"),
-            "updatedAt": obj.get("updatedAt")
+            "updatedAt": obj.get("updatedAt"),
+            "dataCollectionFields": [DataCollectionFieldResponse.from_dict(_item) for _item in obj["dataCollectionFields"]] if obj.get("dataCollectionFields") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
