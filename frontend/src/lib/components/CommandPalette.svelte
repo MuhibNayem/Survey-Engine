@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { 
 		Search, 
 		FileText, 
@@ -15,6 +15,7 @@
 		X
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import api from '$lib/api';
 
 	export interface CommandItem {
 		id: string;
@@ -23,6 +24,9 @@
 		shortcuts?: string[];
 		action: () => void;
 		section?: string;
+		snippet?: string;
+		entityType?: string;
+		remote?: boolean;
 	}
 
 	interface Props {
@@ -35,6 +39,10 @@
 	let query = $state('');
 	let selectedId = $state<string | null>(null);
 	let isClosing = $state(false);
+	let remoteCommands = $state<CommandItem[]>([]);
+	let searchingRemote = $state(false);
+	let remoteError = $state<string | null>(null);
+	let searchInputEl = $state<HTMLInputElement | null>(null);
 
 	// Define all available commands
 	const allCommands: CommandItem[] = [
@@ -132,8 +140,7 @@
 		}
 	];
 
-	// Filter commands based on query (computed, not state)
-	function getFilteredItems(): CommandItem[] {
+	function getLocalFilteredItems(): CommandItem[] {
 		if (!query.trim()) {
 			return allCommands;
 		}
@@ -153,13 +160,90 @@
 			});
 	}
 
-	// Update selectedId when query or filtered items change
+	function toRemoteCommand(item: any): CommandItem {
+		const iconByType: Record<string, typeof Search> = {
+			campaign: Mail,
+			survey: FileText,
+			question: HelpCircle,
+			category: FileText
+		};
+		return {
+			id: `remote-${item.type}-${item.id}`,
+			label: item.title,
+			icon: iconByType[item.type] ?? Search,
+			section: 'Search Results',
+			entityType: item.type,
+			snippet: item.snippet,
+			remote: true,
+			action: () => goto(item.route)
+		};
+	}
+
+	function mergeItems(local: CommandItem[], remote: CommandItem[]): CommandItem[] {
+		if (!query.trim()) return local;
+		const seen = new Set(local.map((i) => i.id));
+		const dedupedRemote = remote.filter((i) => !seen.has(i.id));
+		return [...dedupedRemote, ...local];
+	}
+
+	function splitHighlighted(text: string): Array<{ text: string; marked: boolean }> {
+		if (!text) return [];
+		const parts: Array<{ text: string; marked: boolean }> = [];
+		let cursor = 0;
+		while (cursor < text.length) {
+			const start = text.indexOf('[[[', cursor);
+			if (start < 0) {
+				parts.push({ text: text.slice(cursor), marked: false });
+				break;
+			}
+			if (start > cursor) {
+				parts.push({ text: text.slice(cursor, start), marked: false });
+			}
+			const end = text.indexOf(']]]', start + 3);
+			if (end < 0) {
+				parts.push({ text: text.slice(start + 3), marked: true });
+				break;
+			}
+			parts.push({ text: text.slice(start + 3, end), marked: true });
+			cursor = end + 3;
+		}
+		return parts.filter((p) => p.text.length > 0);
+	}
+
 	$effect(() => {
-		const filtered = getFilteredItems();
-		selectedId = filtered[0]?.id ?? null;
+		const q = query.trim();
+		remoteError = null;
+		if (q.length < 2) {
+			remoteCommands = [];
+			searchingRemote = false;
+			return;
+		}
+
+		searchingRemote = true;
+		const timeout = setTimeout(async () => {
+			try {
+				const response = await api.get('/search/global', {
+					params: { q, limit: 12 }
+				});
+				const items = response?.data?.items ?? [];
+				remoteCommands = items.map(toRemoteCommand);
+			} catch (error) {
+				console.error('Global search failed', error);
+				remoteCommands = [];
+				remoteError = 'Search is temporarily unavailable';
+			} finally {
+				searchingRemote = false;
+			}
+		}, 180);
+
+		return () => clearTimeout(timeout);
 	});
 
-	let items = $derived(getFilteredItems());
+	let items = $derived(mergeItems(getLocalFilteredItems(), remoteCommands));
+
+	$effect(() => {
+		selectedId = items[0]?.id ?? null;
+	});
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if (e.key === 'ArrowDown') {
@@ -211,8 +295,22 @@
 			e.preventDefault();
 			open = true;
 			onOpenChange?.(true);
+			void focusSearchInput();
 		}
 	}
+
+	async function focusSearchInput() {
+		await tick();
+		requestAnimationFrame(() => {
+			searchInputEl?.focus();
+		});
+	}
+
+	$effect(() => {
+		if (open) {
+			void focusSearchInput();
+		}
+	});
 
 	onMount(() => {
 		window.addEventListener('keydown', handleGlobalKeydown);
@@ -243,36 +341,46 @@
 		<!-- Animated container -->
 		<div class="animate-in fade-in zoom-in-95 duration-200">
 			<!-- Main card with shadow and border -->
-			<div class="overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-2xl border border-zinc-200 dark:border-zinc-800">
-				<!-- Search Header -->
-				<div class="flex items-center gap-3 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-					<Search class="h-5 w-5 text-zinc-400" />
-					<input
-						bind:value={query}
-						placeholder="Type a command or search..."
-						class="flex-1 bg-transparent border-0 outline-none text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 text-sm"
-						onkeydown={handleKeyDown}
-						autofocus
-						autocomplete="off"
-						autocapitalize="off"
-						spellcheck="false"
-					/>
-					{#if query}
-						<button
-							onclick={() => query = ''}
-							class="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
-							aria-label="Clear search"
-						>
-							<X class="h-4 w-4 text-zinc-400" />
-						</button>
-					{/if}
-					<kbd class="hidden sm:inline-flex h-6 items-center gap-1 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 font-mono text-xs font-medium text-zinc-500">
-						ESC
-					</kbd>
-				</div>
+				<div class="overflow-hidden rounded-2xl bg-white/95 dark:bg-zinc-900/95 shadow-2xl ring-1 ring-zinc-200/80 dark:ring-zinc-800/90 backdrop-blur-xl">
+					<!-- Search Header -->
+					<div class="border-b border-zinc-200/70 dark:border-zinc-800/80 bg-gradient-to-r from-zinc-50/80 via-white to-zinc-50/80 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 px-4 py-3.5">
+						<div class="group flex items-center gap-2 rounded-xl bg-zinc-100/85 dark:bg-zinc-800/60 px-3 py-2.5 shadow-sm ring-1 ring-zinc-200/70 dark:ring-zinc-700/70 transition-all focus-within:ring-primary/45 focus-within:shadow-[0_0_0_3px_rgba(59,130,246,0.16)]">
+							<div class="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800">
+								<Search class="h-4 w-4 text-zinc-500 dark:text-zinc-300" />
+							</div>
+								<input
+									bind:this={searchInputEl}
+									bind:value={query}
+									placeholder="Search commands, campaigns, surveys, questions..."
+								class="cmd-search-input flex-1 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 text-sm font-medium caret-primary"
+									onkeydown={handleKeyDown}
+								autocomplete="off"
+								autocapitalize="off"
+								spellcheck="false"
+							/>
+							{#if query}
+								<button
+									onclick={() => query = ''}
+									class="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+									aria-label="Clear search"
+								>
+									<X class="h-3.5 w-3.5 text-zinc-400" />
+								</button>
+							{/if}
+								<kbd class="hidden sm:inline-flex h-6 items-center gap-1 rounded-md bg-white/70 dark:bg-zinc-900/80 px-2 font-mono text-[10px] font-semibold text-zinc-500 ring-1 ring-zinc-200/70 dark:ring-zinc-700/70">
+								ESC
+							</kbd>
+						</div>
+					</div>
 
 				<!-- Results List -->
-				<div class="max-h-[420px] overflow-y-auto p-2">
+				<div class="cmd-results max-h-[420px] overflow-y-auto p-2">
+					{#if searchingRemote}
+						<div class="px-3 py-2 text-xs text-zinc-500">Searching everything...</div>
+					{/if}
+					{#if remoteError}
+						<div class="px-3 py-2 text-xs text-amber-600 dark:text-amber-400">{remoteError}</div>
+					{/if}
 					{#if items.length === 0}
 						<div class="flex flex-col items-center justify-center py-12 text-center">
 							<div class="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
@@ -304,13 +412,33 @@
 										role="option"
 										aria-selected={selectedId === item.id}
 									>
-										<div class="flex items-center gap-3">
+										<div class="flex min-w-0 items-center gap-3">
 											{#if item.icon}
 												<item.icon 
 													class="h-4 w-4 {selectedId === item.id ? 'text-white dark:text-zinc-900' : 'text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300'} transition-colors" 
 												/>
 											{/if}
-											<span class="text-sm font-medium">{item.label}</span>
+											<div class="min-w-0 text-left">
+												<div class="flex items-center gap-2">
+													<span class="truncate text-sm font-medium">{item.label}</span>
+													{#if item.remote && item.entityType}
+														<span class="rounded-full border border-zinc-300 dark:border-zinc-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+															{item.entityType}
+														</span>
+													{/if}
+												</div>
+												{#if item.snippet}
+													<p class="mt-0.5 max-w-[380px] text-xs text-zinc-500 dark:text-zinc-400">
+														{#each splitHighlighted(item.snippet) as segment}
+															{#if segment.marked}
+																<mark class="bg-yellow-200/70 px-0.5 text-zinc-900 dark:bg-yellow-300/40 dark:text-zinc-100">{segment.text}</mark>
+															{:else}
+																{segment.text}
+															{/if}
+														{/each}
+													</p>
+												{/if}
+											</div>
 										</div>
 										{#if item.shortcuts}
 											<div class="flex items-center gap-1.5">
@@ -359,3 +487,63 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+  /* ── Nuke every possible native-browser focus artefact on the search input ─── */
+  :global(.cmd-search-input),
+  :global(.cmd-search-input:focus),
+  :global(.cmd-search-input:focus-visible),
+  :global(.cmd-search-input:focus-within),
+  :global(.cmd-search-input:active) {
+    outline: none !important;
+    outline-offset: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  /* Remove Firefox's inner focus blue border */
+  :global(.cmd-search-input:-moz-focusring) {
+    color: transparent;
+    text-shadow: none;
+  }
+
+  /* Smooth, branded caret */
+  :global(.cmd-search-input) {
+    caret-color: hsl(var(--primary));
+    caret-shape: bar;
+  }
+
+  /* Premium text selection highlight */
+  :global(.cmd-search-input::selection) {
+    background-color: hsl(var(--primary) / 0.25);
+    color: inherit;
+  }
+  :global(.cmd-search-input::-moz-selection) {
+    background-color: hsl(var(--primary) / 0.25);
+    color: inherit;
+  }
+
+  /* Hide browser's native clear button (x) on webkit */
+  :global(.cmd-search-input::-webkit-search-cancel-button),
+  :global(.cmd-search-input::-webkit-search-decoration) {
+    -webkit-appearance: none;
+    display: none;
+  }
+
+  /* ── Result list smooth scroll ─────────────────────────────────────── */
+  :global(.cmd-results) {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  :global(.cmd-results::-webkit-scrollbar) {
+    width: 4px;
+  }
+  :global(.cmd-results::-webkit-scrollbar-thumb) {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+</style>
