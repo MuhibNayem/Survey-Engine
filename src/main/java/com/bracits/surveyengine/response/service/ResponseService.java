@@ -2,6 +2,7 @@ package com.bracits.surveyengine.response.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.bracits.surveyengine.response.dto.ResponseDraftLookupRequest;
 import com.bracits.surveyengine.response.dto.ResponseSubmissionRequest;
 import com.bracits.surveyengine.response.dto.SurveyResponseResponse;
 
@@ -16,6 +17,10 @@ import java.util.UUID;
 public interface ResponseService {
 
     SurveyResponseResponse submit(ResponseSubmissionRequest request);
+
+    SurveyResponseResponse saveDraft(ResponseSubmissionRequest request);
+
+    SurveyResponseResponse getPublicDraft(UUID campaignId, ResponseDraftLookupRequest request);
 
     SurveyResponseResponse getById(UUID id);
 

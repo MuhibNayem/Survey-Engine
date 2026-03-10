@@ -31,6 +31,7 @@ public class CampaignPreviewResponse {
     private String finishMessage;
     private String headerHtml;
     private String footerHtml;
+    private SurveyThemeConfigDto theme;
 
     private boolean collectName;
     private boolean collectEmail;
@@ -49,6 +50,21 @@ public class CampaignPreviewResponse {
         private UUID id;
         private String title;
         private Integer sortOrder;
+        private List<CategoryPreview> categories;
+        private List<QuestionPreview> questions;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CategoryPreview {
+        private UUID categoryVersionId;
+        private Integer versionNumber;
+        private String name;
+        private String description;
+        private BigDecimal weightPercentage;
+        private Integer sortOrder;
         private List<QuestionPreview> questions;
     }
 
@@ -61,6 +77,7 @@ public class CampaignPreviewResponse {
         private UUID questionId;
         private UUID questionVersionId;
         private UUID categoryVersionId;
+        private BigDecimal categoryWeightPercentage;
         private String text;
         private QuestionType type;
         private BigDecimal maxScore;

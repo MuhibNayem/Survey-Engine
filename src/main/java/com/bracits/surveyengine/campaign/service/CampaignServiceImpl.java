@@ -4,14 +4,19 @@ import com.bracits.surveyengine.campaign.dto.*;
 import com.bracits.surveyengine.campaign.entity.*;
 import com.bracits.surveyengine.campaign.repository.CampaignRepository;
 import com.bracits.surveyengine.campaign.repository.CampaignSettingsRepository;
+import com.bracits.surveyengine.campaign.repository.SurveyThemeRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
 import com.bracits.surveyengine.common.tenant.TenantSupport;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.bracits.surveyengine.questionbank.entity.Question;
 import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
+import com.bracits.surveyengine.questionbank.entity.CategoryVersion;
 import com.bracits.surveyengine.questionbank.repository.QuestionRepository;
 import com.bracits.surveyengine.questionbank.repository.QuestionVersionRepository;
+import com.bracits.surveyengine.questionbank.repository.CategoryVersionRepository;
 import com.bracits.surveyengine.response.service.ResponseLockingService;
 import com.bracits.surveyengine.scoring.service.WeightProfileService;
 import com.bracits.surveyengine.search.service.SearchCacheInvalidationService;
@@ -32,7 +37,10 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -44,15 +52,18 @@ public class CampaignServiceImpl implements CampaignService {
 
     private final CampaignRepository campaignRepository;
     private final CampaignSettingsRepository settingsRepository;
+    private final SurveyThemeRepository surveyThemeRepository;
     private final SurveyRepository surveyRepository;
     private final QuestionRepository questionRepository;
     private final QuestionVersionRepository questionVersionRepository;
+    private final CategoryVersionRepository categoryVersionRepository;
     private final SurveyService surveyService;
     private final WeightProfileService weightProfileService;
     private final PlanQuotaService planQuotaService;
     private final TenantService tenantService;
     private final ResponseLockingService responseLockingService;
     private final SearchCacheInvalidationService searchCacheInvalidationService;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -79,6 +90,10 @@ public class CampaignServiceImpl implements CampaignService {
                 .campaignId(campaign.getId())
                 .build();
         settingsRepository.save(settings);
+        surveyThemeRepository.save(SurveyTheme.builder()
+                .campaignId(campaign.getId())
+                .themeConfig(writeThemeConfig(defaultThemeConfig(campaign.getName(), null, null, null, null)))
+                .build());
         searchCacheInvalidationService.invalidateTenantAfterCommit(tenantId);
 
         return toResponse(campaign);
@@ -210,6 +225,7 @@ public class CampaignServiceImpl implements CampaignService {
         }
 
         settingsRepository.save(settings);
+        saveTheme(campaignId, campaign, request.getTheme());
 
         Instant now = Instant.now();
         if (settings.getCloseDate() != null && !settings.getCloseDate().isAfter(now)) {
@@ -275,6 +291,13 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     private CampaignSettingsResponse toSettingsResponse(CampaignSettings settings) {
+        SurveyThemeConfigDto theme = resolveThemeConfig(
+                settings.getCampaignId(),
+                null,
+                settings.getStartMessage(),
+                settings.getFinishMessage(),
+                settings.getHeaderHtml(),
+                settings.getFooterHtml());
         return CampaignSettingsResponse.builder()
                 .campaignId(settings.getCampaignId())
                 .password(settings.getPassword())
@@ -292,6 +315,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .finishMessage(settings.getFinishMessage())
                 .headerHtml(settings.getHeaderHtml())
                 .footerHtml(settings.getFooterHtml())
+                .theme(theme)
                 .collectName(settings.isCollectName())
                 .collectEmail(settings.isCollectEmail())
                 .collectPhone(settings.isCollectPhone())
@@ -305,12 +329,51 @@ public class CampaignServiceImpl implements CampaignService {
                 .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
                 .map(this::toPreviewQuestion)
                 .toList();
+        List<CampaignPreviewResponse.CategoryPreview> categories = toPreviewCategories(page, questions);
         return CampaignPreviewResponse.PagePreview.builder()
                 .id(page.getId())
                 .title(page.getTitle())
                 .sortOrder(page.getSortOrder())
+                .categories(categories)
                 .questions(questions)
                 .build();
+    }
+
+    private List<CampaignPreviewResponse.CategoryPreview> toPreviewCategories(
+            SurveyPage page,
+            List<CampaignPreviewResponse.QuestionPreview> questions) {
+        Map<UUID, List<CampaignPreviewResponse.QuestionPreview>> groupedQuestions = new LinkedHashMap<>();
+        Map<UUID, Integer> categorySortOrders = new LinkedHashMap<>();
+
+        for (CampaignPreviewResponse.QuestionPreview question : questions) {
+            if (question.getCategoryVersionId() == null) {
+                continue;
+            }
+            groupedQuestions.computeIfAbsent(question.getCategoryVersionId(), ignored -> new java.util.ArrayList<>())
+                    .add(question);
+            categorySortOrders.putIfAbsent(question.getCategoryVersionId(), question.getSortOrder());
+        }
+
+        return groupedQuestions.entrySet().stream()
+                .map(entry -> {
+                    UUID categoryVersionId = entry.getKey();
+                    CategoryVersion categoryVersion = categoryVersionRepository.findById(categoryVersionId)
+                            .orElseThrow(() -> new ResourceNotFoundException("CategoryVersion", categoryVersionId));
+                    CampaignPreviewResponse.QuestionPreview firstQuestion = entry.getValue().get(0);
+                    return CampaignPreviewResponse.CategoryPreview.builder()
+                            .categoryVersionId(categoryVersionId)
+                            .versionNumber(categoryVersion.getVersionNumber())
+                            .name(categoryVersion.getName())
+                            .description(categoryVersion.getDescription())
+                            .weightPercentage(firstQuestion.getCategoryWeightPercentage())
+                            .sortOrder(categorySortOrders.getOrDefault(categoryVersionId, Integer.MAX_VALUE))
+                            .questions(entry.getValue())
+                            .build();
+                })
+                .sorted((a, b) -> Integer.compare(
+                        a.getSortOrder() != null ? a.getSortOrder() : Integer.MAX_VALUE,
+                        b.getSortOrder() != null ? b.getSortOrder() : Integer.MAX_VALUE))
+                .toList();
     }
 
     private CampaignPreviewResponse.QuestionPreview toPreviewQuestion(SurveyQuestion sq) {
@@ -333,6 +396,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .questionId(sq.getQuestionId())
                 .questionVersionId(sq.getQuestionVersionId())
                 .categoryVersionId(sq.getCategoryVersionId())
+                .categoryWeightPercentage(sq.getCategoryWeightPercentage())
                 .text(text)
                 .type(type)
                 .maxScore(maxScore)
@@ -345,6 +409,13 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     private CampaignPreviewResponse buildPreview(Campaign campaign, CampaignSettings settings, Survey survey) {
+        SurveyThemeConfigDto theme = resolveThemeConfig(
+                campaign.getId(),
+                campaign.getName(),
+                settings.getStartMessage(),
+                settings.getFinishMessage(),
+                settings.getHeaderHtml(),
+                settings.getFooterHtml());
         List<CampaignPreviewResponse.PagePreview> pages = survey.getPages().stream()
                 .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
                 .map(this::toPreviewPage)
@@ -366,6 +437,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .finishMessage(settings.getFinishMessage())
                 .headerHtml(settings.getHeaderHtml())
                 .footerHtml(settings.getFooterHtml())
+                .theme(theme)
                 .collectName(settings.isCollectName())
                 .collectEmail(settings.isCollectEmail())
                 .collectPhone(settings.isCollectPhone())
@@ -373,6 +445,245 @@ public class CampaignServiceImpl implements CampaignService {
                 .dataCollectionFields(toFieldResponses(settings.getDataCollectionFields()))
                 .pages(pages)
                 .build();
+    }
+
+    private void saveTheme(UUID campaignId, Campaign campaign, SurveyThemeConfigDto incomingTheme) {
+        SurveyTheme theme = surveyThemeRepository.findByCampaignId(campaignId)
+                .orElseGet(() -> SurveyTheme.builder().campaignId(campaignId).build());
+
+        SurveyThemeConfigDto normalized = mergeThemeWithDefaults(
+                defaultThemeConfig(
+                        campaign.getName(),
+                        campaign.getDescription(),
+                        "Thank you for completing this survey.",
+                        null,
+                        null),
+                incomingTheme);
+        theme.setThemeConfig(writeThemeConfig(normalized));
+        surveyThemeRepository.save(theme);
+    }
+
+    private SurveyThemeConfigDto resolveThemeConfig(
+            UUID campaignId,
+            String campaignName,
+            String startMessage,
+            String finishMessage,
+            String headerHtml,
+            String footerHtml) {
+        SurveyThemeConfigDto defaults = defaultThemeConfig(
+                campaignName,
+                startMessage,
+                finishMessage,
+                headerHtml,
+                footerHtml);
+        Optional<SurveyTheme> existing = surveyThemeRepository.findByCampaignId(campaignId);
+        if (existing.isEmpty() || existing.get().getThemeConfig() == null || existing.get().getThemeConfig().isBlank()) {
+            return defaults;
+        }
+        try {
+            SurveyThemeConfigDto stored = objectMapper.readValue(existing.get().getThemeConfig(), SurveyThemeConfigDto.class);
+            return mergeThemeWithDefaults(defaults, stored);
+        } catch (JsonProcessingException ex) {
+            return defaults;
+        }
+    }
+
+    private String writeThemeConfig(SurveyThemeConfigDto theme) {
+        try {
+            return objectMapper.writeValueAsString(theme);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize survey theme config", ex);
+        }
+    }
+
+    private SurveyThemeConfigDto mergeThemeWithDefaults(SurveyThemeConfigDto defaults, SurveyThemeConfigDto incoming) {
+        if (incoming == null) return defaults;
+        return SurveyThemeConfigDto.builder()
+                .templateKey(coalesce(incoming.getTemplateKey(), defaults.getTemplateKey()))
+                .paletteKey(coalesce(incoming.getPaletteKey(), defaults.getPaletteKey()))
+                .palette(mergePalette(defaults.getPalette(), incoming.getPalette()))
+                .branding(mergeBranding(defaults.getBranding(), incoming.getBranding()))
+                .layout(mergeLayout(defaults.getLayout(), incoming.getLayout()))
+                .motion(mergeMotion(defaults.getMotion(), incoming.getMotion()))
+                .header(mergeHeader(defaults.getHeader(), incoming.getHeader()))
+                .footer(mergeFooter(defaults.getFooter(), incoming.getFooter()))
+                .advanced(mergeAdvanced(defaults.getAdvanced(), incoming.getAdvanced()))
+                .build();
+    }
+
+    private SurveyThemeConfigDto defaultThemeConfig(
+            String campaignName,
+            String subtitle,
+            String finishMessage,
+            String headerHtml,
+            String footerHtml) {
+        String resolvedTitle = campaignName == null || campaignName.isBlank() ? "Survey Experience" : campaignName;
+        String resolvedSubtitle = subtitle == null || subtitle.isBlank() ? "Share your feedback with clarity and confidence." : subtitle;
+        String resolvedFooterLine = finishMessage == null || finishMessage.isBlank()
+                ? "Thank you for completing this survey."
+                : finishMessage;
+
+        return SurveyThemeConfigDto.builder()
+                .templateKey("aurora-premium")
+                .paletteKey("ocean-aurora")
+                .palette(SurveyThemeConfigDto.Palette.builder()
+                        .background("#f8fbfb")
+                        .shell("#ffffff")
+                        .panel("#e8f6f4")
+                        .card("#ffffff")
+                        .border("#9fd6cf")
+                        .textPrimary("#102a43")
+                        .textSecondary("#4e676c")
+                        .primary("#0f766e")
+                        .primaryText("#f8fffe")
+                        .accent("#14b8a6")
+                        .accentSoft("#d8f5f1")
+                        .headerBackground("#102a43")
+                        .headerText("#f8fffe")
+                        .footerBackground("#edf9f7")
+                        .footerText("#35545a")
+                        .build())
+                .branding(SurveyThemeConfigDto.Branding.builder()
+                        .brandLabel("Confidential Evaluation Ledger")
+                        .logoPosition("left")
+                        .fontFamily("\"Iowan Old Style\", \"Palatino Linotype\", \"Book Antiqua\", Georgia, serif")
+                        .build())
+                .layout(SurveyThemeConfigDto.Layout.builder()
+                        .contentWidth("standard")
+                        .headerStyle("hero")
+                        .headerAlignment("left")
+                        .footerStyle("support")
+                        .footerAlignment("left")
+                        .sectionStyle("panel")
+                        .questionCardStyle("soft")
+                        .categorySeparatorStyle("divider")
+                        .build())
+                .motion(SurveyThemeConfigDto.Motion.builder()
+                        .animationPreset("subtle")
+                        .build())
+                .header(SurveyThemeConfigDto.Header.builder()
+                        .enabled(true)
+                        .eyebrow("Confidential Evaluation Ledger")
+                        .title(resolvedTitle)
+                        .subtitle(resolvedSubtitle)
+                        .note("")
+                        .build())
+                .footer(SurveyThemeConfigDto.Footer.builder()
+                        .enabled(true)
+                        .line1(resolvedFooterLine)
+                        .line2("Need assistance? Contact your survey administrator for support.")
+                        .legal("Responses are securely processed under your organization's data policy.")
+                        .build())
+                .advanced(SurveyThemeConfigDto.Advanced.builder()
+                        .useCustomHeaderHtml(false)
+                        .useCustomFooterHtml(false)
+                        .customHeaderHtml(headerHtml)
+                        .customFooterHtml(footerHtml)
+                        .customCss("")
+                        .build())
+                .build();
+    }
+
+    private SurveyThemeConfigDto.Palette mergePalette(
+            SurveyThemeConfigDto.Palette defaults,
+            SurveyThemeConfigDto.Palette incoming) {
+        if (incoming == null) return defaults;
+        return SurveyThemeConfigDto.Palette.builder()
+                .background(coalesce(incoming.getBackground(), defaults.getBackground()))
+                .shell(coalesce(incoming.getShell(), defaults.getShell()))
+                .panel(coalesce(incoming.getPanel(), defaults.getPanel()))
+                .card(coalesce(incoming.getCard(), defaults.getCard()))
+                .border(coalesce(incoming.getBorder(), defaults.getBorder()))
+                .textPrimary(coalesce(incoming.getTextPrimary(), defaults.getTextPrimary()))
+                .textSecondary(coalesce(incoming.getTextSecondary(), defaults.getTextSecondary()))
+                .primary(coalesce(incoming.getPrimary(), defaults.getPrimary()))
+                .primaryText(coalesce(incoming.getPrimaryText(), defaults.getPrimaryText()))
+                .accent(coalesce(incoming.getAccent(), defaults.getAccent()))
+                .accentSoft(coalesce(incoming.getAccentSoft(), defaults.getAccentSoft()))
+                .headerBackground(coalesce(incoming.getHeaderBackground(), defaults.getHeaderBackground()))
+                .headerText(coalesce(incoming.getHeaderText(), defaults.getHeaderText()))
+                .footerBackground(coalesce(incoming.getFooterBackground(), defaults.getFooterBackground()))
+                .footerText(coalesce(incoming.getFooterText(), defaults.getFooterText()))
+                .build();
+    }
+
+    private SurveyThemeConfigDto.Branding mergeBranding(
+            SurveyThemeConfigDto.Branding defaults,
+            SurveyThemeConfigDto.Branding incoming) {
+        if (incoming == null) return defaults;
+        return SurveyThemeConfigDto.Branding.builder()
+                .brandLabel(coalesce(incoming.getBrandLabel(), defaults.getBrandLabel()))
+                .logoUrl(coalesce(incoming.getLogoUrl(), defaults.getLogoUrl()))
+                .logoPosition(coalesce(incoming.getLogoPosition(), defaults.getLogoPosition()))
+                .fontFamily(coalesce(incoming.getFontFamily(), defaults.getFontFamily()))
+                .build();
+    }
+
+    private SurveyThemeConfigDto.Layout mergeLayout(
+            SurveyThemeConfigDto.Layout defaults,
+            SurveyThemeConfigDto.Layout incoming) {
+        if (incoming == null) return defaults;
+        return SurveyThemeConfigDto.Layout.builder()
+                .contentWidth(coalesce(incoming.getContentWidth(), defaults.getContentWidth()))
+                .headerStyle(coalesce(incoming.getHeaderStyle(), defaults.getHeaderStyle()))
+                .headerAlignment(coalesce(incoming.getHeaderAlignment(), defaults.getHeaderAlignment()))
+                .footerStyle(coalesce(incoming.getFooterStyle(), defaults.getFooterStyle()))
+                .footerAlignment(coalesce(incoming.getFooterAlignment(), defaults.getFooterAlignment()))
+                .sectionStyle(coalesce(incoming.getSectionStyle(), defaults.getSectionStyle()))
+                .questionCardStyle(coalesce(incoming.getQuestionCardStyle(), defaults.getQuestionCardStyle()))
+                .categorySeparatorStyle(coalesce(incoming.getCategorySeparatorStyle(), defaults.getCategorySeparatorStyle()))
+                .build();
+    }
+
+    private SurveyThemeConfigDto.Motion mergeMotion(
+            SurveyThemeConfigDto.Motion defaults,
+            SurveyThemeConfigDto.Motion incoming) {
+        if (incoming == null) return defaults;
+        return SurveyThemeConfigDto.Motion.builder()
+                .animationPreset(coalesce(incoming.getAnimationPreset(), defaults.getAnimationPreset()))
+                .build();
+    }
+
+    private SurveyThemeConfigDto.Header mergeHeader(
+            SurveyThemeConfigDto.Header defaults,
+            SurveyThemeConfigDto.Header incoming) {
+        if (incoming == null) return defaults;
+        return SurveyThemeConfigDto.Header.builder()
+                .enabled(incoming.isEnabled())
+                .eyebrow(coalesce(incoming.getEyebrow(), defaults.getEyebrow()))
+                .title(coalesce(incoming.getTitle(), defaults.getTitle()))
+                .subtitle(coalesce(incoming.getSubtitle(), defaults.getSubtitle()))
+                .note(coalesce(incoming.getNote(), defaults.getNote()))
+                .build();
+    }
+
+    private SurveyThemeConfigDto.Footer mergeFooter(
+            SurveyThemeConfigDto.Footer defaults,
+            SurveyThemeConfigDto.Footer incoming) {
+        if (incoming == null) return defaults;
+        return SurveyThemeConfigDto.Footer.builder()
+                .enabled(incoming.isEnabled())
+                .line1(coalesce(incoming.getLine1(), defaults.getLine1()))
+                .line2(coalesce(incoming.getLine2(), defaults.getLine2()))
+                .legal(coalesce(incoming.getLegal(), defaults.getLegal()))
+                .build();
+    }
+
+    private SurveyThemeConfigDto.Advanced mergeAdvanced(
+            SurveyThemeConfigDto.Advanced defaults,
+            SurveyThemeConfigDto.Advanced incoming) {
+        if (incoming == null) return defaults;
+        return SurveyThemeConfigDto.Advanced.builder()
+                .useCustomHeaderHtml(incoming.isUseCustomHeaderHtml())
+                .useCustomFooterHtml(incoming.isUseCustomFooterHtml())
+                .customHeaderHtml(coalesce(incoming.getCustomHeaderHtml(), defaults.getCustomHeaderHtml()))
+                .customFooterHtml(coalesce(incoming.getCustomFooterHtml(), defaults.getCustomFooterHtml()))
+                .customCss(coalesce(incoming.getCustomCss(), defaults.getCustomCss()))
+                .build();
+    }
+
+    private String coalesce(String preferred, String fallback) {
+        return preferred == null || preferred.isBlank() ? fallback : preferred;
     }
 
     private List<DataCollectionFieldResponse> toFieldResponses(List<DataCollectionField> fields) {

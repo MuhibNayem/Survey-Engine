@@ -39,4 +39,11 @@ public interface SurveyResponseRepository extends JpaRepository<SurveyResponse, 
     boolean existsByCampaignIdAndRespondentIdentifierAndTenantId(UUID campaignId, String identifier, String tenantId);
 
     Optional<SurveyResponse> findByIdAndTenantId(UUID id, String tenantId);
+    Optional<SurveyResponse> findByIdAndCampaignId(UUID id, UUID campaignId);
+    Optional<SurveyResponse> findFirstByCampaignIdAndTenantIdAndRespondentIdentifierAndStatusInOrderByStartedAtDesc(
+            UUID campaignId, String tenantId, String respondentIdentifier, Collection<ResponseStatus> statuses);
+
+    boolean existsByCampaignIdAndRespondentIpAndTenantIdAndIdNot(UUID campaignId, String respondentIp, String tenantId, UUID id);
+    boolean existsByCampaignIdAndRespondentDeviceFingerprintAndTenantIdAndIdNot(UUID campaignId, String fingerprint, String tenantId, UUID id);
+    boolean existsByCampaignIdAndRespondentIdentifierAndTenantIdAndIdNot(UUID campaignId, String identifier, String tenantId, UUID id);
 }

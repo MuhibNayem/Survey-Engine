@@ -10,13 +10,16 @@
     import { Badge } from "$lib/components/ui/badge";
     import { Switch } from "$lib/components/ui/switch";
     import { Textarea } from "$lib/components/ui/textarea";
+    import { MultiSelect, type MultiSelectOption } from "$lib/components/ui/multi-select";
     import { toast } from "svelte-sonner";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { Confetti } from "$lib/components/confetti";
     import { ErrorBanner } from "$lib/components/error-banner";
+    import "$lib/styles/survey-theme.css";
     import {
         ArrowLeft,
         Settings,
+        Palette,
         Share2,
         Info,
         Play,
@@ -37,13 +40,14 @@
         CampaignSettingsResponse,
         DistributionChannelResponse,
         CampaignStatus,
+        SurveyThemeConfig,
     } from "$lib/types";
 
     // --- State ---
     let campaign = $state<CampaignResponse | null>(null);
     let channels = $state<DistributionChannelResponse[]>([]);
     let loading = $state(true);
-    let activeTab = $state<"overview" | "settings" | "distribution">(
+    let activeTab = $state<"overview" | "settings" | "theme" | "distribution">(
         "overview",
     );
     let copiedId = $state<string | null>(null);
@@ -80,23 +84,242 @@
     });
     let settingsLoading = $state(false);
     let settingsSaved = $state(false);
-    let headerEnabled = $state(false);
-    let footerEnabled = $state(false);
-    let showAdvancedHeader = $state(false);
-    let showAdvancedFooter = $state(false);
-    let brandingSyncReady = $state(false);
-    let headerTemplate = $state<"clean" | "accent" | "notice">("clean");
-    let footerTemplate = $state<"simple" | "support" | "compliance">("simple");
-    let headerFields = $state({
-        title: "",
-        subtitle: "",
-        note: "",
+    let proThemeMode = $state(false);
+    let fontStackSelection = $state<string[]>([]);
+    const THEME_TEMPLATES = [
+        { key: "aurora-premium", label: "Aurora Premium" },
+        { key: "executive-ink", label: "Executive Ink" },
+        { key: "ivory-luxe", label: "Ivory Luxe" },
+        { key: "campus-editorial", label: "Campus Editorial" },
+    ] as const;
+
+    const PALETTE_PRESETS: Record<string, SurveyThemeConfig["palette"]> = {
+        "ocean-aurora": {
+            background: "#f8fbfb",
+            shell: "#ffffff",
+            panel: "#e8f6f4",
+            card: "#ffffff",
+            border: "#9fd6cf",
+            textPrimary: "#102a43",
+            textSecondary: "#4e676c",
+            primary: "#0f766e",
+            primaryText: "#f8fffe",
+            accent: "#14b8a6",
+            accentSoft: "#d8f5f1",
+            headerBackground: "#102a43",
+            headerText: "#f8fffe",
+            footerBackground: "#edf9f7",
+            footerText: "#35545a",
+        },
+        "midnight-orchid": {
+            background: "#f7f5fb",
+            shell: "#ffffff",
+            panel: "#f0eafb",
+            card: "#ffffff",
+            border: "#cab8eb",
+            textPrimary: "#24173d",
+            textSecondary: "#61557b",
+            primary: "#5b21b6",
+            primaryText: "#faf8ff",
+            accent: "#c084fc",
+            accentSoft: "#f3e8ff",
+            headerBackground: "#24173d",
+            headerText: "#faf8ff",
+            footerBackground: "#f5efff",
+            footerText: "#4c3f69",
+        },
+        "emerald-ivory": {
+            background: "#fafbf7",
+            shell: "#ffffff",
+            panel: "#eef6ea",
+            card: "#ffffff",
+            border: "#bfd7c1",
+            textPrimary: "#1f3527",
+            textSecondary: "#5a7060",
+            primary: "#166534",
+            primaryText: "#f8fff9",
+            accent: "#22c55e",
+            accentSoft: "#dcfce7",
+            headerBackground: "#1f3527",
+            headerText: "#f8fff9",
+            footerBackground: "#f1f8f1",
+            footerText: "#45604b",
+        },
+        "sunset-royal": {
+            background: "#fbf7f3",
+            shell: "#ffffff",
+            panel: "#faeee5",
+            card: "#ffffff",
+            border: "#e7c4ae",
+            textPrimary: "#40231b",
+            textSecondary: "#7f5a4e",
+            primary: "#c2410c",
+            primaryText: "#fff9f6",
+            accent: "#f59e0b",
+            accentSoft: "#ffedd5",
+            headerBackground: "#40231b",
+            headerText: "#fff9f6",
+            footerBackground: "#fdf2eb",
+            footerText: "#6f4b3f",
+        },
+    };
+
+    const FONT_FAMILY_OPTIONS: MultiSelectOption[] = [
+        { label: "Iowan Old Style", value: "\"Iowan Old Style\"" },
+        { label: "Palatino Linotype", value: "\"Palatino Linotype\"" },
+        { label: "Book Antiqua", value: "\"Book Antiqua\"" },
+        { label: "Georgia", value: "Georgia" },
+        { label: "Inter", value: "Inter" },
+        { label: "Source Sans 3", value: "\"Source Sans 3\"" },
+        { label: "Helvetica Neue", value: "\"Helvetica Neue\"" },
+        { label: "Arial", value: "Arial" },
+        { label: "system-ui", value: "system-ui" },
+        { label: "serif", value: "serif" },
+        { label: "sans-serif", value: "sans-serif" },
+    ] as const;
+
+    function cloneTheme<T>(value: T): T {
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    function createDefaultTheme(seed?: Partial<SurveyThemeConfig>): SurveyThemeConfig {
+        return {
+            templateKey: "aurora-premium",
+            paletteKey: "ocean-aurora",
+            palette: cloneTheme(PALETTE_PRESETS["ocean-aurora"]),
+            branding: {
+                brandLabel: "Confidential Evaluation Ledger",
+                logoUrl: "",
+                logoPosition: "left",
+                fontFamily: "\"Iowan Old Style\", \"Palatino Linotype\", \"Book Antiqua\", Georgia, serif",
+            },
+            layout: {
+                contentWidth: "standard",
+                headerStyle: "hero",
+                headerAlignment: "left",
+                footerStyle: "support",
+                footerAlignment: "left",
+                sectionStyle: "panel",
+                questionCardStyle: "soft",
+                categorySeparatorStyle: "divider",
+            },
+            motion: {
+                animationPreset: "subtle",
+            },
+            header: {
+                enabled: true,
+                eyebrow: "Confidential Evaluation Ledger",
+                title: campaign?.name ?? "Survey Experience",
+                subtitle: campaign?.description ?? "Share your feedback with clarity and confidence.",
+                note: "",
+            },
+            footer: {
+                enabled: true,
+                line1: "Thank you for completing this survey.",
+                line2: "Need assistance? Contact your survey administrator for support.",
+                legal: "Responses are securely processed under your organization's data policy.",
+            },
+            advanced: {
+                useCustomHeaderHtml: false,
+                useCustomFooterHtml: false,
+                customHeaderHtml: "",
+                customFooterHtml: "",
+                customCss: "",
+            },
+            ...seed,
+        };
+    }
+
+    function ensureTheme(): SurveyThemeConfig {
+        if (!settings.theme) {
+            settings.theme = createDefaultTheme();
+        }
+        return settings.theme;
+    }
+
+    function applyPalettePreset(key: string) {
+        const theme = ensureTheme();
+        theme.paletteKey = key;
+        theme.palette = cloneTheme(PALETTE_PRESETS[key]);
+    }
+
+    function applyThemeTemplate(key: string) {
+        const theme = ensureTheme();
+        theme.templateKey = key;
+
+        if (key === "executive-ink") {
+            applyPalettePreset("midnight-orchid");
+            theme.layout.headerStyle = "split";
+            theme.layout.footerStyle = "minimal";
+            theme.layout.questionCardStyle = "outlined";
+            theme.motion.animationPreset = "subtle";
+        } else if (key === "ivory-luxe") {
+            applyPalettePreset("sunset-royal");
+            theme.layout.headerStyle = "banner";
+            theme.layout.footerStyle = "compliance";
+            theme.layout.questionCardStyle = "soft";
+            theme.motion.animationPreset = "none";
+        } else if (key === "campus-editorial") {
+            applyPalettePreset("emerald-ivory");
+            theme.layout.headerStyle = "hero";
+            theme.layout.footerStyle = "support";
+            theme.layout.questionCardStyle = "soft";
+            theme.motion.animationPreset = "subtle";
+        } else {
+            applyPalettePreset("ocean-aurora");
+            theme.layout.headerStyle = "hero";
+            theme.layout.footerStyle = "support";
+            theme.layout.questionCardStyle = "soft";
+            theme.motion.animationPreset = "subtle";
+        }
+    }
+
+    function selectedFontFamilies(fontFamily?: string): string[] {
+        if (!fontFamily || fontFamily.trim() === "") {
+            return [];
+        }
+        return fontFamily
+            .split(",")
+            .map((token) => token.trim())
+            .filter(Boolean);
+    }
+
+    $effect(() => {
+        const theme = ensureTheme();
+        const nextSelection = selectedFontFamilies(theme.branding.fontFamily);
+        if (JSON.stringify(fontStackSelection) !== JSON.stringify(nextSelection)) {
+            fontStackSelection = nextSelection;
+        }
     });
-    let footerFields = $state({
-        line1: "",
-        line2: "",
-        legal: "",
+
+    $effect(() => {
+        const theme = ensureTheme();
+        const serialized = fontStackSelection.join(", ");
+        if ((theme.branding.fontFamily ?? "") !== serialized) {
+            theme.branding.fontFamily = serialized;
+        }
     });
+
+    function themePreviewStyle(theme: SurveyThemeConfig): string {
+        return [
+            `--preview-bg:${theme.palette.background}`,
+            `--preview-shell:${theme.palette.shell}`,
+            `--preview-panel:${theme.palette.panel}`,
+            `--preview-card:${theme.palette.card}`,
+            `--preview-border:${theme.palette.border}`,
+            `--preview-text:${theme.palette.textPrimary}`,
+            `--preview-muted:${theme.palette.textSecondary}`,
+            `--preview-primary:${theme.palette.primary}`,
+            `--preview-primary-text:${theme.palette.primaryText}`,
+            `--preview-accent:${theme.palette.accent}`,
+            `--preview-accent-soft:${theme.palette.accentSoft}`,
+            `--preview-header-bg:${theme.palette.headerBackground}`,
+            `--preview-header-text:${theme.palette.headerText}`,
+            `--preview-footer-bg:${theme.palette.footerBackground}`,
+            `--preview-footer-text:${theme.palette.footerText}`,
+            `--preview-font:${theme.branding.fontFamily || "inherit"}`,
+        ].join(";");
+    }
 
     // Distribute
     let distributeLoading = $state(false);
@@ -105,6 +328,7 @@
     let activateLoading = $state(false);
 
     const campaignId = $derived(page.params.id);
+    const currentTheme = $derived.by(() => ensureTheme());
 
     function statusBadgeVariant(status: CampaignStatus) {
         switch (status) {
@@ -180,8 +404,12 @@
     }
 
     function buildSettingsPayload() {
+        const theme = ensureTheme();
         return {
             ...settings,
+            headerHtml: theme.advanced.useCustomHeaderHtml ? theme.advanced.customHeaderHtml : "",
+            footerHtml: theme.advanced.useCustomFooterHtml ? theme.advanced.customFooterHtml : "",
+            theme,
             closeDate: toIsoCloseDateOrNull(settings.closeDate),
             responseQuota: toNumberOrNull(settings.responseQuota),
             sessionTimeoutMinutes:
@@ -210,13 +438,36 @@
                 finishMessage: data.finishMessage ?? "",
                 headerHtml: data.headerHtml ?? "",
                 footerHtml: data.footerHtml ?? "",
+                theme: data.theme
+                    ? cloneTheme(data.theme)
+                    : createDefaultTheme({
+                          header: {
+                              enabled: true,
+                              eyebrow: "Confidential Evaluation Ledger",
+                              title: campaign?.name ?? data.campaignId ?? "Survey Experience",
+                              subtitle: campaign?.description ?? data.startMessage ?? "Share your feedback with clarity and confidence.",
+                              note: "",
+                          },
+                          footer: {
+                              enabled: true,
+                              line1: data.finishMessage ?? "Thank you for completing this survey.",
+                              line2: "Need assistance? Contact your survey administrator for support.",
+                              legal: "Responses are securely processed under your organization's data policy.",
+                          },
+                          advanced: {
+                              useCustomHeaderHtml: false,
+                              useCustomFooterHtml: false,
+                              customHeaderHtml: data.headerHtml ?? "",
+                              customFooterHtml: data.footerHtml ?? "",
+                              customCss: "",
+                          },
+                      }),
                 collectName: data.collectName ?? false,
                 collectEmail: data.collectEmail ?? false,
                 collectPhone: data.collectPhone ?? false,
                 collectAddress: data.collectAddress ?? false,
                 dataCollectionFields: data.dataCollectionFields ?? [],
             };
-            initializeBrandingBuilder();
         } catch {
             // keep defaults
         }
@@ -265,107 +516,13 @@
             .replaceAll("'", "&#39;");
     }
 
-    function buildHeaderHtml() {
-        const title = escapeHtml(headerFields.title || campaign?.name || "Survey");
-        const subtitle = escapeHtml(
-            headerFields.subtitle ||
-                campaign?.description ||
-                "Share your feedback",
-        );
-        const note = escapeHtml(headerFields.note);
-
-        if (headerTemplate === "accent") {
-            return `<section style="border:1px solid #1e293b;background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 100%);color:#f8fafc;padding:18px 20px;border-radius:14px;">
-  <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;opacity:.82;">Enterprise Feedback Form</div>
-  <h2 style="margin:10px 0 0;font-size:26px;line-height:1.2;font-weight:700;">${title}</h2>
-  <p style="margin:6px 0 0;font-size:14px;line-height:1.5;opacity:.95;">${subtitle}</p>
-  ${note ? `<p style="margin:12px 0 0;font-size:12px;line-height:1.5;opacity:.9;border-top:1px solid rgba(248,250,252,0.25);padding-top:10px;">${note}</p>` : ""}
-</section>`;
-        }
-
-        if (headerTemplate === "notice") {
-            return `<section style="background:linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%);border:1px solid #bae6fd;padding:14px 16px;border-radius:12px;">
-  <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#0c4a6e;font-weight:600;">Important Notice</div>
-  <h3 style="margin:6px 0 0;font-size:18px;line-height:1.35;color:#0f172a;">${title}</h3>
-  <p style="margin:6px 0 0;font-size:13px;line-height:1.5;color:#155e75;">${subtitle}</p>
-  ${note ? `<p style="margin:10px 0 0;font-size:12px;line-height:1.5;color:#0f766e;border-top:1px solid #bae6fd;padding-top:8px;">${note}</p>` : ""}
-</section>`;
-        }
-
-        return `<section style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(15,23,42,0.06);">
-  <div style="display:flex;align-items:flex-start;gap:12px;">
-    <div style="width:4px;min-height:56px;border-radius:999px;background:#1d4ed8;"></div>
-    <div>
-      <h2 style="margin:0;font-size:23px;line-height:1.25;color:#0f172a;font-weight:700;">${title}</h2>
-      <p style="margin:6px 0 0;color:#475569;font-size:14px;line-height:1.5;">${subtitle}</p>
-      ${note ? `<p style="margin:10px 0 0;color:#64748b;font-size:12px;line-height:1.5;">${note}</p>` : ""}
-    </div>
-  </div>
-</section>`;
-    }
-
-    function buildFooterHtml() {
-        const line1 = escapeHtml(
-            footerFields.line1 || "Thank you for completing this survey.",
-        );
-        const line2 = escapeHtml(footerFields.line2);
-        const legal = escapeHtml(footerFields.legal);
-
-        if (footerTemplate === "support") {
-            return `<footer style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:14px 16px;color:#334155;font-size:12px;">
-  <p style="margin:0;font-weight:600;color:#0f172a;">${line1}</p>
-  <p style="margin:6px 0 0;line-height:1.5;">${line2 || "Need assistance? Contact your survey administrator for support."}</p>
-  <p style="margin:8px 0 0;color:#64748b;line-height:1.5;">${legal || "Responses are securely processed under your organization's data policy."}</p>
-</footer>`;
-        }
-
-        if (footerTemplate === "compliance") {
-            return `<footer style="padding-top:12px;border-top:1px solid #dbe1ea;color:#475569;font-size:12px;">
-  <p style="margin:0;font-weight:600;color:#334155;">${line1}</p>
-  ${line2 ? `<p style="margin:5px 0 0;line-height:1.5;">${line2}</p>` : ""}
-  <p style="margin:5px 0 0;line-height:1.5;color:#64748b;">${legal || "Data usage and retention follow approved compliance policy."}</p>
-</footer>`;
-        }
-
-        return `<footer style="padding-top:10px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;text-align:center;">
-  <p style="margin:0;font-weight:600;color:#475569;">${line1}</p>
-  ${line2 ? `<p style="margin:5px 0 0;line-height:1.5;">${line2}</p>` : ""}
-</footer>`;
-    }
-
-    function initializeBrandingBuilder() {
-        headerEnabled = !!(settings.headerHtml && settings.headerHtml.trim() !== "");
-        footerEnabled = !!(settings.footerHtml && settings.footerHtml.trim() !== "");
-        headerFields = {
-            title: campaign?.name ?? "Survey",
-            subtitle: campaign?.description ?? "",
-            note: "",
-        };
-        footerFields = {
-            line1: "Thank you for completing this survey.",
-            line2: "",
-            legal: "",
-        };
-        showAdvancedHeader = false;
-        showAdvancedFooter = false;
-        brandingSyncReady = true;
-    }
-
-    function applyHeaderBuilder() {
-        settings.headerHtml = buildHeaderHtml();
-    }
-
-    function applyFooterBuilder() {
-        settings.footerHtml = buildFooterHtml();
-    }
-
     $effect(() => {
-        if (!brandingSyncReady) return;
-        if (!headerEnabled) {
-            settings.headerHtml = "";
+        const theme = ensureTheme();
+        if (!theme.advanced.useCustomHeaderHtml) {
+            theme.advanced.customHeaderHtml = "";
         }
-        if (!footerEnabled) {
-            settings.footerHtml = "";
+        if (!theme.advanced.useCustomFooterHtml) {
+            theme.advanced.customFooterHtml = "";
         }
     });
 
@@ -461,6 +618,7 @@
     const tabs = [
         { id: "overview" as const, label: "Overview", icon: Info },
         { id: "settings" as const, label: "Settings", icon: Settings },
+        { id: "theme" as const, label: "Theme Studio", icon: Palette },
         {
             id: "distribution" as const,
             label: "Distribution",
@@ -1017,291 +1175,6 @@
                         </Card.Content>
                     </Card.Root>
 
-                    <!-- Header/Footer Branding -->
-                    <Card.Root class="md:col-span-2">
-                        <Card.Header>
-                            <Card.Title class="text-base">
-                                Form Header & Footer
-                            </Card.Title>
-                            <Card.Description>
-                                No HTML required. Choose a template, fill a few
-                                fields, and preview instantly.
-                            </Card.Description>
-                        </Card.Header>
-                        <Card.Content class="space-y-6">
-                            <div class="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                                Tip: Use Campaign Preview after saving to verify
-                                what responders will see.
-                            </div>
-
-                            <div class="space-y-4 rounded-lg border border-border p-4">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <Label class="text-sm font-semibold">
-                                            Header Block
-                                        </Label>
-                                        <p class="text-xs text-muted-foreground">
-                                            Shown above survey questions.
-                                        </p>
-                                    </div>
-                                    <Switch bind:checked={headerEnabled} />
-                                </div>
-
-                                {#if headerEnabled}
-                                    <div class="space-y-3">
-                                        <Label class="text-xs uppercase tracking-wide text-muted-foreground">
-                                            Template
-                                        </Label>
-                                        <div class="flex flex-wrap gap-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant={headerTemplate === "clean"
-                                                    ? "default"
-                                                    : "outline"}
-                                                onclick={() => (headerTemplate = "clean")}
-                                            >
-                                                Clean
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant={headerTemplate === "accent"
-                                                    ? "default"
-                                                    : "outline"}
-                                                onclick={() => (headerTemplate = "accent")}
-                                            >
-                                                Accent
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant={headerTemplate === "notice"
-                                                    ? "default"
-                                                    : "outline"}
-                                                onclick={() => (headerTemplate = "notice")}
-                                            >
-                                                Notice
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <div class="grid gap-3 md:grid-cols-2">
-                                        <div class="space-y-2">
-                                            <Label for="header-title">Title</Label>
-                                            <Input
-                                                id="header-title"
-                                                placeholder="Course Evaluation"
-                                                bind:value={headerFields.title}
-                                            />
-                                        </div>
-                                        <div class="space-y-2">
-                                            <Label for="header-subtitle">Subtitle</Label>
-                                            <Input
-                                                id="header-subtitle"
-                                                placeholder="Share your experience"
-                                                bind:value={headerFields.subtitle}
-                                            />
-                                        </div>
-                                        <div class="space-y-2 md:col-span-2">
-                                            <Label for="header-note">
-                                                Optional Note
-                                            </Label>
-                                            <Input
-                                                id="header-note"
-                                                placeholder="Estimated completion time: 3 minutes"
-                                                bind:value={headerFields.note}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div class="flex items-center justify-between">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onclick={applyHeaderBuilder}
-                                        >
-                                            Apply Header Template
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="ghost"
-                                            onclick={() =>
-                                                (showAdvancedHeader =
-                                                    !showAdvancedHeader)}
-                                        >
-                                            {showAdvancedHeader
-                                                ? "Hide Advanced HTML"
-                                                : "Edit Advanced HTML"}
-                                        </Button>
-                                    </div>
-
-                                    <div class="campaign-branding-preview">
-                                        {#if settings.headerHtml && settings.headerHtml.trim() !== ""}
-                                            {@html settings.headerHtml}
-                                        {:else}
-                                            <p class="text-sm text-muted-foreground">
-                                                Header preview will appear here after applying a template.
-                                            </p>
-                                        {/if}
-                                    </div>
-
-                                    {#if showAdvancedHeader}
-                                        <div class="space-y-2">
-                                            <Label for="s-header-html">
-                                                Advanced Header HTML
-                                            </Label>
-                                            <Textarea
-                                                id="s-header-html"
-                                                rows={8}
-                                                class="font-mono text-xs"
-                                                placeholder="<header>...</header>"
-                                                bind:value={settings.headerHtml}
-                                            />
-                                        </div>
-                                    {/if}
-                                {/if}
-                            </div>
-
-                            <div class="space-y-4 rounded-lg border border-border p-4">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <Label class="text-sm font-semibold">
-                                            Footer Block
-                                        </Label>
-                                        <p class="text-xs text-muted-foreground">
-                                            Shown after survey content.
-                                        </p>
-                                    </div>
-                                    <Switch bind:checked={footerEnabled} />
-                                </div>
-
-                                {#if footerEnabled}
-                                    <div class="space-y-3">
-                                        <Label class="text-xs uppercase tracking-wide text-muted-foreground">
-                                            Template
-                                        </Label>
-                                        <div class="flex flex-wrap gap-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant={footerTemplate === "simple"
-                                                    ? "default"
-                                                    : "outline"}
-                                                onclick={() => (footerTemplate = "simple")}
-                                            >
-                                                Simple
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant={footerTemplate === "support"
-                                                    ? "default"
-                                                    : "outline"}
-                                                onclick={() => (footerTemplate = "support")}
-                                            >
-                                                Support
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant={footerTemplate ===
-                                                "compliance"
-                                                    ? "default"
-                                                    : "outline"}
-                                                onclick={() =>
-                                                    (footerTemplate =
-                                                        "compliance")}
-                                            >
-                                                Compliance
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <div class="grid gap-3 md:grid-cols-2">
-                                        <div class="space-y-2">
-                                            <Label for="footer-line-1">
-                                                Primary Line
-                                            </Label>
-                                            <Input
-                                                id="footer-line-1"
-                                                placeholder="Thank you for your feedback"
-                                                bind:value={footerFields.line1}
-                                            />
-                                        </div>
-                                        <div class="space-y-2">
-                                            <Label for="footer-line-2">
-                                                Secondary Line
-                                            </Label>
-                                            <Input
-                                                id="footer-line-2"
-                                                placeholder="Need support? Contact your admin"
-                                                bind:value={footerFields.line2}
-                                            />
-                                        </div>
-                                        <div class="space-y-2 md:col-span-2">
-                                            <Label for="footer-legal">
-                                                Legal / Compliance Note
-                                            </Label>
-                                            <Input
-                                                id="footer-legal"
-                                                placeholder="Responses are processed under policy"
-                                                bind:value={footerFields.legal}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div class="flex items-center justify-between">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onclick={applyFooterBuilder}
-                                        >
-                                            Apply Footer Template
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="ghost"
-                                            onclick={() =>
-                                                (showAdvancedFooter =
-                                                    !showAdvancedFooter)}
-                                        >
-                                            {showAdvancedFooter
-                                                ? "Hide Advanced HTML"
-                                                : "Edit Advanced HTML"}
-                                        </Button>
-                                    </div>
-
-                                    <div class="campaign-branding-preview">
-                                        {#if settings.footerHtml && settings.footerHtml.trim() !== ""}
-                                            {@html settings.footerHtml}
-                                        {:else}
-                                            <p class="text-sm text-muted-foreground">
-                                                Footer preview will appear here after applying a template.
-                                            </p>
-                                        {/if}
-                                    </div>
-
-                                    {#if showAdvancedFooter}
-                                        <div class="space-y-2">
-                                            <Label for="s-footer-html">
-                                                Advanced Footer HTML
-                                            </Label>
-                                            <Textarea
-                                                id="s-footer-html"
-                                                rows={8}
-                                                class="font-mono text-xs"
-                                                placeholder="<footer>...</footer>"
-                                                bind:value={settings.footerHtml}
-                                            />
-                                        </div>
-                                    {/if}
-                                {/if}
-                            </div>
-                        </Card.Content>
-                    </Card.Root>
                 </div>
 
                 <div
@@ -1326,6 +1199,344 @@
                             ></span>
                         {/if}
                         Save Settings
+                    </Button>
+                </div>
+            </form>
+        {:else if activeTab === "theme"}
+            <form
+                onsubmit={(e) => {
+                    e.preventDefault();
+                    saveSettings();
+                }}
+                class="space-y-6"
+            >
+                <Card.Root>
+                    <Card.Header>
+                        <Card.Title class="text-base">Theme Studio</Card.Title>
+                        <Card.Description>
+                            Configure the full survey experience: palette, branding, layout, motion, and advanced overrides.
+                        </Card.Description>
+                    </Card.Header>
+                    <Card.Content class="space-y-6">
+                        <div class="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                            Start with a template, then enable Pro Theme Mode only when you need manual token editing. Use Campaign Preview after saving to verify the live runtime view.
+                        </div>
+
+                        <div class="grid gap-4 lg:grid-cols-2">
+                            <div class="space-y-4 rounded-lg border border-border p-4">
+                                <div class="space-y-2">
+                                    <Label class="text-sm font-semibold">Theme Template</Label>
+                                    <div class="flex flex-wrap gap-2">
+                                        {#each THEME_TEMPLATES as template}
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={currentTheme.templateKey === template.key ? "default" : "outline"}
+                                                onclick={() => applyThemeTemplate(template.key)}
+                                            >
+                                                {template.label}
+                                            </Button>
+                                        {/each}
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <Label class="text-sm font-semibold">Palette Presets</Label>
+                                    <div class="flex flex-wrap gap-2">
+                                        {#each Object.keys(PALETTE_PRESETS) as paletteKey}
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={currentTheme.paletteKey === paletteKey ? "default" : "outline"}
+                                                onclick={() => applyPalettePreset(paletteKey)}
+                                            >
+                                                {paletteKey}
+                                            </Button>
+                                        {/each}
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <Label for="theme-brand-label">Brand Label</Label>
+                                        <Input id="theme-brand-label" bind:value={currentTheme.branding.brandLabel} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-logo-url">Logo URL</Label>
+                                        <Input id="theme-logo-url" placeholder="https://..." bind:value={currentTheme.branding.logoUrl} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-logo-position">Logo Position</Label>
+                                        <select
+                                            id="theme-logo-position"
+                                            bind:value={currentTheme.branding.logoPosition}
+                                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                        >
+                                            <option value="left">Left</option>
+                                            <option value="center">Center</option>
+                                            <option value="right">Right</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label>Font Family Stack</Label>
+                                        <MultiSelect
+                                            options={FONT_FAMILY_OPTIONS}
+                                            bind:selected={fontStackSelection}
+                                            placeholder="Select the fonts you want in the survey stack"
+                                            searchPlaceholder="Search fonts"
+                                            emptyMessage="No fonts match this search."
+                                            sortable={true}
+                                            showOrder={true}
+                                            selectedHelperText="The first font is preferred. The next fonts are used only when the earlier one is unavailable."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 rounded-lg border border-border p-4">
+                                <div class="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
+                                    <div>
+                                        <Label class="text-sm font-semibold">Pro Theme Mode</Label>
+                                        <p class="text-xs text-muted-foreground">Unlock manual color token editing and advanced fine-tuning.</p>
+                                    </div>
+                                    <Switch bind:checked={proThemeMode} />
+                                </div>
+
+                                <Label class="text-sm font-semibold">Color Tokens</Label>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <Label for="theme-primary">Primary</Label>
+                                        <Input id="theme-primary" bind:value={currentTheme.palette.primary} disabled={!proThemeMode} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-accent">Accent</Label>
+                                        <Input id="theme-accent" bind:value={currentTheme.palette.accent} disabled={!proThemeMode} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-background">Background</Label>
+                                        <Input id="theme-background" bind:value={currentTheme.palette.background} disabled={!proThemeMode} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-panel">Panel</Label>
+                                        <Input id="theme-panel" bind:value={currentTheme.palette.panel} disabled={!proThemeMode} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-text-primary">Text Primary</Label>
+                                        <Input id="theme-text-primary" bind:value={currentTheme.palette.textPrimary} disabled={!proThemeMode} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-text-secondary">Text Secondary</Label>
+                                        <Input id="theme-text-secondary" bind:value={currentTheme.palette.textSecondary} disabled={!proThemeMode} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-header-bg">Header Background</Label>
+                                        <Input id="theme-header-bg" bind:value={currentTheme.palette.headerBackground} disabled={!proThemeMode} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-footer-bg">Footer Background</Label>
+                                        <Input id="theme-footer-bg" bind:value={currentTheme.palette.footerBackground} disabled={!proThemeMode} />
+                                    </div>
+                                </div>
+                                {#if !proThemeMode}
+                                    <p class="text-xs text-muted-foreground">Palette presets remain editable. Turn on Pro Theme Mode to edit raw color tokens.</p>
+                                {/if}
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 lg:grid-cols-2">
+                            <div class="space-y-4 rounded-lg border border-border p-4">
+                                <Label class="text-sm font-semibold">Layout & Motion</Label>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <Label for="theme-content-width">Content Width</Label>
+                                        <select id="theme-content-width" bind:value={currentTheme.layout.contentWidth} class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                            <option value="narrow">Narrow</option>
+                                            <option value="standard">Standard</option>
+                                            <option value="wide">Wide</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-header-style">Header Style</Label>
+                                        <select id="theme-header-style" bind:value={currentTheme.layout.headerStyle} class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                            <option value="hero">Hero</option>
+                                            <option value="banner">Banner</option>
+                                            <option value="split">Split</option>
+                                            <option value="minimal">Minimal</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-header-align">Header Alignment</Label>
+                                        <select id="theme-header-align" bind:value={currentTheme.layout.headerAlignment} class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                            <option value="left">Left</option>
+                                            <option value="center">Center</option>
+                                            <option value="right">Right</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-footer-style">Footer Style</Label>
+                                        <select id="theme-footer-style" bind:value={currentTheme.layout.footerStyle} class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                            <option value="minimal">Minimal</option>
+                                            <option value="support">Support</option>
+                                            <option value="compliance">Compliance</option>
+                                            <option value="branded">Branded</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-question-style">Question Card Style</Label>
+                                        <select id="theme-question-style" bind:value={currentTheme.layout.questionCardStyle} class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                            <option value="soft">Soft</option>
+                                            <option value="outlined">Outlined</option>
+                                            <option value="flat">Flat</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-motion">Animation Preset</Label>
+                                        <select id="theme-motion" bind:value={currentTheme.motion.animationPreset} class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                            <option value="none">None</option>
+                                            <option value="subtle">Subtle</option>
+                                            <option value="elevated">Elevated</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 rounded-lg border border-border p-4">
+                                <Label class="text-sm font-semibold">Live Theme Snapshot</Label>
+                                <div class={`theme-studio-preview theme-studio-preview--${currentTheme.layout.contentWidth} theme-studio-preview--motion-${currentTheme.motion.animationPreset}`} style={themePreviewStyle(currentTheme)}>
+                                    {#if currentTheme.advanced.useCustomHeaderHtml && currentTheme.advanced.customHeaderHtml}
+                                        <div class="theme-studio-preview__custom-html theme-studio-preview__custom-html--header">
+                                            {@html currentTheme.advanced.customHeaderHtml}
+                                        </div>
+                                    {:else if currentTheme.header.enabled}
+                                        <div class={`theme-studio-preview__header theme-studio-preview__header--${currentTheme.layout.headerStyle}`} data-align={currentTheme.layout.headerAlignment} data-logo-position={currentTheme.branding.logoPosition}>
+                                            {#if currentTheme.branding.logoUrl}
+                                                <img src={currentTheme.branding.logoUrl} alt="Brand logo" class="theme-studio-preview__logo" />
+                                            {/if}
+                                            <div class="theme-studio-preview__eyebrow">{currentTheme.header.eyebrow || currentTheme.branding.brandLabel}</div>
+                                            <h3>{currentTheme.header.title}</h3>
+                                            <p>{currentTheme.header.subtitle}</p>
+                                            {#if currentTheme.header.note}
+                                                <div class="theme-studio-preview__note">{currentTheme.header.note}</div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                    <div class={`theme-studio-preview__panel theme-studio-preview__panel--${currentTheme.layout.sectionStyle}`}>
+                                        <div class="theme-studio-preview__section-title">Question Panel</div>
+                                        <div class={`theme-studio-preview__divider theme-studio-preview__divider--${currentTheme.layout.categorySeparatorStyle}`}></div>
+                                        <div class={`theme-studio-preview__card theme-studio-preview__card--${currentTheme.layout.questionCardStyle}`}>Sample rating question card</div>
+                                    </div>
+                                    {#if currentTheme.advanced.useCustomFooterHtml && currentTheme.advanced.customFooterHtml}
+                                        <div class="theme-studio-preview__custom-html theme-studio-preview__custom-html--footer theme-studio-preview__custom-html--footer-edge">
+                                            {@html currentTheme.advanced.customFooterHtml}
+                                        </div>
+                                    {:else if currentTheme.footer.enabled}
+                                        <div class={`theme-studio-preview__footer theme-studio-preview__footer--${currentTheme.layout.footerStyle} theme-studio-preview__footer--edge`}>
+                                            <div class="theme-studio-preview__footer-line1">{currentTheme.footer.line1}</div>
+                                            {#if currentTheme.footer.line2}
+                                                <div class="theme-studio-preview__footer-line2">{currentTheme.footer.line2}</div>
+                                            {/if}
+                                            {#if currentTheme.footer.legal}
+                                                <div class="theme-studio-preview__footer-legal">{currentTheme.footer.legal}</div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 lg:grid-cols-2">
+                            <div class="space-y-4 rounded-lg border border-border p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <Label class="text-sm font-semibold">Header Content</Label>
+                                        <p class="text-xs text-muted-foreground">Structured branding content shown above the survey.</p>
+                                    </div>
+                                    <Switch bind:checked={currentTheme.header.enabled} />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <Label for="theme-header-eyebrow">Eyebrow</Label>
+                                        <Input id="theme-header-eyebrow" bind:value={currentTheme.header.eyebrow} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-header-title">Title</Label>
+                                        <Input id="theme-header-title" bind:value={currentTheme.header.title} />
+                                    </div>
+                                    <div class="space-y-2 md:col-span-2">
+                                        <Label for="theme-header-subtitle">Subtitle</Label>
+                                        <Input id="theme-header-subtitle" bind:value={currentTheme.header.subtitle} />
+                                    </div>
+                                    <div class="space-y-2 md:col-span-2">
+                                        <Label for="theme-header-note">Optional Note</Label>
+                                        <Input id="theme-header-note" bind:value={currentTheme.header.note} />
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <Label class="text-sm font-semibold">Advanced Header HTML</Label>
+                                        <p class="text-xs text-muted-foreground">Use only when the structured header is not enough.</p>
+                                    </div>
+                                    <Switch bind:checked={currentTheme.advanced.useCustomHeaderHtml} />
+                                </div>
+                                {#if currentTheme.advanced.useCustomHeaderHtml}
+                                    <Textarea rows={8} class="font-mono text-xs" bind:value={currentTheme.advanced.customHeaderHtml} />
+                                {/if}
+                            </div>
+
+                            <div class="space-y-4 rounded-lg border border-border p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <Label class="text-sm font-semibold">Footer Content</Label>
+                                        <p class="text-xs text-muted-foreground">Structured messaging shown after the survey content.</p>
+                                    </div>
+                                    <Switch bind:checked={currentTheme.footer.enabled} />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <Label for="theme-footer-line1">Primary Line</Label>
+                                        <Input id="theme-footer-line1" bind:value={currentTheme.footer.line1} />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="theme-footer-line2">Secondary Line</Label>
+                                        <Input id="theme-footer-line2" bind:value={currentTheme.footer.line2} />
+                                    </div>
+                                    <div class="space-y-2 md:col-span-2">
+                                        <Label for="theme-footer-legal">Legal / Compliance Note</Label>
+                                        <Input id="theme-footer-legal" bind:value={currentTheme.footer.legal} />
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <Label class="text-sm font-semibold">Advanced Footer HTML</Label>
+                                        <p class="text-xs text-muted-foreground">Use only when the structured footer is not enough.</p>
+                                    </div>
+                                    <Switch bind:checked={currentTheme.advanced.useCustomFooterHtml} />
+                                </div>
+                                {#if currentTheme.advanced.useCustomFooterHtml}
+                                    <Textarea rows={8} class="font-mono text-xs" bind:value={currentTheme.advanced.customFooterHtml} />
+                                {/if}
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 rounded-lg border border-border p-4">
+                            <Label class="text-sm font-semibold">Advanced CSS Override</Label>
+                            <Textarea rows={6} class="font-mono text-xs" placeholder=".survey-shell styles" bind:value={currentTheme.advanced.customCss} />
+                        </div>
+                    </Card.Content>
+                </Card.Root>
+
+                <div class="flex items-center justify-end gap-3 border-t border-border pt-6">
+                    {#if settingsSaved}
+                        <span class="flex items-center gap-1 text-sm font-medium text-emerald-500">
+                            <Check class="h-4 w-4" />
+                            Saved successfully
+                        </span>
+                    {/if}
+                    <Button type="submit" disabled={settingsLoading} class="w-[140px]">
+                        {#if settingsLoading}
+                            <span class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                        {/if}
+                        Save Theme
                     </Button>
                 </div>
             </form>
@@ -1414,29 +1625,6 @@
         scrollbar-width: none;
     }
 
-    .campaign-branding-preview {
-        border: 1px solid hsl(var(--border));
-        border-radius: 0.75rem;
-        padding: 1rem;
-        background: linear-gradient(180deg, hsl(var(--muted) / 0.3), hsl(var(--background)));
-    }
-
-    .campaign-branding-preview :global(h1),
-    .campaign-branding-preview :global(h2),
-    .campaign-branding-preview :global(h3),
-    .campaign-branding-preview :global(h4),
-    .campaign-branding-preview :global(h5),
-    .campaign-branding-preview :global(h6) {
-        margin: 0;
-        color: hsl(var(--foreground));
-        letter-spacing: -0.01em;
-    }
-
-    .campaign-branding-preview :global(p) {
-        margin: 0.45rem 0 0;
-        color: hsl(var(--muted-foreground));
-        line-height: 1.55;
-    }
 </style>
 
 <!-- 🎉 Confetti Celebration -->

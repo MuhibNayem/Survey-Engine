@@ -231,6 +231,67 @@ export interface DataCollectionFieldResponse {
     enabled: boolean;
 }
 
+export interface SurveyThemeConfig {
+    templateKey?: string;
+    paletteKey?: string;
+    palette: {
+        background: string;
+        shell: string;
+        panel: string;
+        card: string;
+        border: string;
+        textPrimary: string;
+        textSecondary: string;
+        primary: string;
+        primaryText: string;
+        accent: string;
+        accentSoft: string;
+        headerBackground: string;
+        headerText: string;
+        footerBackground: string;
+        footerText: string;
+    };
+    branding: {
+        brandLabel?: string;
+        logoUrl?: string;
+        logoPosition?: string;
+        fontFamily?: string;
+    };
+    layout: {
+        contentWidth: string;
+        headerStyle: string;
+        headerAlignment: string;
+        footerStyle: string;
+        footerAlignment: string;
+        sectionStyle: string;
+        questionCardStyle: string;
+        categorySeparatorStyle: string;
+    };
+    motion: {
+        animationPreset: string;
+    };
+    header: {
+        enabled: boolean;
+        eyebrow?: string;
+        title?: string;
+        subtitle?: string;
+        note?: string;
+    };
+    footer: {
+        enabled: boolean;
+        line1?: string;
+        line2?: string;
+        legal?: string;
+    };
+    advanced: {
+        useCustomHeaderHtml: boolean;
+        useCustomFooterHtml: boolean;
+        customHeaderHtml?: string;
+        customFooterHtml?: string;
+        customCss?: string;
+    };
+}
+
 export interface CampaignSettingsRequest {
     password?: string;
     captchaEnabled: boolean;
@@ -247,6 +308,7 @@ export interface CampaignSettingsRequest {
     finishMessage?: string;
     headerHtml?: string;
     footerHtml?: string;
+    theme?: SurveyThemeConfig;
     collectName: boolean;
     collectEmail: boolean;
     collectPhone: boolean;
@@ -271,6 +333,7 @@ export interface CampaignSettingsResponse {
     finishMessage?: string;
     headerHtml?: string;
     footerHtml?: string;
+    theme?: SurveyThemeConfig;
     collectName: boolean;
     collectEmail: boolean;
     collectPhone: boolean;
@@ -294,6 +357,7 @@ export interface CampaignPreviewResponse {
     finishMessage?: string;
     headerHtml?: string;
     footerHtml?: string;
+    theme?: SurveyThemeConfig;
     collectName: boolean;
     collectEmail: boolean;
     collectPhone: boolean;
@@ -303,11 +367,34 @@ export interface CampaignPreviewResponse {
         id: string;
         title: string;
         sortOrder: number;
+        categories?: {
+            categoryVersionId: string;
+            versionNumber?: number;
+            name: string;
+            description?: string;
+            weightPercentage?: number;
+            sortOrder?: number;
+            questions: {
+                id: string;
+                questionId: string;
+                questionVersionId: string;
+                categoryVersionId?: string;
+                categoryWeightPercentage?: number;
+                text: string;
+                type: QuestionType;
+                maxScore: number;
+                mandatory: boolean;
+                sortOrder: number;
+                optionConfig?: string;
+                answerConfig?: string;
+            }[];
+        }[];
         questions: {
             id: string;
             questionId: string;
             questionVersionId: string;
             categoryVersionId?: string;
+            categoryWeightPercentage?: number;
             text: string;
             type: QuestionType;
             maxScore: number;
@@ -355,7 +442,12 @@ export interface SurveyResponseResponse {
         id: string;
         questionId: string;
         questionVersionId: string;
+        questionVersionNumber?: number;
+        questionText?: string;
+        questionType?: QuestionType;
+        optionConfig?: string;
         value: string;
+        remark?: string;
         score: number;
     }[];
 }

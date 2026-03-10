@@ -1,6 +1,7 @@
 package com.bracits.surveyengine.response.dto;
 
 import com.bracits.surveyengine.response.entity.ResponseStatus;
+import com.bracits.surveyengine.questionbank.entity.QuestionType;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ public class SurveyResponseResponse {
     private UUID campaignId;
     private UUID surveySnapshotId;
     private String respondentIdentifier;
+    private String respondentMetadata;
     private ResponseStatus status;
     private Instant startedAt;
     private Instant submittedAt;
@@ -34,7 +36,12 @@ public class SurveyResponseResponse {
         private UUID id;
         private UUID questionId;
         private UUID questionVersionId;
+        private Integer questionVersionNumber;
+        private String questionText;
+        private QuestionType questionType;
+        private String optionConfig;
         private String value;
+        private String remark;
         private BigDecimal score;
     }
 }

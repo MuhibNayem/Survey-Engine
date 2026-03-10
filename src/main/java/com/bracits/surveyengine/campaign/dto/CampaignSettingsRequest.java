@@ -29,6 +29,7 @@ public class CampaignSettingsRequest {
     private String finishMessage;
     private String headerHtml;
     private String footerHtml;
+    private SurveyThemeConfigDto theme;
     private boolean collectName;
     private boolean collectEmail;
     private boolean collectPhone;

@@ -182,9 +182,7 @@ public class OidcResponderAuthService {
 
         String redirectUrl = null;
         if (authState.getReturnPath() != null) {
-            redirectUrl = resolveUiBaseUrl(baseUrl) + authState.getReturnPath()
-                    + (authState.getReturnPath().contains("?") ? "&" : "?")
-                    + "auth_code=" + enc(accessCode);
+            redirectUrl = resolveUiBaseUrl(baseUrl) + authState.getReturnPath();
         }
 
         return OidcCallbackResponse.builder()

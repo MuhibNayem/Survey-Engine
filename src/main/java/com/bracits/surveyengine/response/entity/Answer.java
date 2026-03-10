@@ -38,6 +38,9 @@ public class Answer {
     @Column(name = "value", columnDefinition = "TEXT")
     private String value;
 
+    @Column(name = "remark", columnDefinition = "TEXT")
+    private String remark;
+
     @Column(name = "score", precision = 10, scale = 2)
     private BigDecimal score;
 }

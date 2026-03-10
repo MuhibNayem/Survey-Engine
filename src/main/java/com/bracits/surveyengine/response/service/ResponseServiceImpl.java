@@ -5,6 +5,7 @@ import com.bracits.surveyengine.auth.dto.TokenValidationResult;
 import com.bracits.surveyengine.auth.entity.AuthenticationMode;
 import com.bracits.surveyengine.auth.repository.AuthProfileRepository;
 import com.bracits.surveyengine.auth.service.OidcResponderAuthService;
+import com.bracits.surveyengine.auth.service.ResponderSessionService;
 import com.bracits.surveyengine.auth.service.TokenValidationService;
 import com.bracits.surveyengine.campaign.entity.AuthMode;
 import com.bracits.surveyengine.campaign.entity.Campaign;
@@ -20,6 +21,7 @@ import com.bracits.surveyengine.questionbank.entity.QuestionType;
 import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
 import com.bracits.surveyengine.questionbank.repository.QuestionVersionRepository;
 import com.bracits.surveyengine.response.dto.ResponseSubmissionRequest;
+import com.bracits.surveyengine.response.dto.ResponseDraftLookupRequest;
 import com.bracits.surveyengine.response.dto.SurveyResponseResponse;
 import com.bracits.surveyengine.response.entity.Answer;
 import com.bracits.surveyengine.response.entity.ResponseStatus;
@@ -33,6 +35,7 @@ import com.bracits.surveyengine.survey.entity.SurveySnapshot;
 import com.bracits.surveyengine.survey.repository.SurveySnapshotRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,12 +47,14 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Collection;
 
 /**
  * Implementation of {@link ResponseService}.
@@ -73,6 +78,8 @@ public class ResponseServiceImpl implements ResponseService {
     private final QuestionVersionRepository questionVersionRepository;
     private final ScoringEngineService scoringEngineService;
     private final ObjectMapper objectMapper;
+    private final ResponderSessionService responderSessionService;
+    private final HttpServletRequest httpServletRequest;
 
     @Override
     @Transactional
@@ -80,6 +87,7 @@ public class ResponseServiceImpl implements ResponseService {
     public SurveyResponseResponse submit(ResponseSubmissionRequest request) {
         Campaign campaign = campaignRepository.findById(request.getCampaignId())
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign", request.getCampaignId()));
+        SurveyResponse requestedResponse = findExistingCampaignResponse(campaign.getId(), request.getResponseId());
 
         // 1. Campaign must be ACTIVE
         if (campaign.getStatus() != CampaignStatus.ACTIVE) {
@@ -88,13 +96,15 @@ public class ResponseServiceImpl implements ResponseService {
         }
 
         // 2. Enforce access mode (PUBLIC vs PRIVATE)
-        enforceAccessMode(campaign, request);
+        enforceAccessMode(campaign, request, requestedResponse);
+        SurveyResponse existingResponse = resolveOpenResponse(campaign, request, requestedResponse);
 
         // 2. Enforce runtime settings
         CampaignSettings settings = settingsRepository.findByCampaignId(campaign.getId())
                 .orElse(null);
         if (settings != null) {
-            enforceSettings(settings, request, campaign.getId(), campaign.getTenantId());
+            enforceSettings(settings, request, campaign.getId(), campaign.getTenantId(),
+                    existingResponse != null ? existingResponse.getId() : null);
         }
         enforcePlanResponseQuota(campaign.getId(), campaign.getTenantId());
         SurveySnapshotContext snapshotContext = loadSnapshotContext(campaign.getSurveySnapshotId());
@@ -109,42 +119,30 @@ public class ResponseServiceImpl implements ResponseService {
             );
         }
 
-        String respondentMetadataJson = null;
-        if (request.getRespondentMetadata() != null && !request.getRespondentMetadata().isEmpty()) {
-            try {
-                respondentMetadataJson = objectMapper.writeValueAsString(request.getRespondentMetadata());
-            } catch (Exception e) {
-                // Log and ignore, or throw. Throwing is safer for data integrity.
-                throw new RuntimeException("Failed to serialize respondent metadata", e);
-            }
+        Instant submissionTime = Instant.now();
+        SurveyResponse surveyResponse = existingResponse != null
+                ? existingResponse
+                : SurveyResponse.builder()
+                        .campaignId(campaign.getId())
+                        .surveySnapshotId(campaign.getSurveySnapshotId())
+                        .tenantId(campaign.getTenantId())
+                        .startedAt(submissionTime)
+                        .build();
+
+        if (surveyResponse.getStatus() == ResponseStatus.LOCKED) {
+            throw new BusinessException(ErrorCode.RESPONSE_LOCKED, "Response is already locked");
         }
 
-        // 3. Build and save response
-        SurveyResponse surveyResponse = SurveyResponse.builder()
-                .campaignId(campaign.getId())
-                .surveySnapshotId(campaign.getSurveySnapshotId())
-                .tenantId(campaign.getTenantId())
-                .respondentIdentifier(request.getRespondentIdentifier())
-                .respondentIp(request.getRespondentIp())
-                .respondentDeviceFingerprint(request.getRespondentDeviceFingerprint())
-                .respondentMetadata(respondentMetadataJson)
-                .status(ResponseStatus.SUBMITTED)
-                .submittedAt(Instant.now())
-                .weightProfileId(weightedScoreResult != null ? weightedScoreResult.getWeightProfileId() : null)
-                .weightedTotalScore(weightedScoreResult != null ? weightedScoreResult.getTotalScore() : null)
-                .scoredAt(weightedScoreResult != null ? Instant.now() : null)
-                .build();
-
-        for (ValidatedAnswer ar : validatedAnswers) {
-            Answer answer = Answer.builder()
-                    .surveyResponse(surveyResponse)
-                    .questionId(ar.questionId())
-                    .questionVersionId(ar.questionVersionId())
-                    .value(ar.value())
-                    .score(ar.score())
-                    .build();
-            surveyResponse.getAnswers().add(answer);
-        }
+        applyResponsePayload(
+                surveyResponse,
+                request,
+                weightedScoreResult,
+                validatedAnswers,
+                campaign,
+                surveyResponse.getStartedAt() != null ? surveyResponse.getStartedAt() : submissionTime);
+        surveyResponse.setStatus(ResponseStatus.SUBMITTED);
+        surveyResponse.setSubmittedAt(submissionTime);
+        surveyResponse.setLockedAt(null);
 
         surveyResponse = responseRepository.save(surveyResponse);
 
@@ -156,18 +154,106 @@ public class ResponseServiceImpl implements ResponseService {
         return toResponse(surveyResponse);
     }
 
-    private void enforceAccessMode(Campaign campaign, ResponseSubmissionRequest request) {
+    @Override
+    @Transactional
+    public SurveyResponseResponse saveDraft(ResponseSubmissionRequest request) {
+        Campaign campaign = campaignRepository.findById(request.getCampaignId())
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", request.getCampaignId()));
+        SurveyResponse requestedResponse = findExistingCampaignResponse(campaign.getId(), request.getResponseId());
+
+        if (campaign.getStatus() != CampaignStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.CAMPAIGN_NOT_ACTIVE,
+                    "Campaign %s is not active".formatted(campaign.getId()));
+        }
+
+        enforceAccessMode(campaign, request, requestedResponse);
+        SurveyResponse existingResponse = resolveOpenResponse(campaign, request, requestedResponse);
+
+        CampaignSettings settings = settingsRepository.findByCampaignId(campaign.getId()).orElse(null);
+        if (settings != null) {
+            enforceSettings(settings, request, campaign.getId(), campaign.getTenantId(),
+                    existingResponse != null ? existingResponse.getId() : null);
+        }
+
+        SurveySnapshotContext snapshotContext = loadSnapshotContext(campaign.getSurveySnapshotId());
+        List<ValidatedAnswer> validatedAnswers = validateAndNormalizeAnswers(snapshotContext, request.getAnswers());
+        ScoreResult weightedScoreResult = null;
+        if (campaign.getDefaultWeightProfileId() != null && !validatedAnswers.isEmpty()) {
+            Map<UUID, BigDecimal> categoryRawScores = computeCategoryRawScores(snapshotContext, validatedAnswers);
+            weightedScoreResult = scoringEngineService.calculateScore(
+                    campaign.getDefaultWeightProfileId(),
+                    campaign.getTenantId(),
+                    categoryRawScores
+            );
+        }
+
+        Instant draftTime = Instant.now();
+        SurveyResponse surveyResponse = existingResponse != null
+                ? existingResponse
+                : SurveyResponse.builder()
+                        .campaignId(campaign.getId())
+                        .surveySnapshotId(campaign.getSurveySnapshotId())
+                        .tenantId(campaign.getTenantId())
+                        .startedAt(draftTime)
+                        .build();
+
+        if (surveyResponse.getStatus() == ResponseStatus.LOCKED) {
+            throw new BusinessException(ErrorCode.RESPONSE_LOCKED, "Response is already locked");
+        }
+
+        Instant startedAt = surveyResponse.getStartedAt() != null ? surveyResponse.getStartedAt() : draftTime;
+        applyResponsePayload(surveyResponse, request, weightedScoreResult, validatedAnswers, campaign, startedAt);
+        surveyResponse.setStatus(surveyResponse.getStatus() == ResponseStatus.REOPENED ? ResponseStatus.REOPENED : ResponseStatus.IN_PROGRESS);
+        surveyResponse.setSubmittedAt(null);
+        surveyResponse.setLockedAt(null);
+
+        surveyResponse = responseRepository.save(surveyResponse);
+        return toResponse(surveyResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SurveyResponseResponse getPublicDraft(UUID campaignId, ResponseDraftLookupRequest request) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign", campaignId));
+        SurveyResponse requestedResponse = findExistingCampaignResponse(campaignId, request.getResponseId());
+
+        ResponseSubmissionRequest accessRequest = ResponseSubmissionRequest.builder()
+                .campaignId(campaignId)
+                .respondentIdentifier(request.getRespondentIdentifier())
+                .responderToken(request.getResponderToken())
+                .responderAccessCode(request.getResponderAccessCode())
+                .responseId(request.getResponseId())
+                .build();
+        enforceAccessMode(campaign, accessRequest, requestedResponse);
+        SurveyResponse response = resolveOpenResponse(campaign, accessRequest, requestedResponse);
+        if (response == null) {
+            return null;
+        }
+        if (response.getStatus() != ResponseStatus.IN_PROGRESS && response.getStatus() != ResponseStatus.REOPENED) {
+            throw new BusinessException(ErrorCode.RESPONSE_LOCKED, "Only open responses can be resumed");
+        }
+        return toResponse(response);
+    }
+
+    private void enforceAccessMode(Campaign campaign, ResponseSubmissionRequest request, SurveyResponse existingResponse) {
         if (campaign.getAuthMode() == AuthMode.PUBLIC) {
+            return;
+        }
+
+        var sessionIdentity = responderSessionService.resolveIdentity(
+                httpServletRequest,
+                campaign.getTenantId(),
+                campaign.getId());
+        if (sessionIdentity.isPresent()) {
+            populateRespondentIdentifier(request, sessionIdentity.get());
             return;
         }
 
         if (request.getResponderAccessCode() != null && !request.getResponderAccessCode().isBlank()) {
             ResponderAccessIdentity identity = oidcResponderAuthService.consumeAccessCode(
                     request.getResponderAccessCode(), campaign.getTenantId(), campaign.getId());
-            if ((request.getRespondentIdentifier() == null || request.getRespondentIdentifier().isBlank())
-                    && identity.getEmail() != null && !identity.getEmail().isBlank()) {
-                request.setRespondentIdentifier(identity.getEmail());
-            }
+            populateRespondentIdentifier(request, identity);
             return;
         }
 
@@ -204,10 +290,51 @@ public class ResponseServiceImpl implements ResponseService {
         }
 
         // Populate identifier from auth context when client didn't supply one.
+        populateRespondentIdentifier(request, ResponderAccessIdentity.builder()
+                .respondentId(validation.getRespondentId())
+                .email(validation.getEmail())
+                .build());
+    }
+
+    private void populateRespondentIdentifier(ResponseSubmissionRequest request, ResponderAccessIdentity identity) {
         if ((request.getRespondentIdentifier() == null || request.getRespondentIdentifier().isBlank())
-                && validation.getEmail() != null && !validation.getEmail().isBlank()) {
-            request.setRespondentIdentifier(validation.getEmail());
+                && identity.getEmail() != null && !identity.getEmail().isBlank()) {
+            request.setRespondentIdentifier(identity.getEmail());
         }
+    }
+
+    private SurveyResponse findExistingCampaignResponse(UUID campaignId, UUID responseId) {
+        if (responseId == null) {
+            return null;
+        }
+        return responseRepository.findByIdAndCampaignId(responseId, campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("SurveyResponse", responseId));
+    }
+
+    private SurveyResponse resolveOpenResponse(
+            Campaign campaign,
+            ResponseSubmissionRequest request,
+            SurveyResponse requestedResponse) {
+        if (requestedResponse != null) {
+            return requestedResponse;
+        }
+
+        String respondentIdentifier = request.getRespondentIdentifier();
+        if (respondentIdentifier == null || respondentIdentifier.isBlank()) {
+            return null;
+        }
+
+        return responseRepository
+                .findFirstByCampaignIdAndTenantIdAndRespondentIdentifierAndStatusInOrderByStartedAtDesc(
+                        campaign.getId(),
+                        campaign.getTenantId(),
+                        respondentIdentifier,
+                        openStatuses())
+                .orElse(null);
+    }
+
+    private Collection<ResponseStatus> openStatuses() {
+        return List.of(ResponseStatus.IN_PROGRESS, ResponseStatus.REOPENED);
     }
 
     @Override
@@ -242,7 +369,7 @@ public class ResponseServiceImpl implements ResponseService {
      * - Email restriction (respondent identifier dedup)
      */
     private void enforceSettings(CampaignSettings settings,
-            ResponseSubmissionRequest request, UUID campaignId, String campaignTenantId) {
+            ResponseSubmissionRequest request, UUID campaignId, String campaignTenantId, UUID currentResponseId) {
         // Quota check
         if (settings.getResponseQuota() != null) {
             long currentCount = responseRepository.countByCampaignIdAndStatusAndTenantId(
@@ -262,8 +389,12 @@ public class ResponseServiceImpl implements ResponseService {
 
         // One response per device
         if (settings.isOneResponsePerDevice() && request.getRespondentDeviceFingerprint() != null) {
-            if (responseRepository.existsByCampaignIdAndRespondentDeviceFingerprintAndTenantId(
-                    campaignId, request.getRespondentDeviceFingerprint(), campaignTenantId)) {
+            boolean exists = currentResponseId != null
+                    ? responseRepository.existsByCampaignIdAndRespondentDeviceFingerprintAndTenantIdAndIdNot(
+                            campaignId, request.getRespondentDeviceFingerprint(), campaignTenantId, currentResponseId)
+                    : responseRepository.existsByCampaignIdAndRespondentDeviceFingerprintAndTenantId(
+                            campaignId, request.getRespondentDeviceFingerprint(), campaignTenantId);
+            if (exists) {
                 throw new BusinessException(ErrorCode.DUPLICATE_RESPONSE,
                         "A response from this device already exists");
             }
@@ -271,8 +402,12 @@ public class ResponseServiceImpl implements ResponseService {
 
         // IP restriction
         if (settings.isIpRestrictionEnabled() && request.getRespondentIp() != null) {
-            if (responseRepository.existsByCampaignIdAndRespondentIpAndTenantId(
-                    campaignId, request.getRespondentIp(), campaignTenantId)) {
+            boolean exists = currentResponseId != null
+                    ? responseRepository.existsByCampaignIdAndRespondentIpAndTenantIdAndIdNot(
+                            campaignId, request.getRespondentIp(), campaignTenantId, currentResponseId)
+                    : responseRepository.existsByCampaignIdAndRespondentIpAndTenantId(
+                            campaignId, request.getRespondentIp(), campaignTenantId);
+            if (exists) {
                 throw new BusinessException(ErrorCode.DUPLICATE_RESPONSE,
                         "A response from this IP address already exists");
             }
@@ -280,11 +415,80 @@ public class ResponseServiceImpl implements ResponseService {
 
         // Email restriction
         if (settings.isEmailRestrictionEnabled() && request.getRespondentIdentifier() != null) {
-            if (responseRepository.existsByCampaignIdAndRespondentIdentifierAndTenantId(
-                    campaignId, request.getRespondentIdentifier(), campaignTenantId)) {
+            boolean exists = currentResponseId != null
+                    ? responseRepository.existsByCampaignIdAndRespondentIdentifierAndTenantIdAndIdNot(
+                            campaignId, request.getRespondentIdentifier(), campaignTenantId, currentResponseId)
+                    : responseRepository.existsByCampaignIdAndRespondentIdentifierAndTenantId(
+                            campaignId, request.getRespondentIdentifier(), campaignTenantId);
+            if (exists) {
                 throw new BusinessException(ErrorCode.DUPLICATE_RESPONSE,
                         "A response from this email already exists");
             }
+        }
+    }
+
+    private void applyResponsePayload(
+            SurveyResponse surveyResponse,
+            ResponseSubmissionRequest request,
+            ScoreResult weightedScoreResult,
+            List<ValidatedAnswer> validatedAnswers,
+            Campaign campaign,
+            Instant startedAt) {
+        surveyResponse.setCampaignId(campaign.getId());
+        surveyResponse.setSurveySnapshotId(campaign.getSurveySnapshotId());
+        surveyResponse.setTenantId(campaign.getTenantId());
+        surveyResponse.setRespondentIdentifier(request.getRespondentIdentifier());
+        surveyResponse.setRespondentIp(request.getRespondentIp());
+        surveyResponse.setRespondentDeviceFingerprint(request.getRespondentDeviceFingerprint());
+        surveyResponse.setRespondentMetadata(serializeRespondentMetadata(request));
+        surveyResponse.setStartedAt(startedAt);
+        surveyResponse.setWeightProfileId(weightedScoreResult != null ? weightedScoreResult.getWeightProfileId() : null);
+        surveyResponse.setWeightedTotalScore(weightedScoreResult != null ? weightedScoreResult.getTotalScore() : null);
+        surveyResponse.setScoredAt(weightedScoreResult != null ? Instant.now() : null);
+        replaceAnswers(surveyResponse, validatedAnswers);
+    }
+
+    private String serializeRespondentMetadata(ResponseSubmissionRequest request) {
+        if (request.getRespondentMetadata() == null || request.getRespondentMetadata().isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(request.getRespondentMetadata());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize respondent metadata", e);
+        }
+    }
+
+    private void replaceAnswers(SurveyResponse surveyResponse, List<ValidatedAnswer> validatedAnswers) {
+        Map<UUID, ValidatedAnswer> incomingByQuestionId = new LinkedHashMap<>();
+        for (ValidatedAnswer answer : validatedAnswers) {
+            incomingByQuestionId.put(answer.questionId(), answer);
+        }
+
+        Iterator<Answer> iterator = surveyResponse.getAnswers().iterator();
+        while (iterator.hasNext()) {
+            Answer existing = iterator.next();
+            ValidatedAnswer incoming = incomingByQuestionId.remove(existing.getQuestionId());
+            if (incoming == null) {
+                iterator.remove();
+                continue;
+            }
+
+            existing.setQuestionVersionId(incoming.questionVersionId());
+            existing.setValue(incoming.value());
+            existing.setRemark(incoming.remark());
+            existing.setScore(incoming.score());
+        }
+
+        for (ValidatedAnswer incoming : incomingByQuestionId.values()) {
+            surveyResponse.getAnswers().add(Answer.builder()
+                    .surveyResponse(surveyResponse)
+                    .questionId(incoming.questionId())
+                    .questionVersionId(incoming.questionVersionId())
+                    .value(incoming.value())
+                    .remark(incoming.remark())
+                    .score(incoming.score())
+                    .build());
         }
     }
 
@@ -331,11 +535,13 @@ public class ResponseServiceImpl implements ResponseService {
                             ? snapshotQuestion.optionConfig()
                             : questionVersion.getOptionConfig(),
                     snapshotQuestion.answerConfig(),
-                    answer.getValue());
+                    answer.getValue(),
+                    answer.getRemark());
             validated.add(new ValidatedAnswer(
                     questionId,
                     snapshotQuestion.questionVersionId(),
                     payload.normalizedValue(),
+                    payload.remark(),
                     payload.score()));
         }
 
@@ -451,7 +657,8 @@ public class ResponseServiceImpl implements ResponseService {
             QuestionVersion questionVersion,
             String optionConfig,
             String answerConfig,
-            String rawValue) {
+            String rawValue,
+            String rawRemark) {
         if (rawValue == null || rawValue.isBlank()) {
             throw validationError("Answer value is required for question " + questionVersion.getQuestionId());
         }
@@ -459,12 +666,13 @@ public class ResponseServiceImpl implements ResponseService {
         JsonNode optionNode = parseOptionConfig(optionConfig, questionVersion.getType());
         JsonNode effectiveOptionNode = optionNode != null ? optionNode : config;
         Map<String, OptionSpec> options = parseOptions(effectiveOptionNode, questionVersion.getType());
-        return switch (questionVersion.getType()) {
+        AnswerPayload payload = switch (questionVersion.getType()) {
             case RATING_SCALE -> validateRatingScaleAnswer(questionVersion, config, rawValue);
             case SINGLE_CHOICE -> validateSingleChoiceAnswer(questionVersion, options, rawValue);
             case MULTIPLE_CHOICE -> validateMultipleChoiceAnswer(questionVersion, config, options, rawValue);
             case RANK -> validateRankAnswer(questionVersion, config, options, rawValue);
         };
+        return new AnswerPayload(payload.normalizedValue(), normalizeRemark(rawRemark), payload.score());
     }
 
     private JsonNode parseAnswerConfig(String rawConfig, QuestionType questionType) {
@@ -526,7 +734,7 @@ public class ResponseServiceImpl implements ResponseService {
         BigDecimal ratio = value.subtract(min)
                 .divide(max.subtract(min), 8, RoundingMode.HALF_UP);
         BigDecimal score = ratio.multiply(questionVersion.getMaxScore()).setScale(2, RoundingMode.HALF_UP);
-        return new AnswerPayload(value.stripTrailingZeros().toPlainString(), score);
+        return new AnswerPayload(value.stripTrailingZeros().toPlainString(), null, score);
     }
 
     private AnswerPayload validateSingleChoiceAnswer(
@@ -542,7 +750,7 @@ public class ResponseServiceImpl implements ResponseService {
         }
         BigDecimal score = options.isEmpty() ? null : options.get(value).score();
         validateScoreWithinMax(score, questionVersion.getMaxScore(), "SINGLE_CHOICE");
-        return new AnswerPayload(value, score);
+        return new AnswerPayload(value, null, score);
     }
 
     private AnswerPayload validateMultipleChoiceAnswer(
@@ -589,7 +797,7 @@ public class ResponseServiceImpl implements ResponseService {
             validateScoreWithinMax(score, questionVersion.getMaxScore(), "MULTIPLE_CHOICE");
         }
 
-        return new AnswerPayload(writeJsonArray(selections), score);
+        return new AnswerPayload(writeJsonArray(selections), null, score);
     }
 
     private AnswerPayload validateRankAnswer(
@@ -651,7 +859,7 @@ public class ResponseServiceImpl implements ResponseService {
         }
 
         validateScoreWithinMax(score, questionVersion.getMaxScore(), "RANK");
-        return new AnswerPayload(writeJsonArray(rankings), score);
+        return new AnswerPayload(writeJsonArray(rankings), null, score);
     }
 
     private Map<String, OptionSpec> parseOptions(JsonNode config, QuestionType questionType) {
@@ -843,6 +1051,20 @@ public class ResponseServiceImpl implements ResponseService {
         }
     }
 
+    private String normalizeRemark(String rawRemark) {
+        if (rawRemark == null) {
+            return null;
+        }
+        String normalized = rawRemark.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (normalized.length() > 2000) {
+            throw validationError("Answer remark must be 2000 characters or fewer");
+        }
+        return normalized;
+    }
+
     private BusinessException validationError(String message) {
         return new BusinessException(ErrorCode.VALIDATION_FAILED, message);
     }
@@ -861,14 +1083,26 @@ public class ResponseServiceImpl implements ResponseService {
     }
 
     private SurveyResponseResponse toResponse(SurveyResponse r) {
+        Map<UUID, QuestionVersion> questionVersions = new HashMap<>();
         List<SurveyResponseResponse.AnswerResponse> answers = r.getAnswers().stream()
-                .map(a -> SurveyResponseResponse.AnswerResponse.builder()
-                        .id(a.getId())
-                        .questionId(a.getQuestionId())
-                        .questionVersionId(a.getQuestionVersionId())
-                        .value(a.getValue())
-                        .score(a.getScore())
-                        .build())
+                .map(a -> {
+                    QuestionVersion questionVersion = null;
+                    if (a.getQuestionVersionId() != null) {
+                        questionVersion = loadQuestionVersion(a.getQuestionVersionId(), questionVersions);
+                    }
+                    return SurveyResponseResponse.AnswerResponse.builder()
+                            .id(a.getId())
+                            .questionId(a.getQuestionId())
+                            .questionVersionId(a.getQuestionVersionId())
+                            .questionVersionNumber(questionVersion != null ? questionVersion.getVersionNumber() : null)
+                            .questionText(questionVersion != null ? questionVersion.getText() : null)
+                            .questionType(questionVersion != null ? questionVersion.getType() : null)
+                            .optionConfig(questionVersion != null ? questionVersion.getOptionConfig() : null)
+                            .value(a.getValue())
+                            .remark(a.getRemark())
+                            .score(a.getScore())
+                            .build();
+                })
                 .toList();
 
         return SurveyResponseResponse.builder()
@@ -876,6 +1110,7 @@ public class ResponseServiceImpl implements ResponseService {
                 .campaignId(r.getCampaignId())
                 .surveySnapshotId(r.getSurveySnapshotId())
                 .respondentIdentifier(r.getRespondentIdentifier())
+                .respondentMetadata(r.getRespondentMetadata())
                 .status(r.getStatus())
                 .startedAt(r.getStartedAt())
                 .submittedAt(r.getSubmittedAt())
@@ -914,10 +1149,10 @@ public class ResponseServiceImpl implements ResponseService {
             String answerConfig) {
     }
 
-    private record ValidatedAnswer(UUID questionId, UUID questionVersionId, String value, BigDecimal score) {
+    private record ValidatedAnswer(UUID questionId, UUID questionVersionId, String value, String remark, BigDecimal score) {
     }
 
-    private record AnswerPayload(String normalizedValue, BigDecimal score) {
+    private record AnswerPayload(String normalizedValue, String remark, BigDecimal score) {
     }
 
     private record OptionSpec(String value, BigDecimal score) {

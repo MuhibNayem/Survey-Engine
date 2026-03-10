@@ -38,6 +38,7 @@
 	let formText = $state('');
 	let formType = $state<QuestionType>('RATING_SCALE');
 	let formMaxScore = $state(5);
+	let formRatingDisplayMode = $state<'NUMBERS' | 'STARS'>('NUMBERS');
 	type OptionRow = { id: number; value: string; score: string | number };
 	let optionRowSeq = 1;
 	let formOptions = $state<OptionRow[]>([]);
@@ -116,6 +117,7 @@
 		formText = '';
 		formType = 'RATING_SCALE';
 		formMaxScore = 5;
+		formRatingDisplayMode = 'NUMBERS';
 		formOptions = [];
 		formError = null;
 		dialogOpen = true;
@@ -126,6 +128,7 @@
 		formText = q.text;
 		formType = q.type;
 		formMaxScore = q.maxScore;
+		formRatingDisplayMode = ratingDisplayModeFromOptionConfig(q.optionConfig);
 		formOptions = optionConfigToRows(q.optionConfig);
 		formError = null;
 		dialogOpen = true;
@@ -157,6 +160,16 @@
 				.filter((option): option is OptionRow => option !== null);
 		} catch {
 			return [];
+		}
+	}
+
+	function ratingDisplayModeFromOptionConfig(optionConfig?: string): 'NUMBERS' | 'STARS' {
+		if (!optionConfig) return 'NUMBERS';
+		try {
+			const parsed = JSON.parse(optionConfig) as { displayMode?: string };
+			return String(parsed.displayMode ?? '').trim().toUpperCase() === 'STARS' ? 'STARS' : 'NUMBERS';
+		} catch {
+			return 'NUMBERS';
 		}
 	}
 
@@ -200,6 +213,8 @@
 					return;
 				}
 				optionConfig = parsed.optionConfig;
+			} else if (formType === 'RATING_SCALE') {
+				optionConfig = JSON.stringify({ displayMode: formRatingDisplayMode });
 			}
 
 			const payload = {
@@ -610,6 +625,22 @@
 									</div>
 								{/each}
 							</div>
+						</div>
+					{:else if formType === 'RATING_SCALE'}
+						<div class="space-y-2">
+							<Label for="q-rating-display">Rating Display</Label>
+							<Select.Root type="single" bind:value={formRatingDisplayMode}>
+								<Select.Trigger id="q-rating-display">
+									{formRatingDisplayMode === 'STARS' ? 'Stars' : 'Numbers'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="NUMBERS">Numbers</Select.Item>
+									<Select.Item value="STARS">Stars</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<p class="text-xs text-muted-foreground">
+								Choose how respondents will see the rating scale.
+							</p>
 						</div>
 					{/if}
 

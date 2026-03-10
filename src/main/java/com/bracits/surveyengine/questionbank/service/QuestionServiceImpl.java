@@ -174,6 +174,9 @@ public class QuestionServiceImpl implements QuestionService {
             boolean needsOptions = questionType == QuestionType.SINGLE_CHOICE
                     || questionType == QuestionType.MULTIPLE_CHOICE
                     || questionType == QuestionType.RANK;
+            if (questionType == QuestionType.RATING_SCALE) {
+                validateRatingScaleOptionConfig(node);
+            }
 
             JsonNode optionsNode = node.get("options");
             if (needsOptions) {
@@ -203,6 +206,22 @@ public class QuestionServiceImpl implements QuestionService {
         } catch (Exception ex) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED,
                     "optionConfig must be valid JSON");
+        }
+    }
+
+    private void validateRatingScaleOptionConfig(JsonNode node) {
+        JsonNode displayModeNode = node.get("displayMode");
+        if (displayModeNode == null || displayModeNode.isNull()) {
+            return;
+        }
+        if (!displayModeNode.isTextual()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "optionConfig.displayMode must be a string for RATING_SCALE");
+        }
+        String displayMode = displayModeNode.asText().trim().toUpperCase();
+        if (!"NUMBERS".equals(displayMode) && !"STARS".equals(displayMode)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "optionConfig.displayMode must be NUMBERS or STARS for RATING_SCALE");
         }
     }
 

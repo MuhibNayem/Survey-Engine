@@ -44,6 +44,9 @@ public class SurveyTheme {
     @Column(name = "logo_url_override", length = 500)
     private String logoUrlOverride;
 
+    @Column(name = "theme_config", columnDefinition = "TEXT")
+    private String themeConfig;
+
     @Column(name = "css_override", columnDefinition = "TEXT")
     private String cssOverride;
 }

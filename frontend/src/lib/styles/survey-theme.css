@@ -1,0 +1,254 @@
+.theme-studio-preview {
+    border: 1px solid var(--preview-border);
+    border-radius: 1rem;
+    background: var(--preview-bg);
+    color: var(--preview-text);
+    font-family: var(--preview-font, inherit);
+    overflow: hidden;
+}
+
+.theme-studio-preview--narrow {
+    max-width: 20rem;
+}
+
+.theme-studio-preview--standard {
+    max-width: 28rem;
+}
+
+.theme-studio-preview--wide {
+    max-width: 100%;
+}
+
+.theme-studio-preview--live {
+    width: 100%;
+    max-width: none;
+}
+
+.theme-studio-preview--motion-subtle {
+    transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.theme-studio-preview--motion-elevated {
+    transition: transform 220ms ease, box-shadow 220ms ease;
+    box-shadow: 0 20px 48px -30px color-mix(in srgb, var(--preview-primary) 32%, transparent);
+}
+
+.theme-studio-preview__header {
+    background: linear-gradient(135deg, var(--preview-header-bg), color-mix(in srgb, var(--preview-header-bg) 78%, white));
+    color: var(--preview-header-text);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.theme-studio-preview__header[data-align="center"] {
+    text-align: center;
+    align-items: center;
+}
+
+.theme-studio-preview__header[data-align="right"] {
+    text-align: right;
+    align-items: flex-end;
+}
+
+.theme-studio-preview__header[data-logo-position="center"] .theme-studio-preview__logo {
+    align-self: center;
+}
+
+.theme-studio-preview__header[data-logo-position="right"] .theme-studio-preview__logo {
+    align-self: flex-end;
+}
+
+.theme-studio-preview__header--banner {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.theme-studio-preview__header--split {
+    border-bottom: 1px solid color-mix(in srgb, var(--preview-header-text) 18%, transparent);
+}
+
+.theme-studio-preview__header--minimal {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--preview-shell) 96%, white), color-mix(in srgb, var(--preview-panel) 72%, white));
+    color: var(--preview-text);
+}
+
+.theme-studio-preview__logo {
+    width: 2.5rem;
+    height: 2.5rem;
+    object-fit: cover;
+    border-radius: 9999px;
+    margin-bottom: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--preview-header-text) 18%, transparent);
+}
+
+.theme-studio-preview__eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.82;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+
+.theme-studio-preview__header h3 {
+    margin: 0;
+    font-size: 1.35rem;
+    letter-spacing: -0.02em;
+    color: inherit;
+}
+
+.theme-studio-preview__header p {
+    margin: 0.4rem 0 0;
+    line-height: 1.55;
+    color: inherit;
+    opacity: 0.92;
+}
+
+.theme-studio-preview__note {
+    margin-top: 0.65rem;
+    font-size: 0.78rem;
+    opacity: 0.88;
+}
+
+.theme-studio-preview__panel {
+    background: var(--preview-panel);
+    padding: 1rem;
+    border-top: 1px solid var(--preview-border);
+}
+
+.theme-studio-preview__panel--flat {
+    background: color-mix(in srgb, var(--preview-shell) 94%, white);
+}
+
+.theme-studio-preview__section-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--preview-primary);
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+}
+
+.theme-studio-preview__divider {
+    margin-bottom: 0.9rem;
+}
+
+.theme-studio-preview__divider--divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--preview-accent), transparent);
+}
+
+.theme-studio-preview__divider--chapter {
+    height: 0.4rem;
+    width: 5rem;
+    border-radius: 9999px;
+    background: var(--preview-accent);
+}
+
+.theme-studio-preview__divider--minimal {
+    height: 0;
+}
+
+.theme-studio-preview__card {
+    border: 1px solid var(--preview-border);
+    border-radius: 0.9rem;
+    background: var(--preview-card);
+    padding: 0.95rem 1rem;
+    box-shadow: 0 12px 28px -24px color-mix(in srgb, var(--preview-primary) 35%, transparent);
+}
+
+.theme-studio-preview__card--outlined {
+    background: transparent;
+    box-shadow: none;
+}
+
+.theme-studio-preview__card--flat {
+    border: 0;
+    box-shadow: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.theme-studio-preview__footer {
+    margin-top: 0.85rem;
+    border-top: 1px solid var(--preview-border);
+    padding-top: 0.75rem;
+    color: var(--preview-muted);
+    font-size: 0.82rem;
+}
+
+.theme-studio-preview__footer--edge {
+    margin-top: 0;
+    border-top: 1px solid color-mix(in srgb, var(--preview-border) 55%, transparent);
+    padding: 1rem 1.25rem 1.15rem;
+    background: var(--preview-footer-bg);
+    color: var(--preview-footer-text);
+}
+
+.theme-studio-preview__footer[data-align="center"] {
+    text-align: center;
+}
+
+.theme-studio-preview__footer[data-align="right"] {
+    text-align: right;
+}
+
+.theme-studio-preview__footer--minimal {
+    border-top: 0;
+    padding-top: 0.35rem;
+}
+
+.theme-studio-preview__footer--compliance {
+    font-size: 0.74rem;
+    line-height: 1.6;
+}
+
+.theme-studio-preview__footer--branded {
+    color: var(--preview-primary);
+    font-weight: 600;
+}
+
+.theme-studio-preview__footer-line1 {
+    font-weight: 700;
+}
+
+.theme-studio-preview__footer-line2,
+.theme-studio-preview__footer-legal {
+    margin-top: 0.35rem;
+    line-height: 1.55;
+}
+
+.theme-studio-preview__custom-html {
+    width: 100%;
+}
+
+.theme-studio-preview__custom-html--header {
+    background: var(--preview-header-bg);
+    color: var(--preview-header-text);
+}
+
+.theme-studio-preview__custom-html--footer {
+    margin-top: 0.85rem;
+}
+
+.theme-studio-preview__custom-html--footer-edge {
+    margin-top: 0;
+    background: var(--preview-footer-bg);
+    color: var(--preview-footer-text);
+    border-top: 1px solid color-mix(in srgb, var(--preview-border) 55%, transparent);
+}
+
+.theme-studio-preview__custom-html :global(*) {
+    max-width: 100%;
+}
+
+.theme-studio-preview__custom-html :global(h1),
+.theme-studio-preview__custom-html :global(h2),
+.theme-studio-preview__custom-html :global(h3),
+.theme-studio-preview__custom-html :global(h4),
+.theme-studio-preview__custom-html :global(h5),
+.theme-studio-preview__custom-html :global(h6),
+.theme-studio-preview__custom-html :global(p) {
+    color: inherit;
+}

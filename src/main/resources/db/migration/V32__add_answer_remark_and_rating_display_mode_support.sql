@@ -1,0 +1,2 @@
+ALTER TABLE answer
+    ADD COLUMN IF NOT EXISTS remark TEXT;

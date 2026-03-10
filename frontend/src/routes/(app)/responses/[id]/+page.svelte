@@ -78,11 +78,24 @@
 
     function formatDuration(start: string, end: string | null | undefined) {
         if (!end) return "In Progress";
-        const ms = new Date(end).getTime() - new Date(start).getTime();
+        const ms = Math.max(0, new Date(end).getTime() - new Date(start).getTime());
         const mins = Math.floor(ms / 60000);
         const secs = Math.floor((ms % 60000) / 1000);
         if (mins > 0) return `${mins}m ${secs}s`;
         return `${secs}s`;
+    }
+
+    function formatAnswerValue(answer: SurveyResponseResponse["answers"][number]) {
+        if (!answer.value) return "—";
+        try {
+            const parsed = JSON.parse(answer.value);
+            if (Array.isArray(parsed)) {
+                return parsed.map((item) => String(item)).join(", ");
+            }
+        } catch {
+            // Keep raw value for scalar answers.
+        }
+        return answer.value;
     }
 
     async function loadData() {
@@ -392,10 +405,7 @@
                                         <span class="text-muted-foreground mr-1"
                                             >Q{i + 1}.</span
                                         >
-                                        <span
-                                            class="font-mono text-xs text-muted-foreground"
-                                            >[Question ID: {answer.questionId}]</span
-                                        >
+                                        {answer.questionText || `Question ${i + 1}`}
                                     </p>
                                     {#if answer.score !== undefined && answer.score !== null}
                                         <Badge
@@ -407,11 +417,27 @@
                                 </div>
                             </Card.Header>
                             <Card.Content class="pt-4">
+                                <div class="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    {#if answer.questionVersionNumber !== undefined}
+                                        <span>Version {answer.questionVersionNumber}</span>
+                                    {/if}
+                                    {#if answer.questionType}
+                                        <span>{answer.questionType}</span>
+                                    {/if}
+                                </div>
                                 <div
                                     class="rounded-md border border-border bg-background p-3 text-sm text-foreground"
                                 >
-                                    {answer.value || "—"}
+                                    {formatAnswerValue(answer)}
                                 </div>
+                                {#if answer.remark}
+                                    <div class="mt-3 space-y-1">
+                                        <p class="text-xs font-medium text-muted-foreground">Remark</p>
+                                        <div class="rounded-md border border-border bg-muted/30 p-3 text-sm text-foreground whitespace-pre-wrap">
+                                            {answer.remark}
+                                        </div>
+                                    </div>
+                                {/if}
                             </Card.Content>
                         </Card.Root>
                     {/each}

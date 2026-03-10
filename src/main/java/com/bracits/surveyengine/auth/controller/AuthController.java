@@ -6,11 +6,13 @@ import com.bracits.surveyengine.auth.dto.OidcCallbackResponse;
 import com.bracits.surveyengine.auth.dto.OidcStartRequest;
 import com.bracits.surveyengine.auth.dto.OidcStartResponse;
 import com.bracits.surveyengine.auth.dto.ProviderTemplateResponse;
+import com.bracits.surveyengine.auth.dto.ResponderAccessIdentity;
 import com.bracits.surveyengine.auth.dto.TokenValidationResult;
 import com.bracits.surveyengine.auth.entity.AuthConfigAudit;
 import com.bracits.surveyengine.auth.repository.AuthConfigAuditRepository;
 import com.bracits.surveyengine.auth.service.AuthProfileService;
 import com.bracits.surveyengine.auth.service.OidcResponderAuthService;
+import com.bracits.surveyengine.auth.service.ResponderSessionService;
 import com.bracits.surveyengine.auth.service.TokenValidationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -31,6 +33,7 @@ public class AuthController {
     private final AuthProfileService authProfileService;
     private final TokenValidationService tokenValidationService;
     private final OidcResponderAuthService oidcResponderAuthService;
+    private final ResponderSessionService responderSessionService;
     private final AuthConfigAuditRepository auditRepository;
 
     @PostMapping("/profiles")
@@ -96,7 +99,20 @@ public class AuthController {
             HttpServletRequest httpRequest) {
         OidcCallbackResponse response = oidcResponderAuthService.callback(state, code, baseUrl(httpRequest));
         if (response.getRedirectUrl() != null) {
-            return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(response.getRedirectUrl())).build();
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(
+                            org.springframework.http.HttpHeaders.SET_COOKIE,
+                            responderSessionService.createSessionCookie(
+                                    httpRequest,
+                                    response.getTenantId(),
+                                    response.getCampaignId(),
+                                    ResponderAccessIdentity.builder()
+                                            .respondentId(response.getRespondentId())
+                                            .email(response.getEmail())
+                                            .build())
+                                    .toString())
+                    .location(URI.create(response.getRedirectUrl()))
+                    .build();
         }
         return ResponseEntity.ok(response);
     }

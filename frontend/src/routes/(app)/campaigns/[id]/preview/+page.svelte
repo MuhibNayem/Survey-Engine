@@ -7,12 +7,16 @@
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
+    import { Textarea } from "$lib/components/ui/textarea";
+    import * as StarRating from "$lib/components/ui/star-rating";
     import { Badge } from "$lib/components/ui/badge";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { ArrowLeft, RefreshCw, Play, ChevronLeft, ChevronRight } from "lucide-svelte";
+    import "$lib/styles/survey-theme.css";
     import type {
         CampaignPreviewResponse,
         QuestionType,
+        SurveyThemeConfig,
     } from "$lib/types";
 
     type AnswerValue = string | number | string[] | null | undefined;
@@ -44,8 +48,9 @@
     let currentPageIndex = $state(0);
     let campaign = $state<CampaignPreviewResponse | null>(null);
     let answers = $state<Record<string, AnswerValue>>({});
+    let remarks = $state<Record<string, string>>({});
     let errors = $state<Record<string, string>>({});
-    let respondentMetadata = $state<Record<string, string>>({});
+    let respondentMetadata = $state<Record<string, string | number | null | undefined>>({});
 
     const resolvedPages = $derived(
         campaign
@@ -92,6 +97,141 @@
             : Math.round((answeredQuestions / totalQuestions) * 100),
     );
 
+    const DEFAULT_THEME: SurveyThemeConfig = {
+        templateKey: "aurora-premium",
+        paletteKey: "ocean-aurora",
+        palette: {
+            background: "#f8fbfb",
+            shell: "#ffffff",
+            panel: "#e8f6f4",
+            card: "#ffffff",
+            border: "#9fd6cf",
+            textPrimary: "#102a43",
+            textSecondary: "#4e676c",
+            primary: "#0f766e",
+            primaryText: "#f8fffe",
+            accent: "#14b8a6",
+            accentSoft: "#d8f5f1",
+            headerBackground: "#102a43",
+            headerText: "#f8fffe",
+            footerBackground: "#edf9f7",
+            footerText: "#35545a",
+        },
+        branding: {
+            brandLabel: "Confidential Evaluation Ledger",
+            logoUrl: "",
+            logoPosition: "left",
+            fontFamily: "\"Iowan Old Style\", \"Palatino Linotype\", \"Book Antiqua\", Georgia, serif",
+        },
+        layout: {
+            contentWidth: "standard",
+            headerStyle: "hero",
+            headerAlignment: "left",
+            footerStyle: "support",
+            footerAlignment: "left",
+            sectionStyle: "panel",
+            questionCardStyle: "soft",
+            categorySeparatorStyle: "divider",
+        },
+        motion: { animationPreset: "subtle" },
+        header: {
+            enabled: true,
+            eyebrow: "Confidential Evaluation Ledger",
+            title: "",
+            subtitle: "",
+            note: "",
+        },
+        footer: {
+            enabled: true,
+            line1: "Thank you for completing this survey.",
+            line2: "Need assistance? Contact your survey administrator for support.",
+            legal: "Responses are securely processed under your organization's data policy.",
+        },
+        advanced: {
+            useCustomHeaderHtml: false,
+            useCustomFooterHtml: false,
+            customHeaderHtml: "",
+            customFooterHtml: "",
+            customCss: "",
+        },
+    };
+
+    function getTheme(): SurveyThemeConfig {
+        const theme = campaign?.theme;
+        if (!theme) {
+            return {
+                ...DEFAULT_THEME,
+                header: {
+                    ...DEFAULT_THEME.header,
+                    title: campaign?.campaignName ?? "Survey Preview",
+                    subtitle: campaign?.surveyTitle ?? "Share your feedback",
+                },
+            };
+        }
+        return {
+            ...DEFAULT_THEME,
+            ...theme,
+            palette: { ...DEFAULT_THEME.palette, ...theme.palette },
+            branding: { ...DEFAULT_THEME.branding, ...theme.branding },
+            layout: { ...DEFAULT_THEME.layout, ...theme.layout },
+            motion: { ...DEFAULT_THEME.motion, ...theme.motion },
+            header: {
+                ...DEFAULT_THEME.header,
+                title: campaign?.campaignName ?? "Survey Preview",
+                subtitle: campaign?.surveyTitle ?? "Share your feedback",
+                ...theme.header,
+            },
+            footer: { ...DEFAULT_THEME.footer, ...theme.footer },
+            advanced: { ...DEFAULT_THEME.advanced, ...theme.advanced },
+        };
+    }
+
+    function previewThemeStyle(): string {
+        const theme = getTheme();
+        return [
+            `--preview-bg:${theme.palette.background}`,
+            `--preview-shell:${theme.palette.shell}`,
+            `--preview-panel:${theme.palette.panel}`,
+            `--preview-card:${theme.palette.card}`,
+            `--preview-border:${theme.palette.border}`,
+            `--preview-text:${theme.palette.textPrimary}`,
+            `--preview-muted:${theme.palette.textSecondary}`,
+            `--preview-primary:${theme.palette.primary}`,
+            `--preview-primary-text:${theme.palette.primaryText}`,
+            `--preview-accent:${theme.palette.accent}`,
+            `--preview-header-bg:${theme.palette.headerBackground}`,
+            `--preview-header-text:${theme.palette.headerText}`,
+            `--preview-footer-bg:${theme.palette.footerBackground}`,
+            `--preview-footer-text:${theme.palette.footerText}`,
+            `--preview-font:${theme.branding.fontFamily || DEFAULT_THEME.branding.fontFamily}`,
+        ].join(";");
+    }
+
+    function previewShellClass(): string {
+        const theme = getTheme();
+        return `theme-studio-preview theme-studio-preview--live theme-studio-preview--${theme.layout.contentWidth} theme-studio-preview--motion-${theme.motion.animationPreset}`;
+    }
+
+    function previewHeaderClass(): string {
+        return `theme-studio-preview__header theme-studio-preview__header--${getTheme().layout.headerStyle}`;
+    }
+
+    function previewPanelClass(): string {
+        return `theme-studio-preview__panel theme-studio-preview__panel--${getTheme().layout.sectionStyle}`;
+    }
+
+    function previewCardClass(): string {
+        return `theme-studio-preview__card theme-studio-preview__card--${getTheme().layout.questionCardStyle}`;
+    }
+
+    function previewDividerClass(): string {
+        return `theme-studio-preview__divider theme-studio-preview__divider--${getTheme().layout.categorySeparatorStyle}`;
+    }
+
+    function previewFooterClass(): string {
+        return `theme-studio-preview__footer theme-studio-preview__footer--${getTheme().layout.footerStyle}`;
+    }
+
     function parseAnswerConfig(raw?: string): Record<string, unknown> {
         if (!raw) return {};
         try {
@@ -102,8 +242,18 @@
         }
     }
 
+    function parseOptionConfig(raw?: string): Record<string, unknown> {
+        if (!raw) return {};
+        try {
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
     function getOptions(question: PreviewQuestion): string[] {
-        const config = parseAnswerConfig(question.optionConfig);
+        const config = parseOptionConfig(question.optionConfig);
         const rawOptions = config.options;
         if (!Array.isArray(rawOptions)) return [];
         return rawOptions
@@ -132,6 +282,29 @@
             guard += 1;
         }
         return values.length > 0 ? values : [1, 2, 3, 4, 5];
+    }
+
+    function getRatingDisplayMode(question: PreviewQuestion): "NUMBERS" | "STARS" {
+        const config = parseOptionConfig(question.optionConfig);
+        const rawMode = String(config.displayMode ?? "NUMBERS").trim().toUpperCase();
+        return rawMode === "STARS" ? "STARS" : "NUMBERS";
+    }
+
+    function canUseStarRating(question: PreviewQuestion): boolean {
+        const config = parseAnswerConfig(question.answerConfig);
+        const min = Number(config.min ?? 1);
+        const max = Number(config.max ?? question.maxScore ?? 5);
+        const step = Number(config.step ?? 1);
+        return Number.isInteger(min) && Number.isInteger(max) && Number.isInteger(step) && min === 1 && step === 1;
+    }
+
+    function getNumericAnswer(questionId: string): number | undefined {
+        const value = answers[questionId];
+        return typeof value === "number" ? value : undefined;
+    }
+
+    function setRatingAnswer(questionId: string, value: number): void {
+        answers[questionId] = value;
     }
 
     function isAnswered(question: PreviewQuestion): boolean {
@@ -227,13 +400,45 @@
         return before + questionIdx + 1;
     }
 
+    function normalizeUiLabel(value?: string): string {
+        return (value ?? "")
+            .trim()
+            .toLowerCase()
+            .replace(/\bv\d+\b/g, "")
+            .replace(/[^a-z0-9]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    function hasCustomHeader(): boolean {
+        return Boolean(getTheme().advanced.useCustomHeaderHtml && getTheme().advanced.customHeaderHtml?.trim());
+    }
+
+    function hasCustomFooter(): boolean {
+        return Boolean(getTheme().advanced.useCustomFooterHtml && getTheme().advanced.customFooterHtml?.trim());
+    }
+
+    function customHeaderHtml(): string {
+        return getTheme().advanced.customHeaderHtml || campaign?.headerHtml || "";
+    }
+
+    function customFooterHtml(): string {
+        return getTheme().advanced.customFooterHtml || campaign?.footerHtml || "";
+    }
+
+    function getRespondentMetadataValue(fieldKey: string): string {
+        const value = respondentMetadata[fieldKey];
+        if (value == null) return "";
+        return String(value).trim();
+    }
+
     function validateRespondentFields(): boolean {
         const nextErrors: Record<string, string> = {};
         if (campaign?.dataCollectionFields) {
             for (const field of campaign.dataCollectionFields) {
                 if (!field.enabled) continue;
                 
-                const val = (respondentMetadata[field.fieldKey] || "").trim();
+                const val = getRespondentMetadataValue(field.fieldKey);
                 if (field.required && val.length === 0) {
                     nextErrors["meta." + field.fieldKey] = `${field.label} is required`;
                 } else if (val.length > 0 && field.fieldType === 'EMAIL') {
@@ -284,6 +489,7 @@
         answers = {};
         errors = {};
         respondentMetadata = {};
+        remarks = {};
     }
 
     async function load() {
@@ -344,7 +550,7 @@
         </Card.Content>
     </Card.Root>
 {:else}
-    <div class="space-y-6">
+    <div class="space-y-6" style={previewThemeStyle()}>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onclick={() => goto(`/campaigns/${campaignId}`)}>
@@ -364,38 +570,44 @@
             </div>
         </div>
 
-        <Card.Root class="border-2">
-            <Card.Header class="space-y-3">
-                <div class="flex items-center justify-between gap-4">
-                    <div>
-                        <Card.Title>{campaign.campaignName}</Card.Title>
-                        <Card.Description>{campaign.surveyTitle}</Card.Description>
-                    </div>
-                    {#if stage === "form" && campaign.showProgressIndicator}
-                        <Badge variant="outline">Page {currentPageIndex + 1} / {totalPages}</Badge>
+        <div class={previewShellClass()} style={previewThemeStyle()}>
+            {#if !hasCustomHeader()}
+                <section
+                    class={previewHeaderClass()}
+                    data-align={getTheme().layout.headerAlignment}
+                    data-logo-position={getTheme().branding.logoPosition}
+                >
+                    {#if getTheme().branding.logoUrl}
+                        <img src={getTheme().branding.logoUrl} alt="Brand logo" class="theme-studio-preview__logo" />
                     {/if}
-                </div>
-
-                {#if stage === "form" && campaign.showProgressIndicator}
-                    <div class="space-y-1">
-                        <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                            <div class="h-full rounded-full bg-primary transition-all" style={`width:${progressPercent}%`}></div>
+                    <div class="theme-studio-preview__eyebrow">{getTheme().header.eyebrow || getTheme().branding.brandLabel}</div>
+                    <h3>{getTheme().header.title || campaign.campaignName}</h3>
+                    <p>{getTheme().header.subtitle || campaign.surveyTitle}</p>
+                    {#if getTheme().header.note}
+                        <div class="theme-studio-preview__note">{getTheme().header.note}</div>
+                    {/if}
+                    {#if stage === "form" && campaign.showProgressIndicator}
+                        <div class="mt-4 space-y-1">
+                            <div class="h-2 w-full overflow-hidden rounded-full bg-white/20">
+                                <div class="h-full rounded-full transition-all" style={`width:${progressPercent}%;background:linear-gradient(90deg,var(--preview-primary-text),color-mix(in srgb, var(--preview-primary-text) 78%, var(--preview-accent)))`}></div>
+                            </div>
+                            <p class="text-xs opacity-90">{progressPercent}% completed • Page {currentPageIndex + 1} / {totalPages}</p>
                         </div>
-                        <p class="text-xs text-muted-foreground">{progressPercent}% completed</p>
-                    </div>
-                {/if}
-            </Card.Header>
+                    {/if}
+                </section>
+            {/if}
 
-            <Card.Content class="p-0">
-                {#if campaign.headerHtml}
-                    <section class="campaign-branding-shell campaign-branding-shell-header">
-                        <div class="campaign-branding-content">{@html campaign.headerHtml}</div>
+            <div>
+                {#if hasCustomHeader()}
+                    <section class="theme-studio-preview__custom-html theme-studio-preview__custom-html--header">
+                        <div class="campaign-branding-content">{@html customHeaderHtml()}</div>
                     </section>
                 {/if}
 
                 <section class="space-y-6 p-5 sm:p-7">
                     {#if stage === "intro"}
-                    <div class="space-y-4">
+                    <div class={previewCardClass()}>
+                        <div class="theme-studio-preview__section-title">Invitation</div>
                         {#if campaign.startMessage}
                             <p class="text-sm leading-6 text-foreground whitespace-pre-wrap">{campaign.startMessage}</p>
                         {:else}
@@ -407,7 +619,8 @@
                         </Button>
                     </div>
                     {:else if stage === "complete"}
-                    <div class="space-y-4">
+                    <div class={previewCardClass()}>
+                        <div class="theme-studio-preview__section-title">Submission Received</div>
                         <h3 class="text-lg font-semibold">Submission Complete (Preview)</h3>
                         {#if campaign.finishMessage}
                             <p class="text-sm leading-6 text-foreground whitespace-pre-wrap">{campaign.finishMessage}</p>
@@ -422,12 +635,10 @@
                     {:else if currentPage}
                     <div class="space-y-6">
                         {#if campaign.dataCollectionFields?.some(f => f.enabled)}
-                            <Card.Root class="border border-border/70">
-                                <Card.Header class="pb-3">
-                                    <Card.Title class="text-base">Responder Information</Card.Title>
-                                    <Card.Description>Visible because data collection fields are configured in campaign settings</Card.Description>
-                                </Card.Header>
-                                <Card.Content class="grid gap-3 sm:grid-cols-2">
+                            <section class={previewPanelClass()}>
+                                <div class="theme-studio-preview__section-title">Responder Information</div>
+                                <div class={previewDividerClass()}></div>
+                                <div class="grid gap-3 sm:grid-cols-2">
                                     {#each campaign.dataCollectionFields as field}
                                         {#if field.enabled}
                                             <div class={field.fieldType === 'TEXTAREA' ? "space-y-1 sm:col-span-2" : "space-y-1"}>
@@ -474,23 +685,21 @@
                                             </div>
                                         {/if}
                                     {/each}
-                                </Card.Content>
-                            </Card.Root>
+                                </div>
+                            </section>
                         {/if}
 
-                        <Card.Root class="border border-border/70">
-                            <Card.Header class="pb-3">
-                                <Card.Title class="text-base">{currentPage.title}</Card.Title>
-                                <Card.Description>{currentPage.questions.length} question(s) on this page</Card.Description>
-                            </Card.Header>
-                            <Card.Content class="space-y-6">
+                        <section class={previewPanelClass()}>
+                            <div class="theme-studio-preview__section-title">{currentPage.title}</div>
+                            <div class={previewDividerClass()}></div>
+                            <div class="space-y-6">
                                 {#each currentPage.questions as question, qIdx}
-                                    <div class="space-y-3">
+                                    <div class={`${previewCardClass()} space-y-3`}>
                                         <div class="space-y-1">
                                             <p class="font-medium leading-6">
                                                 {#if campaign.showQuestionNumbers}
                                                     <span class="text-muted-foreground mr-1">
-                                                        {questionSerial(currentPageIndex, qIdx)}.
+                                                        {questionSerial(currentPageIndex, qIdx)}
                                                     </span>
                                                 {/if}
                                                 {question.text}
@@ -595,32 +804,58 @@
                                             </div>
                                         {:else}
                                             <div class="flex flex-wrap gap-2">
-                                                {#each getRatingValues(question) as value}
-                                                    <button
-                                                        type="button"
-                                                        class={ratingButtonClass(
-                                                            answers[
-                                                                question.questionId
-                                                            ] === value,
-                                                        )}
-                                                        onclick={() =>
-                                                            (answers[
-                                                                question.questionId
-                                                            ] = value)}
+                                                {#if getRatingDisplayMode(question) === "STARS" && canUseStarRating(question)}
+                                                    <StarRating.Root
+                                                        value={getNumericAnswer(question.questionId)}
+                                                        onValueChange={(value) => setRatingAnswer(question.questionId, value)}
+                                                        max={getRatingValues(question).length}
                                                     >
-                                                        {value}
-                                                    </button>
-                                                {/each}
+                                                        {#snippet children({ items })}
+                                                            {#each items as item (item.index)}
+                                                                <StarRating.Star {...item} class="text-yellow-400" />
+                                                            {/each}
+                                                        {/snippet}
+                                                    </StarRating.Root>
+                                                {:else}
+                                                    {#each getRatingValues(question) as value}
+                                                        <button
+                                                            type="button"
+                                                            class={ratingButtonClass(
+                                                                answers[
+                                                                    question.questionId
+                                                                ] === value,
+                                                            )}
+                                                            onclick={() =>
+                                                                (answers[
+                                                                    question.questionId
+                                                                ] = value)}
+                                                        >
+                                                            {value}
+                                                        </button>
+                                                    {/each}
+                                                {/if}
                                             </div>
                                         {/if}
+
+                                        <div class="space-y-1">
+                                            <Label for={`preview-remark-${question.questionId}`}>
+                                                Remarks <span class="text-muted-foreground">(optional)</span>
+                                            </Label>
+                                            <Textarea
+                                                id={`preview-remark-${question.questionId}`}
+                                                rows={3}
+                                                placeholder="Preview optional respondent comment"
+                                                bind:value={remarks[question.questionId]}
+                                            />
+                                        </div>
 
                                         {#if errors[question.questionId]}
                                             <p class="text-xs text-destructive">{errors[question.questionId]}</p>
                                         {/if}
                                     </div>
                                 {/each}
-                            </Card.Content>
-                        </Card.Root>
+                            </div>
+                        </section>
 
                         <div class="flex items-center justify-between">
                             {#if campaign.allowBackButton}
@@ -640,31 +875,31 @@
                                 {currentPageIndex === totalPages - 1 ? "Finish Preview" : "Next"}
                             </Button>
                         </div>
+                        {#if hasCustomFooter()}
+                            <section class="theme-studio-preview__custom-html theme-studio-preview__custom-html--footer theme-studio-preview__custom-html--footer-edge">
+                                <div class="campaign-branding-content">{@html customFooterHtml()}</div>
+                            </section>
+                        {:else if getTheme().footer.enabled}
+                            <section class={`${previewFooterClass()} theme-studio-preview__footer--edge`} data-align={getTheme().layout.footerAlignment}>
+                                <p class="theme-studio-preview__footer-line1">{getTheme().footer.line1}</p>
+                                {#if getTheme().footer.line2}
+                                    <p class="theme-studio-preview__footer-line2">{getTheme().footer.line2}</p>
+                                {/if}
+                                {#if getTheme().footer.legal}
+                                    <p class="theme-studio-preview__footer-legal">{getTheme().footer.legal}</p>
+                                {/if}
+                            </section>
+                        {/if}
                     </div>
                     {/if}
                 </section>
 
-                {#if campaign.footerHtml}
-                    <section class="campaign-branding-shell campaign-branding-shell-footer">
-                        <div class="campaign-branding-content">{@html campaign.footerHtml}</div>
-                    </section>
-                {/if}
-            </Card.Content>
-        </Card.Root>
+            </div>
+        </div>
     </div>
 {/if}
 
 <style>
-    .campaign-branding-shell {
-        border-top: 1px solid hsl(var(--border));
-        background: linear-gradient(180deg, hsl(var(--muted) / 0.3), hsl(var(--background)));
-    }
-
-    .campaign-branding-shell-footer {
-        border-top: 1px solid hsl(var(--border));
-        background: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted) / 0.35));
-    }
-
     .campaign-branding-content {
         padding: 1.25rem 1.5rem;
     }
@@ -676,13 +911,13 @@
     .campaign-branding-content :global(h5),
     .campaign-branding-content :global(h6) {
         margin: 0;
-        color: hsl(var(--foreground));
+        color: inherit;
         letter-spacing: -0.01em;
     }
 
     .campaign-branding-content :global(p) {
         margin: 0.45rem 0 0;
-        color: hsl(var(--muted-foreground));
+        color: inherit;
         line-height: 1.55;
     }
 </style>

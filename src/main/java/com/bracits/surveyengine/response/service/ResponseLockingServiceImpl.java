@@ -1,5 +1,7 @@
 package com.bracits.surveyengine.response.service;
 
+import com.bracits.surveyengine.questionbank.entity.QuestionVersion;
+import com.bracits.surveyengine.questionbank.repository.QuestionVersionRepository;
 import com.bracits.surveyengine.common.exception.BusinessException;
 import com.bracits.surveyengine.common.exception.ErrorCode;
 import com.bracits.surveyengine.common.exception.ResourceNotFoundException;
@@ -16,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -32,6 +36,7 @@ public class ResponseLockingServiceImpl implements ResponseLockingService {
 
     private final SurveyResponseRepository responseRepository;
     private final ReopenAuditRepository reopenAuditRepository;
+    private final QuestionVersionRepository questionVersionRepository;
 
     @Override
     @Transactional
@@ -96,14 +101,28 @@ public class ResponseLockingServiceImpl implements ResponseLockingService {
     }
 
     private SurveyResponseResponse toResponse(SurveyResponse r) {
+        Map<UUID, QuestionVersion> questionVersions = new HashMap<>();
         List<SurveyResponseResponse.AnswerResponse> answers = r.getAnswers().stream()
-                .map(a -> SurveyResponseResponse.AnswerResponse.builder()
-                        .id(a.getId())
-                        .questionId(a.getQuestionId())
-                        .questionVersionId(a.getQuestionVersionId())
-                        .value(a.getValue())
-                        .score(a.getScore())
-                        .build())
+                .map(a -> {
+                    QuestionVersion questionVersion = null;
+                    if (a.getQuestionVersionId() != null) {
+                        questionVersion = questionVersions.computeIfAbsent(
+                                a.getQuestionVersionId(),
+                                id -> questionVersionRepository.findById(id).orElse(null));
+                    }
+                    return SurveyResponseResponse.AnswerResponse.builder()
+                            .id(a.getId())
+                            .questionId(a.getQuestionId())
+                            .questionVersionId(a.getQuestionVersionId())
+                            .questionVersionNumber(questionVersion != null ? questionVersion.getVersionNumber() : null)
+                            .questionText(questionVersion != null ? questionVersion.getText() : null)
+                            .questionType(questionVersion != null ? questionVersion.getType() : null)
+                            .optionConfig(questionVersion != null ? questionVersion.getOptionConfig() : null)
+                            .value(a.getValue())
+                            .remark(a.getRemark())
+                            .score(a.getScore())
+                            .build();
+                })
                 .toList();
 
         return SurveyResponseResponse.builder()
@@ -111,6 +130,7 @@ public class ResponseLockingServiceImpl implements ResponseLockingService {
                 .campaignId(r.getCampaignId())
                 .surveySnapshotId(r.getSurveySnapshotId())
                 .respondentIdentifier(r.getRespondentIdentifier())
+                .respondentMetadata(r.getRespondentMetadata())
                 .status(r.getStatus())
                 .startedAt(r.getStartedAt())
                 .submittedAt(r.getSubmittedAt())

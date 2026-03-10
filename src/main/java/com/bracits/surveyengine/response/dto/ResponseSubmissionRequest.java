@@ -15,6 +15,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ResponseSubmissionRequest {
 
+    private UUID responseId;
+
     @NotNull(message = "Campaign ID is required")
     private UUID campaignId;
 
@@ -37,6 +39,7 @@ public class ResponseSubmissionRequest {
         private UUID questionId;
         private UUID questionVersionId;
         private String value;
+        private String remark;
         private BigDecimal score;
     }
 }
