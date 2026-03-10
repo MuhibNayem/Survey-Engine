@@ -2,6 +2,7 @@
   import ApiEndpoint from '$lib/components/ApiDocs/ApiEndpoint.svelte';
   import SimpleCodeBlock from '$lib/components/ApiDocs/SimpleCodeBlock.svelte';
   import { allOpenApiOperations, openApiMeta, openApiTags, toResponseExample } from '$lib/docs/openapi';
+  import { reveal } from '$lib/docs/intersectionReveal';
 
   const SECURITY_MARKER = /security model summary\s*:/i;
   const CONTRACT_MARKER = /every endpoint description intentionally includes\s*:/i;
@@ -60,7 +61,7 @@
 </script>
 
 <section class="space-y-8">
-  <header class="space-y-3">
+  <header class="space-y-3" use:reveal={{ y: 16, duration: 700 }}>
     <p class="text-xs font-semibold uppercase tracking-wider text-primary">API Reference</p>
     <h1 class="text-3xl font-bold tracking-tight">{openApiMeta.title}</h1>
     <p class="max-w-3xl text-sm text-muted-foreground">
@@ -68,7 +69,7 @@
     </p>
   </header>
 
-  <div class="grid gap-4 md:grid-cols-2">
+  <div class="grid gap-4 md:grid-cols-2" use:reveal={{ y: 18, duration: 760, delay: 70 }}>
     <div class="rounded-lg border border-border bg-card p-4">
       <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contract Style</p>
       <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
@@ -97,7 +98,7 @@
     </div>
   </div>
 
-  <div class="grid gap-4 md:grid-cols-4">
+  <div class="grid gap-4 md:grid-cols-4" use:reveal={{ y: 18, duration: 760, delay: 120 }}>
     <div class="rounded-lg border border-border bg-card p-4">
       <p class="text-xs uppercase tracking-wider text-muted-foreground">Version</p>
       <p class="mt-2 font-mono text-sm">{openApiMeta.version}</p>
@@ -116,7 +117,7 @@
     </div>
   </div>
 
-  <div class="space-y-4 rounded-lg border border-border bg-card p-5">
+  <div class="space-y-4 rounded-lg border border-border bg-card p-5" use:reveal={{ y: 20, duration: 820, delay: 160 }}>
     <h2 class="text-xl font-semibold">OpenAPI-driven Sync</h2>
     <p class="text-sm text-muted-foreground">
       Endpoint sections below are generated from <code>src/main/resources/static/openapi.yaml</code>.
@@ -133,7 +134,7 @@ pnpm -C frontend check`}
     />
   </div>
 
-  <div class="space-y-4">
+  <div class="space-y-4" use:reveal={{ y: 24, duration: 860, delay: 210 }}>
     <h2 class="text-xl font-semibold">Sample Operations</h2>
     {#each highlighted as op (op.id)}
       <ApiEndpoint

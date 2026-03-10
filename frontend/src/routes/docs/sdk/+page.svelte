@@ -38,6 +38,7 @@
   import { onMount } from "svelte";
 
   let activeTab = $state("typescript");
+  let pageRoot: HTMLDivElement | null = null;
 
   const languages = [
     { id: "typescript", name: "TypeScript", icon: "TS" },
@@ -46,12 +47,105 @@
     { id: "python", name: "Python", icon: "Py" },
   ];
 
+  import { reveal } from '$lib/docs/intersectionReveal';
+
   // We rely on the parent DocsSidebar now.
+  onMount(() => {
+    if (!pageRoot) return;
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) return;
+
+    const cleanups: Array<() => void> = [];
+    let rafId = 0;
+
+    const setParallax = () => {
+      rafId = 0;
+      const y = window.scrollY || window.pageYOffset || 0;
+      pageRoot?.style.setProperty("--sdk-parallax", `${(-y * 0.12).toFixed(2)}px`);
+    };
+
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(setParallax);
+    };
+
+    setParallax();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    cleanups.push(() => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafId) window.cancelAnimationFrame(rafId);
+    });
+
+    const blocks = Array.from(pageRoot.querySelectorAll<HTMLElement>("header, section, footer"));
+    blocks.forEach((el, index) => {
+      el.classList.add("motion-block");
+      el.style.setProperty("--motion-delay", `${Math.min(index * 65, 650)}ms`);
+    });
+
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            (entry.target as HTMLElement).classList.add("is-visible");
+          }
+        }
+      },
+      { threshold: 0.16, rootMargin: "0px 0px -8% 0px" }
+    );
+
+    blocks.forEach((el) => revealObserver.observe(el));
+    cleanups.push(() => revealObserver.disconnect());
+
+    const panels = Array.from(
+      pageRoot.querySelectorAll<HTMLElement>('div[class*="bg-zinc-950"]')
+    );
+
+    panels.forEach((panel, index) => {
+      panel.classList.add("motion-panel");
+      panel.style.setProperty("--panel-delay", `${180 + (index % 8) * 70}ms`);
+
+      const onMove = (event: PointerEvent) => {
+        const rect = panel.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top) / rect.height;
+        const rotateX = (0.5 - y) * 10;
+        const rotateY = (x - 0.5) * 12;
+        panel.style.setProperty("--rx", `${rotateX.toFixed(2)}deg`);
+        panel.style.setProperty("--ry", `${rotateY.toFixed(2)}deg`);
+        panel.style.setProperty("--mx", `${(x * 100).toFixed(2)}%`);
+        panel.style.setProperty("--my", `${(y * 100).toFixed(2)}%`);
+      };
+
+      const onLeave = () => {
+        panel.style.setProperty("--rx", "0deg");
+        panel.style.setProperty("--ry", "0deg");
+      };
+
+      panel.addEventListener("pointermove", onMove);
+      panel.addEventListener("pointerleave", onLeave);
+      cleanups.push(() => {
+        panel.removeEventListener("pointermove", onMove);
+        panel.removeEventListener("pointerleave", onLeave);
+      });
+    });
+
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
+  });
 </script>
 
-<div class="bg-background min-h-screen">
+<div bind:this={pageRoot} class="sdk-root bg-background min-h-screen relative isolate overflow-x-clip">
+  <div class="sdk-cosmos" aria-hidden="true">
+    <div class="sdk-grid"></div>
+    <div class="sdk-orb orb-a"></div>
+    <div class="sdk-orb orb-b"></div>
+    <div class="sdk-orb orb-c"></div>
+    <div class="sdk-veil"></div>
+  </div>
   <!-- 1. CENTER: DESCRIPTION & INLINE CODE (FLUID) -->
-  <div class="px-8 md:px-12 py-12 space-y-32">
+  <div class="px-8 md:px-12 py-12 space-y-32 relative z-10">
     <!-- Global Language Selector (Sticky) -->
     <div
       class="sticky top-0 z-50 py-4 bg-background/80 backdrop-blur-md border-b border-border/50 flex items-center justify-between"
@@ -67,7 +161,7 @@
           {#each languages as lang}
             <button
               onclick={() => (activeTab = lang.id)}
-              class="px-4 py-2 text-xs font-bold rounded-lg transition-all {activeTab ===
+              class="tab-chip px-4 py-2 text-xs font-bold rounded-lg transition-all {activeTab ===
               lang.id
                 ? 'bg-primary text-primary-foreground shadow-md'
                 : 'text-muted-foreground hover:text-foreground hover:bg-background'}"
@@ -80,7 +174,7 @@
     </div>
 
     <!-- Hero Section -->
-    <header id="foundations" class="space-y-6 border-b border-border/50 pb-16">
+    <header id="foundations" class="space-y-6 border-b border-border/50 pb-16" use:reveal={{ y: 20, duration: 800 }}>
       <h1 class="text-6xl font-black tracking-tighter leading-[0.8] mb-8">
         Enterprise <br />
         <span class="text-primary">SDK Reference</span>
@@ -115,7 +209,7 @@
     </header>
 
     <!-- Foundations Details -->
-    <section class="space-y-12">
+    <section class="space-y-12" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <Terminal class="w-10 h-10" />
@@ -243,7 +337,7 @@ client = openapi_client.ApiClient(conf)`}
     </section>
 
     <!-- Identity & Access Section -->
-    <section id="id-access" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="id-access" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <Key class="w-10 h-10" />
@@ -309,20 +403,23 @@ client = openapi_client.ApiClient(conf)`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Identity API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+              {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { AdminAuthenticationApi, RegisterRequest, LoginRequest } from '@survey-engine/sdk';
 
 const authApi = new AdminAuthenticationApi(config);
@@ -410,9 +507,11 @@ tokens = api.login_admin_token_mode(login_request=LoginRequest(
 api.refresh_admin_token()
 api.logout_admin()`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
         </div>
+      </div>
       </div>
     </section>
 
@@ -420,6 +519,7 @@ api.logout_admin()`}
     <section
       id="auth-profiles"
       class="space-y-12 pt-16 border-t border-border/20"
+      use:reveal={{ y: 20, duration: 800 }}
     >
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
@@ -477,9 +577,9 @@ api.logout_admin()`}
             >
           </div>
           {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+              <div class="space-y-6">
+                <SimpleCodeBlock
+                  language="typescript"
                 code={`import { AuthProfilesApi, AuthProfileRequest } from '@survey-engine/sdk';
 
 const profileApi = new AuthProfilesApi(config);
@@ -559,14 +659,14 @@ logs = api.get_auth_profile_audit(id="...")
 # Templates
 templates = api.list_provider_templates()`}
               />
-            </div>
-          {/if}
-        </div>
-      </div>
+               </div>
+            {/if}
+          </div>
+          </div>
     </section>
 
     <!-- OIDC Respondent Flow Section -->
-    <section id="oidc-flow" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="oidc-flow" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <Zap class="w-10 h-10" />
@@ -602,20 +702,23 @@ templates = api.list_provider_templates()`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-tl from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} OIDC API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { OIDCRespondentFlowApi, OidcStartRequest } from '@survey-engine/sdk';
 
 const oidcApi = new OIDCRespondentFlowApi(config);
@@ -684,8 +787,10 @@ start = api.start_respondent_oidc(oidc_start_request=OidcStartRequest(
 # Complete Callback
 res = api.complete_respondent_oidc(state="...", code="...")`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
@@ -694,6 +799,7 @@ res = api.complete_respondent_oidc(state="...", code="...")`}
     <section
       id="plans-catalog"
       class="space-y-12 pt-16 border-t border-border/20"
+      use:reveal={{ y: 20, duration: 800 }}
     >
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
@@ -728,20 +834,23 @@ res = api.complete_respondent_oidc(state="...", code="...")`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Plans API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { PlanCatalogApi, PlanDefinitionRequest } from '@survey-engine/sdk';
 
 const planApi = new PlanCatalogApi(config);
@@ -802,8 +911,10 @@ plans = api.list_plans()
 api.upsert_plan(plan_definition_request=PlanDefinitionRequest(
     code="ULTIMATE", max_campaigns=100))`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
@@ -812,6 +923,7 @@ api.upsert_plan(plan_definition_request=PlanDefinitionRequest(
     <section
       id="subscriptions"
       class="space-y-12 pt-16 border-t border-border/20"
+      use:reveal={{ y: 20, duration: 800 }}
     >
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
@@ -845,20 +957,23 @@ api.upsert_plan(plan_definition_request=PlanDefinitionRequest(
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Subscription API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { SubscriptionApi, SubscribeRequest } from '@survey-engine/sdk';
 
 const subApi = new SubscriptionApi(config);
@@ -918,8 +1033,10 @@ sub = api.get_my_subscription()
 # Upgrade
 api.checkout_subscription(subscribe_request=SubscribeRequest(plan="GROWTH"))`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
@@ -928,6 +1045,7 @@ api.checkout_subscription(subscribe_request=SubscribeRequest(plan="GROWTH"))`}
     <section
       id="question-bank"
       class="space-y-12 pt-16 border-t border-border/20"
+      use:reveal={{ y: 20, duration: 800 }}
     >
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
@@ -964,20 +1082,23 @@ api.checkout_subscription(subscribe_request=SubscribeRequest(plan="GROWTH"))`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-bl from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Question API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { QuestionsApi, QuestionRequest } from '@survey-engine/sdk';
 
 const questionApi = new QuestionsApi(config);
@@ -1038,14 +1159,16 @@ q = api.create_question(question_request=QuestionRequest(
 list = api.list_questions()
 api.deactivate_question(id="...")`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Categories Section -->
-    <section id="categories" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="categories" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <ListOrdered class="w-10 h-10" />
@@ -1070,20 +1193,23 @@ api.deactivate_question(id="...")`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-tl from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Category API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { CategoriesApi, CategoryRequest } from '@survey-engine/sdk';
 
 const categoryApi = new CategoriesApi(config);
@@ -1141,14 +1267,16 @@ cat = api.create_category(category_request=CategoryRequest(
     name="UX", question_ids=["..."]))
 list = api.list_categories()`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Survey Authoring Section -->
-    <section id="surveys" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="surveys" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <BookOpen class="w-10 h-10" />
@@ -1183,20 +1311,23 @@ list = api.list_categories()`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Surveys API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { SurveysApi, SurveyRequest, LifecycleTransitionRequest } from '@survey-engine/sdk';
 
 const surveysApi = new SurveysApi(config);
@@ -1283,14 +1414,16 @@ api.transition_survey_lifecycle(
     lifecycle_transition_request={"action": "PUBLISH"}
 )`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Campaign Orchestration Section -->
-    <section id="campaigns" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="campaigns" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <Send class="w-10 h-10" />
@@ -1326,20 +1459,23 @@ api.transition_survey_lifecycle(
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Campaigns API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { CampaignsApi, CampaignRequest } from '@survey-engine/sdk';
 
 const campaignApi = new CampaignsApi(config);
@@ -1411,8 +1547,10 @@ api.activate_campaign(id=camp.id)
 # 3. Get Distribution Links
 channels = api.generate_campaign_channels(id=camp.id)`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1421,6 +1559,7 @@ channels = api.generate_campaign_channels(id=camp.id)`}
     <section
       id="response-submission"
       class="space-y-12 pt-16 border-t border-border/20"
+      use:reveal={{ y: 20, duration: 800 }}
     >
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
@@ -1459,20 +1598,23 @@ channels = api.generate_campaign_channels(id=camp.id)`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-bl from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Participation API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { ResponsesApi, ResponseSubmissionRequest } from '@survey-engine/sdk';
 
 const responseApi = new ResponsesApi(config);
@@ -1538,14 +1680,16 @@ api.submit_response(response_submission_request=ResponseSubmissionRequest(
     answers=[{"question_id": "Q1", "value": "A1"}]
 ))`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Response Operations Section -->
-    <section id="response-ops" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="response-ops" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <ListOrdered class="w-10 h-10" />
@@ -1583,20 +1727,23 @@ api.submit_response(response_submission_request=ResponseSubmissionRequest(
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-tl from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Response Ops API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { ResponsesApi } from '@survey-engine/sdk';
 
 const respApi = new ResponsesApi(config);
@@ -1669,14 +1816,16 @@ resps = api.list_responses_by_campaign(campaign_id="...")
 api.lock_response(id=resps[0].id)
 api.reopen_response(id=resps[0].id, reopen_request=ReopenRequest(reason="..."))`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Scoring Intelligence Section -->
-    <section id="scoring" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="scoring" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <PieChart class="w-10 h-10" />
@@ -1715,20 +1864,23 @@ api.reopen_response(id=resps[0].id, reopen_request=ReopenRequest(reason="..."))`
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Scoring API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { ScoringApi, WeightProfileRequest } from '@survey-engine/sdk';
 
 const scoreApi = new ScoringApi(config);
@@ -1825,14 +1977,16 @@ result = api.calculate_weighted_score(
     request_body={"C1": 8.5}
 )`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Analytics & Insights Section -->
-    <section id="analytics" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="analytics" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <Target class="w-10 h-10" />
@@ -1870,20 +2024,23 @@ result = api.calculate_weighted_score(
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Analytics API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { ResponsesApi, ComparisonRequest } from '@survey-engine/sdk';
 
 const analyticsApi = new ResponsesApi(config);
@@ -1949,14 +2106,16 @@ stats = api.get_campaign_analytics(campaign_id="CAMP-UUID")
 # 2. Get Full Report
 report = api.get_full_report(campaign_id="CAMP-UUID")`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Compliance Auditing Section -->
-    <section id="compliance" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="compliance" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <History class="w-10 h-10" />
@@ -1992,20 +2151,23 @@ report = api.get_full_report(campaign_id="CAMP-UUID")`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-bl from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} Compliance API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { AuditLogsApi } from '@survey-engine/sdk';
 
 const auditApi = new AuditLogsApi(config);
@@ -2065,14 +2227,161 @@ api = AuditLogsApi(client)
 logs = api.get_tenant_audit_logs(page=0, size=20)
 platform = api.get_platform_audit_logs(action="DELETE")`}
               />
+               </div>
+            {/if}
+          </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature Management Section -->
+    <section id="features" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
+      <div class="space-y-4">
+        <div class="flex items-center gap-3 text-primary">
+          <Zap class="w-10 h-10" />
+          <h2 class="text-4xl font-bold tracking-tight">Feature Management</h2>
+        </div>
+        <p class="text-muted-foreground text-lg leading-relaxed">
+          Manage product tours, tooltips, banners, and feature flags. Control feature rollouts 
+          across tenants with granular targeting and percentage-based deployments.
+        </p>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-12">
+        <div class="space-y-12">
+          <div class="space-y-4">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              1. Global Feature Registry
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              Super-administrators define features globally, setting default rollouts, 
+              minimum plan requirements, and role-based access constraints.
+            </p>
+          </div>
+          <div class="space-y-4 pt-12">
+            <h3 class="text-2xl font-bold border-l-4 border-primary pl-6">
+              2. User Feature Resolution
+            </h3>
+            <p class="text-muted-foreground leading-relaxed">
+              End users evaluate their permitted features in real-time. The engine resolves 
+              tenant configurations, plan limits, and global rollouts instantly.
+            </p>
+          </div>
+        </div>
+        <div
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
+        >
+          <div class="absolute inset-0 bg-gradient-to-tl from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
+          <div
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
+          >
+            <span
+              class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
+              >{activeTab} Features API</span
+            >
+          </div>
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
+                code={`import { FeatureManagementApi, UserFeaturesApi } from '@survey-engine/sdk';
+
+const adminFeatures = new FeatureManagementApi(config);
+const userFeatures = new UserFeaturesApi(config);
+
+// 1. Super Admin: Create Feature
+await adminFeatures.createFeature({
+  featureDefinitionRequest: {
+    featureKey: "new-dashboard",
+    featureType: "FEATURE_FLAG",
+    category: "DASHBOARD",
+    name: "Next-Gen Dashboard",
+    rolloutPercentage: 50
+  }
+});
+
+// 2. User: Get available features
+const available = await userFeatures.getUserFeatures({
+  category: "DASHBOARD"
+});`}
+              />
             </div>
-          {/if}
+          {:else if activeTab === "java"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="java"
+                code={`import org.openapitools.client.api.FeatureManagementApi;
+import org.openapitools.client.api.UserFeaturesApi;
+import org.openapitools.client.model.FeatureDefinitionRequest;
+import org.openapitools.client.model.FeatureDefinitionResponse;
+import org.openapitools.client.model.FeatureStateResponse;
+import java.util.List;
+
+FeatureManagementApi adminApi = new FeatureManagementApi(client);
+UserFeaturesApi userApi = new UserFeaturesApi(client);
+
+// 1. Create Feature
+adminApi.createFeature(new FeatureDefinitionRequest()
+    .featureKey("new-dash").featureType("FEATURE_FLAG")
+    .category("DASHBOARD").name("New Dash").rolloutPercentage(50));
+
+// 2. Check Use
+List<FeatureStateResponse> available = userApi.getUserFeatures("DASHBOARD", null);`}
+              />
+            </div>
+          {:else if activeTab === "go"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="go"
+                code={`import sdk "github.com/muhibnayem/survey-engine-sdk-go"
+
+// 1. Create Feature
+client.FeatureManagementAPI.CreateFeature(ctx).
+    FeatureDefinitionRequest(sdk.FeatureDefinitionRequest{
+        FeatureKey: "new-dash",
+        FeatureType: "FEATURE_FLAG",
+        Category: "DASHBOARD",
+        Name: "New Dashboard",
+        RolloutPercentage: sdk.PtrInt32(50),
+    }).Execute()
+
+// 2. User Checking
+features, _, _ := client.UserFeaturesAPI.GetUserFeatures(ctx).
+    Category("DASHBOARD").Execute()`}
+              />
+            </div>
+          {:else if activeTab === "python"}
+            <div class="space-y-6">
+              <SimpleCodeBlock
+                language="python"
+                code={`from openapi_client.api.feature_management_api import FeatureManagementApi
+from openapi_client.api.user_features_api import UserFeaturesApi
+from openapi_client.models.feature_definition_request import FeatureDefinitionRequest
+
+admin_api = FeatureManagementApi(client)
+user_api = UserFeaturesApi(client)
+
+# 1. Create Feature
+admin_api.create_feature(feature_definition_request=FeatureDefinitionRequest(
+    feature_key="new-dash", feature_type="FEATURE_FLAG",
+    category="DASHBOARD", name="New Dash", rollout_percentage=50
+))
+
+# 2. Check Features
+available = user_api.get_user_features(category="DASHBOARD")`}
+              />
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Platform Governance Section -->
-    <section id="platform-admin" class="space-y-12 pt-16 border-t border-border/20">
+    <section id="platform-admin" class="space-y-12 pt-16 border-t border-border/20" use:reveal={{ y: 20, duration: 800 }}>
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
           <ShieldAlert class="w-10 h-10" />
@@ -2107,20 +2416,23 @@ platform = api.get_platform_audit_logs(action="DELETE")`}
           </div>
         </div>
         <div
-          class="bg-zinc-950 rounded-2xl p-6 shadow-2xl border border-white/5 h-fit"
+          class="bg-zinc-950/80 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-primary/5 border border-white/10 h-fit group hover:border-primary/30 transition-colors duration-500 relative"
         >
+          <div class="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-2xl"></div>
           <div
-            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4"
+            class="mb-4 flex items-center justify-between border-b border-white/10 pb-4 relative z-10"
           >
             <span
               class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"
               >{activeTab} SuperAdmin API</span
             >
           </div>
-          {#if activeTab === "typescript"}
-            <div class="space-y-6">
-              <SimpleCodeBlock
-                language="typescript"
+          <div class="relative z-10">
+          <div class="space-y-6">
+               {#if activeTab === "typescript"}
+                <div class="space-y-6">
+                  <SimpleCodeBlock
+                    language="typescript"
                 code={`import { SuperAdminApi } from '@survey-engine/sdk';
 
 const superApi = new SuperAdminApi(config);
@@ -2190,8 +2502,10 @@ api.override_tenant_subscription(
     override_subscription_request=OverrideSubscriptionRequest(plan_code="...")
 )`}
               />
-            </div>
-          {/if}
+               </div>
+            {/if}
+          </div>
+          </div>
         </div>
       </div>
     </section>
@@ -2200,6 +2514,7 @@ api.override_tenant_subscription(
     <section
       id="error-handling"
       class="space-y-12 pt-32 border-t border-border/20"
+      use:reveal={{ y: 20, duration: 800 }}
     >
       <div class="space-y-4">
         <div class="flex items-center gap-3 text-primary">
@@ -2254,5 +2569,214 @@ api.override_tenant_subscription(
 </div>
 
 <style>
-  /* Scrollbar utilities if needed */
+  .sdk-root {
+    --panel-glow: color-mix(in oklab, hsl(var(--primary)) 55%, transparent);
+  }
+
+  .sdk-cosmos {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+    --sdk-parallax: 0px;
+  }
+
+  .sdk-grid {
+    position: absolute;
+    inset: -20% -8%;
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in oklab, hsl(var(--foreground)) 8%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, hsl(var(--foreground)) 8%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 64px 64px;
+    mask-image: radial-gradient(80% 65% at 50% 20%, black 40%, transparent 100%);
+    opacity: 0.35;
+    animation: gridFloat 22s linear infinite;
+    transform-origin: center;
+    transform: translate3d(0, calc(var(--sdk-parallax) * 0.28), 0);
+  }
+
+  .sdk-orb {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(52px);
+    opacity: 0.25;
+    mix-blend-mode: screen;
+  }
+
+  .orb-a {
+    width: min(42vw, 620px);
+    height: min(42vw, 620px);
+    left: -12%;
+    top: 4%;
+    background: radial-gradient(circle at 35% 35%, #22d3ee 0%, transparent 70%);
+    animation: orbDriftA 18s ease-in-out infinite;
+    transform: translate3d(0, calc(var(--sdk-parallax) * 0.55), 0);
+  }
+
+  .orb-b {
+    width: min(38vw, 560px);
+    height: min(38vw, 560px);
+    right: -8%;
+    top: 16%;
+    background: radial-gradient(circle at 40% 35%, #3b82f6 0%, transparent 68%);
+    animation: orbDriftB 24s ease-in-out infinite;
+    transform: translate3d(0, calc(var(--sdk-parallax) * 0.72), 0);
+  }
+
+  .orb-c {
+    width: min(48vw, 720px);
+    height: min(48vw, 720px);
+    left: 28%;
+    bottom: -22%;
+    background: radial-gradient(circle at 40% 35%, #14b8a6 0%, transparent 70%);
+    animation: orbDriftC 26s ease-in-out infinite;
+    transform: translate3d(0, calc(var(--sdk-parallax) * 0.46), 0);
+  }
+
+  .sdk-veil {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      110% 70% at 50% 0%,
+      transparent 25%,
+      color-mix(in oklab, hsl(var(--background)) 72%, black) 100%
+    );
+  }
+
+  :global(.motion-block) {
+    opacity: 0;
+    transform: translateY(40px) scale(0.985);
+    filter: blur(8px);
+    transition:
+      opacity 0.95s cubic-bezier(0.16, 1, 0.3, 1) var(--motion-delay, 0ms),
+      transform 1.05s cubic-bezier(0.16, 1, 0.3, 1) var(--motion-delay, 0ms),
+      filter 0.95s cubic-bezier(0.16, 1, 0.3, 1) var(--motion-delay, 0ms);
+    will-change: transform, opacity, filter;
+  }
+
+  :global(.motion-block.is-visible) {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+  :global(.motion-panel) {
+    --rx: 0deg;
+    --ry: 0deg;
+    --mx: 50%;
+    --my: 50%;
+    transform-style: preserve-3d;
+    transform: perspective(1300px) rotateX(var(--rx)) rotateY(var(--ry));
+    transition:
+      transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+      box-shadow 0.35s ease,
+      border-color 0.35s ease;
+    animation: panelLift 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--panel-delay, 0ms);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, hsl(var(--foreground)) 8%, transparent),
+      0 30px 70px -44px color-mix(in oklab, hsl(var(--foreground)) 40%, transparent);
+    position: relative;
+    overflow: hidden;
+  }
+
+  :global(.motion-panel)::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(
+      420px circle at var(--mx) var(--my),
+      color-mix(in oklab, hsl(var(--primary)) 28%, transparent) 0%,
+      transparent 42%
+    );
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  :global(.motion-panel:hover)::after {
+    opacity: 1;
+  }
+
+  :global(.tab-chip) {
+    position: relative;
+    overflow: hidden;
+    transform: translateZ(0);
+  }
+
+  :global(.tab-chip)::before {
+    content: "";
+    position: absolute;
+    inset: -120% 40%;
+    transform: rotate(26deg);
+    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+    opacity: 0;
+    transition: transform 0.55s ease, opacity 0.35s ease;
+  }
+
+  :global(.tab-chip:hover)::before {
+    opacity: 1;
+    transform: rotate(26deg) translateX(120%);
+  }
+
+  @keyframes gridFloat {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(-1.5%, -2.2%, 0) scale(1.03);
+    }
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes orbDriftA {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(6%, -4%, 0) scale(1.08); }
+  }
+
+  @keyframes orbDriftB {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(-7%, 5%, 0) scale(1.12); }
+  }
+
+  @keyframes orbDriftC {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(2%, -5%, 0) scale(1.06); }
+  }
+
+  @keyframes panelLift {
+    0% {
+      opacity: 0;
+      transform: perspective(1300px) translateY(24px) scale(0.98);
+    }
+    100% {
+      opacity: 1;
+      transform: perspective(1300px) translateY(0) scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sdk-grid,
+    .sdk-orb,
+    :global(.motion-panel),
+    :global(.motion-block) {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+      filter: none !important;
+      opacity: 1 !important;
+    }
+  }
 </style>

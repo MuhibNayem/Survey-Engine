@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Check, Copy, ChevronRight, ChevronDown } from 'lucide-svelte';
+	import { slide } from 'svelte/transition';
 
 	interface Prop {
 		name: string;
@@ -34,7 +35,7 @@
 		collapsed = false
 	}: Props = $props();
 
-	let isExpanded = $state(true);
+	let isExpanded = $state(false);
 	let copied = $state(false);
 
 	type LifecycleSection = {
@@ -42,7 +43,7 @@
 		content: string;
 	};
 
-	$effect(() => {
+	$effect.pre(() => {
 		isExpanded = !collapsed;
 	});
 
@@ -185,7 +186,7 @@
 	</div>
 
 	{#if isExpanded}
-		<div class="border-t border-border">
+		<div transition:slide|local={{ duration: 240 }} class="border-t border-border overflow-hidden">
 			{#if description}
 				<div class="p-4 border-b border-border">
 					{#if lifecycleSections.length > 0}
