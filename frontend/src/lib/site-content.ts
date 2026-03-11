@@ -1,5 +1,29 @@
 export type SiteContentPageKey = "HOME" | "PRICING";
 
+export interface CarouselSlide {
+    /** Short eyebrow/tag above the headline */
+    tag: string;
+    headline: string;
+    subheadline: string;
+    description: string;
+    ctaLabel: string;
+    ctaUrl: string;
+    /** Optional secondary CTA */
+    secondaryCtaLabel: string;
+    secondaryCtaUrl: string;
+    /** Accent color for the slide highlight (HSL CSS string or Tailwind token) */
+    accentColor: string;
+}
+
+export interface SiteCarousel {
+    enabled: boolean;
+    /** Section heading shown above the carousel */
+    title: string;
+    description: string;
+    autoPlaySeconds: number;
+    slides: CarouselSlide[];
+}
+
 export interface SiteContentSeo {
     title: string;
     description: string;
@@ -38,6 +62,24 @@ export interface FeatureItem {
     bg: string;
 }
 
+export interface TestimonialItem {
+    quote: string;
+    authorName: string;
+    authorRole: string;
+    authorCompany: string;
+    /** Initials to show in the avatar circle when no image is provided */
+    authorInitials: string;
+    /** Accent hue for the avatar background (HSL hue number 0-360) */
+    avatarHue: number;
+}
+
+export interface SiteTestimonials {
+    enabled: boolean;
+    title: string;
+    description: string;
+    items: TestimonialItem[];
+}
+
 export interface SiteCta {
     title: string;
     description: string;
@@ -52,6 +94,7 @@ export interface HomeSiteContent {
     seo: SiteContentSeo;
     announcement: SiteAnnouncement;
     hero: SiteHero;
+    carousel: SiteCarousel;
     logoStrip: {
         title: string;
         logos: LogoItem[];
@@ -61,6 +104,7 @@ export interface HomeSiteContent {
         description: string;
         items: FeatureItem[];
     };
+    testimonials: SiteTestimonials;
     pricingPreview: {
         title: string;
         description: string;
@@ -94,6 +138,58 @@ function copy<T>(value: T): T {
     return JSON.parse(JSON.stringify(value));
 }
 
+const TESTIMONIALS_DEFAULT: SiteTestimonials = {
+    enabled: true,
+    title: "Trusted by teams that care about quality feedback",
+    description: "See how organizations use Survey Engine to capture high-accountability insights at scale.",
+    items: [
+        {
+            quote: "Survey Engine transformed how we collect employee feedback. The weighted scoring and private auth flows let us run sensitive engagement surveys with full confidence.",
+            authorName: "Sarah Chen",
+            authorRole: "Head of People Operations",
+            authorCompany: "Nexus Labs",
+            authorInitials: "SC",
+            avatarHue: 263,
+        },
+        {
+            quote: "The multi-tenant isolation means each of our business units sees only their own data. We went from spreadsheets to enterprise-grade analytics in under a week.",
+            authorName: "Marcus Okonkwo",
+            authorRole: "VP of Engineering",
+            authorCompany: "Meridian Health",
+            authorInitials: "MO",
+            avatarHue: 220,
+        },
+        {
+            quote: "The OIDC/PKCE campaign auth is a game changer — our respondents authenticate through their company SSO before accessing any survey. Zero friction, full security.",
+            authorName: "Priya Nair",
+            authorRole: "Director of Compliance",
+            authorCompany: "Finvault Group",
+            authorInitials: "PN",
+            avatarHue: 142,
+        },
+    ],
+};
+
+const CAROUSEL_DEFAULT: SiteCarousel = {
+    enabled: false,
+    title: "Upcoming Events & Announcements",
+    description: "Stay up to date with the latest from Survey Engine.",
+    autoPlaySeconds: 5,
+    slides: [
+        {
+            tag: "Webinar",
+            headline: "Enterprise Survey Best Practices",
+            subheadline: "Join our live session with industry experts",
+            description: "Learn how leading organizations use Survey Engine to collect high-accountability feedback at scale.",
+            ctaLabel: "Register Now",
+            ctaUrl: "/register",
+            secondaryCtaLabel: "Learn More",
+            secondaryCtaUrl: "/docs",
+            accentColor: "hsl(263 70% 55%)",
+        },
+    ],
+};
+
 const HOME_DEFAULT: HomeSiteContent = {
     seo: {
         title: "Survey Engine - Enterprise Survey Platform",
@@ -120,6 +216,8 @@ const HOME_DEFAULT: HomeSiteContent = {
         tertiaryCtaUrl: "/docs/api",
         footnote: "No credit card required - 14-day free trial - Cancel anytime",
     },
+    carousel: CAROUSEL_DEFAULT,
+    testimonials: TESTIMONIALS_DEFAULT,
     logoStrip: {
         title: "Trusted by teams building high-accountability feedback programs",
         logos: [
@@ -257,43 +355,35 @@ export function defaultPricingSiteContent(): PricingSiteContent {
 }
 
 export function normalizeHomeSiteContent(raw: unknown): HomeSiteContent {
+    const r = raw as Partial<HomeSiteContent> | undefined;
     return {
         ...defaultHomeSiteContent(),
-        ...(raw as Partial<HomeSiteContent> || {}),
-        announcement: {
-            ...HOME_DEFAULT.announcement,
-            ...((raw as Partial<HomeSiteContent> | undefined)?.announcement || {}),
-        },
-        hero: {
-            ...HOME_DEFAULT.hero,
-            ...((raw as Partial<HomeSiteContent> | undefined)?.hero || {}),
+        ...(r || {}),
+        seo: { ...HOME_DEFAULT.seo, ...(r?.seo || {}) },
+        announcement: { ...HOME_DEFAULT.announcement, ...(r?.announcement || {}) },
+        hero: { ...HOME_DEFAULT.hero, ...(r?.hero || {}) },
+        carousel: {
+            ...CAROUSEL_DEFAULT,
+            ...(r?.carousel || {}),
+            slides: Array.isArray(r?.carousel?.slides) ? r!.carousel!.slides! : copy(CAROUSEL_DEFAULT.slides),
         },
         logoStrip: {
             ...HOME_DEFAULT.logoStrip,
-            ...((raw as Partial<HomeSiteContent> | undefined)?.logoStrip || {}),
-            logos: Array.isArray((raw as Partial<HomeSiteContent> | undefined)?.logoStrip?.logos)
-                ? (raw as Partial<HomeSiteContent>).logoStrip!.logos!
-                : copy(HOME_DEFAULT.logoStrip.logos),
+            ...(r?.logoStrip || {}),
+            logos: Array.isArray(r?.logoStrip?.logos) ? r!.logoStrip!.logos! : copy(HOME_DEFAULT.logoStrip.logos),
         },
         featureSection: {
             ...HOME_DEFAULT.featureSection,
-            ...((raw as Partial<HomeSiteContent> | undefined)?.featureSection || {}),
-            items: Array.isArray((raw as Partial<HomeSiteContent> | undefined)?.featureSection?.items)
-                ? (raw as Partial<HomeSiteContent>).featureSection!.items!
-                : copy(HOME_DEFAULT.featureSection.items),
+            ...(r?.featureSection || {}),
+            items: Array.isArray(r?.featureSection?.items) ? r!.featureSection!.items! : copy(HOME_DEFAULT.featureSection.items),
         },
-        pricingPreview: {
-            ...HOME_DEFAULT.pricingPreview,
-            ...((raw as Partial<HomeSiteContent> | undefined)?.pricingPreview || {}),
+        testimonials: {
+            ...TESTIMONIALS_DEFAULT,
+            ...(r?.testimonials || {}),
+            items: Array.isArray(r?.testimonials?.items) ? r!.testimonials!.items! : copy(TESTIMONIALS_DEFAULT.items),
         },
-        cta: {
-            ...HOME_DEFAULT.cta,
-            ...((raw as Partial<HomeSiteContent> | undefined)?.cta || {}),
-        },
-        seo: {
-            ...HOME_DEFAULT.seo,
-            ...((raw as Partial<HomeSiteContent> | undefined)?.seo || {}),
-        },
+        pricingPreview: { ...HOME_DEFAULT.pricingPreview, ...(r?.pricingPreview || {}) },
+        cta: { ...HOME_DEFAULT.cta, ...(r?.cta || {}) },
     };
 }
 
