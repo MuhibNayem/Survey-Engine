@@ -409,32 +409,32 @@
     function optionCardClass(selected: boolean): string {
         return `group flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-all ${
             selected
-                ? "border-primary bg-primary/10 text-primary shadow-sm"
-                : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/5"
+                ? "survey-option-card survey-option-card--selected shadow-sm"
+                : "survey-option-card"
         }`;
     }
 
     function radioDotClass(selected: boolean): string {
         return `inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
             selected
-                ? "border-primary bg-primary"
-                : "border-border bg-background"
+                ? "survey-radio-dot survey-radio-dot--selected"
+                : "survey-radio-dot"
         }`;
     }
 
     function checkBoxClass(selected: boolean): string {
         return `inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs font-bold ${
             selected
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background text-transparent"
+                ? "survey-checkbox survey-checkbox--selected"
+                : "survey-checkbox"
         }`;
     }
 
     function ratingButtonClass(selected: boolean): string {
         return `inline-flex h-9 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${
             selected
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/5"
+                ? "survey-rating-button survey-rating-button--selected"
+                : "survey-rating-button"
         }`;
     }
 
@@ -1499,7 +1499,7 @@
                                             {#each group.questions as question}
                                                 <div class={`${surveyCardVariantClass()} survey-question-card space-y-4`}>
                                                     <p
-                                                        class="font-medium leading-7 text-[#1f2937]"
+                                                        class="survey-question-text"
                                                     >
                                                         {#if campaign.showQuestionNumbers}
                                                             <span
@@ -1535,7 +1535,7 @@
                                                                         )}
                                                                 >
                                                                     <span
-                                                                        class="pr-3 font-medium"
+                                                                        class="survey-option-text"
                                                                         >{option}</span
                                                                     >
                                                                     <span
@@ -1548,7 +1548,7 @@
                                                                     >
                                                                         {#if isSingleSelected(question.questionId, option)}
                                                                             <span
-                                                                                class="h-2.5 w-2.5 rounded-full bg-primary-foreground"
+                                                                                class="h-2.5 w-2.5 rounded-full survey-radio-dot-inner"
                                                                             ></span>
                                                                         {/if}
                                                                     </span>
@@ -1573,7 +1573,7 @@
                                                                         )}
                                                                 >
                                                                     <span
-                                                                        class="pr-3 font-medium"
+                                                                        class="survey-option-text"
                                                                         >{option}</span
                                                                     >
                                                                     <span
@@ -1594,7 +1594,7 @@
                                                                     class="flex items-center justify-between rounded-md border border-border px-3 py-2"
                                                                 >
                                                                     <div
-                                                                        class="text-sm"
+                                                                        class="survey-rank-option-text"
                                                                     >
                                                                         {idx + 1}. {option}
                                                                     </div>
@@ -1800,6 +1800,7 @@
     .survey-page {
         position: relative;
         overflow: hidden;
+        background: var(--survey-bg);
         background:
             radial-gradient(circle at top left, color-mix(in srgb, var(--survey-accent) 22%, transparent), transparent 30%),
             radial-gradient(circle at bottom right, color-mix(in srgb, var(--survey-primary) 18%, transparent), transparent 34%),
@@ -1816,16 +1817,16 @@
         pointer-events: none;
     }
 
-    .survey-logout-button {
-        color: color-mix(in srgb, var(--survey-text) 92%, #fff);
-        border-color: color-mix(in srgb, var(--survey-border) 86%, transparent);
-        background: color-mix(in srgb, var(--survey-card) 78%, var(--survey-shell) 22%);
+    :global(.survey-logout-button) {
+        color: #fff !important;
+        border-color: #b91c1c !important;
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
     }
 
-    .survey-logout-button:hover:not(:disabled) {
-        color: var(--survey-text);
-        border-color: color-mix(in srgb, var(--survey-primary) 28%, var(--survey-border) 72%);
-        background: color-mix(in srgb, var(--survey-accent-soft) 56%, var(--survey-card) 44%);
+    :global(.survey-logout-button:hover:not(:disabled)) {
+        color: #fff !important;
+        border-color: #991b1b !important;
+        background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%) !important;
     }
 
     .survey-page__ambient--left {
@@ -1924,6 +1925,7 @@
         display: inline-flex;
         align-items: center;
         border-radius: 9999px;
+        background: var(--survey-accent-soft);
         background: color-mix(in srgb, var(--survey-accent) 12%, transparent);
         color: var(--survey-primary);
         padding: 0.45rem 0.8rem;
@@ -1970,7 +1972,9 @@
 
     .survey-weight-pill {
         border-radius: 9999px;
+        border: 1px solid var(--survey-accent);
         border: 1px solid color-mix(in srgb, var(--survey-accent) 32%, transparent);
+        background: var(--survey-accent-soft);
         background: color-mix(in srgb, var(--survey-accent-soft) 88%, white);
         padding: 0.45rem 0.85rem;
         font-size: 0.72rem;
@@ -1984,7 +1988,9 @@
         display: inline-flex;
         align-items: center;
         border-radius: 9999px;
+        border: 1px solid var(--survey-accent);
         border: 1px solid color-mix(in srgb, var(--survey-accent) 24%, transparent);
+        background: var(--survey-accent-soft);
         background: color-mix(in srgb, var(--survey-accent-soft) 92%, white);
         padding: 0.35rem 0.7rem;
         font-size: 0.72rem;
@@ -2006,36 +2012,132 @@
         font-weight: 700;
     }
 
-    .survey-input {
+    .survey-question-text {
+        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+        font-size: 1.08rem;
+        line-height: 1.7;
+        letter-spacing: 0.002em;
+        font-weight: 650;
+        color: color-mix(in srgb, var(--survey-text) 94%, #111827);
+        text-wrap: pretty;
+    }
+
+    .survey-option-text {
+        padding-right: 0.75rem;
+        font-size: 0.97rem;
+        line-height: 1.55;
+        font-weight: 600;
+        letter-spacing: 0.004em;
+        color: color-mix(in srgb, var(--survey-text) 88%, #1f2937);
+    }
+
+    .survey-rank-option-text {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        font-weight: 600;
+        color: color-mix(in srgb, var(--survey-text) 88%, #1f2937);
+    }
+
+    :global(.survey-input) {
         border-color: color-mix(in srgb, var(--survey-border) 48%, transparent);
         background: rgba(255, 255, 255, 0.9);
         box-shadow: inset 0 1px 2px rgba(16, 42, 67, 0.04);
     }
 
-    .survey-input:focus-visible {
+    :global(.survey-input:focus-visible) {
+        outline: 2px solid var(--survey-accent);
+        outline-offset: 1px;
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--survey-accent) 18%, transparent);
     }
 
-    .survey-remark {
+    :global(.survey-remark) {
         min-height: 6rem;
     }
 
-    .survey-primary-button {
-        border: 1px solid color-mix(in srgb, var(--survey-primary) 55%, transparent);
-        background: linear-gradient(135deg, var(--survey-primary) 0%, var(--survey-accent) 52%, color-mix(in srgb, var(--survey-accent) 58%, white) 100%);
-        color: var(--survey-primary-text);
-        box-shadow: 0 18px 40px -28px color-mix(in srgb, var(--survey-primary) 55%, transparent);
+    .survey-option-card {
+        border-color: color-mix(in srgb, var(--survey-border) 56%, transparent);
+        background: color-mix(in srgb, var(--survey-card) 92%, white);
+        color: var(--survey-text);
     }
 
-    .survey-primary-button:hover {
-        filter: brightness(1.03);
+    .survey-option-card:hover {
+        border-color: color-mix(in srgb, var(--survey-primary) 40%, transparent);
+        background: color-mix(in srgb, var(--survey-accent-soft) 60%, var(--survey-card));
+    }
+
+    .survey-option-card--selected {
+        border-color: var(--survey-primary);
+        background: color-mix(in srgb, var(--survey-primary) 10%, var(--survey-card));
+        color: var(--survey-primary);
+    }
+
+    .survey-radio-dot {
+        border-color: color-mix(in srgb, var(--survey-border) 65%, transparent);
+        background: color-mix(in srgb, var(--survey-card) 96%, white);
+    }
+
+    .survey-radio-dot--selected {
+        border-color: var(--survey-primary);
+        background: var(--survey-primary);
+    }
+
+    .survey-radio-dot-inner {
+        background: var(--survey-primary-text);
+    }
+
+    .survey-checkbox {
+        border-color: color-mix(in srgb, var(--survey-border) 65%, transparent);
+        background: color-mix(in srgb, var(--survey-card) 96%, white);
+        color: transparent;
+    }
+
+    .survey-checkbox--selected {
+        border-color: var(--survey-primary);
+        background: var(--survey-primary);
+        color: var(--survey-primary-text);
+    }
+
+    .survey-rating-button {
+        border-color: color-mix(in srgb, var(--survey-border) 56%, transparent);
+        background: color-mix(in srgb, var(--survey-card) 92%, white);
+        color: var(--survey-text);
+    }
+
+    .survey-rating-button:hover {
+        border-color: color-mix(in srgb, var(--survey-primary) 40%, transparent);
+        background: color-mix(in srgb, var(--survey-accent-soft) 60%, var(--survey-card));
+    }
+
+    .survey-rating-button--selected {
+        border-color: var(--survey-primary);
+        background: var(--survey-primary);
+        color: var(--survey-primary-text);
+    }
+
+    :global(.survey-primary-button) {
+        border: 1px solid #166534 !important;
+        background: linear-gradient(135deg, #15803d 0%, #166534 100%) !important;
+        color: #f8fafc !important;
+        box-shadow: 0 14px 30px -24px rgba(22, 101, 52, 0.42);
+    }
+
+    :global(.survey-primary-button:hover) {
+        border-color: #14532d !important;
+        background: linear-gradient(135deg, #166534 0%, #14532d 100%) !important;
+        color: #f8fafc !important;
         transform: translateY(-1px);
     }
 
-    .survey-secondary-button {
-        border-color: color-mix(in srgb, var(--survey-accent) 32%, transparent);
-        background: color-mix(in srgb, var(--survey-accent-soft) 84%, white);
-        color: var(--survey-primary);
+    :global(.survey-secondary-button) {
+        border-color: #6b7280 !important;
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%) !important;
+        color: #1f2937 !important;
+    }
+
+    :global(.survey-secondary-button:hover) {
+        border-color: #4b5563 !important;
+        background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%) !important;
+        color: #111827 !important;
     }
 
     .campaign-branding-shell-header {
