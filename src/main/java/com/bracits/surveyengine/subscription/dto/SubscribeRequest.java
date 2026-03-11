@@ -19,4 +19,7 @@ public class SubscribeRequest {
     @NotNull
     @JsonAlias("planCode")
     private SubscriptionPlan plan;
+
+    @Builder.Default
+    private String source = "settings";
 }

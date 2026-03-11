@@ -8,6 +8,7 @@ import com.bracits.surveyengine.admin.service.AdminAuthService;
 import com.bracits.surveyengine.subscription.entity.Subscription;
 import com.bracits.surveyengine.subscription.entity.SubscriptionStatus;
 import com.bracits.surveyengine.subscription.repository.SubscriptionRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -39,6 +40,9 @@ class SaasIntegrationTest {
 
     @Autowired
     private SubscriptionRepository subscriptionRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void tenantIsolation_questionsAreScopedPerTenant() throws Exception {
@@ -91,7 +95,7 @@ class SaasIntegrationTest {
     }
 
     @Test
-    void subscriptionCheckout_usesMockGatewayAndActivatesPlan() throws Exception {
+    void subscriptionCheckout_initiatesSessionAndActivatesPlanAfterCallback() throws Exception {
         String tenantId = "saas-sub-" + UUID.randomUUID();
         String bearer = "Bearer " + registerAndLogin("sub+" + UUID.randomUUID() + "@example.com", tenantId);
 
@@ -101,19 +105,37 @@ class SaasIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tenantId").value(tenantId));
 
-        mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
+        String body = mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
                 .header("Authorization", bearer)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
-                          "plan": "PRO"
+                          "plan": "PRO",
+                          "source": "settings"
                         }
                         """))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.provider").value("MOCK"))
+                .andExpect(jsonPath("$.paymentUrl").value(org.hamcrest.Matchers.containsString("sandbox.sslcommerz.com/mock/")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String gatewayReference = objectMapper.readTree(body).path("gatewayReference").asText();
+
+        mockMvc.perform(post("/api/v1/public/payments/sslcommerz/success")
+                .param("tran_id", gatewayReference)
+                .param("val_id", "mock-val-id")
+                .param("status", "VALID"))
+                .andExpect(status().isFound());
+
+        mockMvc.perform(get("/api/v1/admin/subscriptions/me")
+                .header("Authorization", bearer)
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tenantId").value(tenantId))
                 .andExpect(jsonPath("$.plan").value("PRO"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.lastPaymentGatewayReference").value(org.hamcrest.Matchers.startsWith("mock-")));
+                .andExpect(jsonPath("$.lastPaymentGatewayReference").value(gatewayReference));
     }
 
     @Test
@@ -126,13 +148,12 @@ class SaasIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
-                          "planCode": "PRO"
+                          "planCode": "PRO",
+                          "source": "settings"
                         }
                         """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.tenantId").value(tenantId))
-                .andExpect(jsonPath("$.plan").value("PRO"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"));
+                .andExpect(jsonPath("$.provider").value("MOCK"));
     }
 
     @Test
@@ -140,15 +161,25 @@ class SaasIntegrationTest {
         String tenantId = "saas-sub-downgrade-" + UUID.randomUUID();
         String bearer = "Bearer " + registerAndLogin("sub-downgrade+" + UUID.randomUUID() + "@example.com", tenantId);
 
-        mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
+        String firstCheckout = mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
                 .header("Authorization", bearer)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
-                          "planCode": "PRO"
+                          "planCode": "PRO",
+                          "source": "settings"
                         }
                         """))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        mockMvc.perform(post("/api/v1/public/payments/sslcommerz/success")
+                .param("tran_id", objectMapper.readTree(firstCheckout).path("gatewayReference").asText())
+                .param("val_id", "mock-val-id")
+                .param("status", "VALID"))
+                .andExpect(status().isFound());
 
         mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
                 .header("Authorization", bearer)
@@ -167,15 +198,25 @@ class SaasIntegrationTest {
         String tenantId = "saas-sub-same-plan-" + UUID.randomUUID();
         String bearer = "Bearer " + registerAndLogin("sub-same+" + UUID.randomUUID() + "@example.com", tenantId);
 
-        mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
+        String firstCheckout = mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
                 .header("Authorization", bearer)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
-                          "planCode": "PRO"
+                          "planCode": "PRO",
+                          "source": "settings"
                         }
                         """))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        mockMvc.perform(post("/api/v1/public/payments/sslcommerz/success")
+                .param("tran_id", objectMapper.readTree(firstCheckout).path("gatewayReference").asText())
+                .param("val_id", "mock-val-id")
+                .param("status", "VALID"))
+                .andExpect(status().isFound());
 
         mockMvc.perform(post("/api/v1/admin/subscriptions/checkout")
                 .header("Authorization", bearer)

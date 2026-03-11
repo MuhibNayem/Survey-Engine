@@ -1,6 +1,7 @@
 package com.bracits.surveyengine.subscription.controller;
 
 import com.bracits.surveyengine.common.tenant.TenantSupport;
+import com.bracits.surveyengine.subscription.dto.CheckoutSessionResponse;
 import com.bracits.surveyengine.subscription.dto.SubscribeRequest;
 import com.bracits.surveyengine.subscription.dto.SubscriptionResponse;
 import com.bracits.surveyengine.subscription.service.SubscriptionService;
@@ -27,8 +28,8 @@ public class SubscriptionController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<SubscriptionResponse> checkout(@Valid @RequestBody SubscribeRequest request) {
+    public ResponseEntity<CheckoutSessionResponse> checkout(@Valid @RequestBody SubscribeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(subscriptionService.subscribe(TenantSupport.requireCurrentTenant(), request));
+                .body(subscriptionService.initiateCheckout(TenantSupport.requireCurrentTenant(), request));
     }
 }

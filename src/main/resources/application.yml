@@ -88,3 +88,15 @@ survey-engine:
         key-prefix: ${SURVEY_ENGINE_AUTH_CACHE_JWKS_KEY_PREFIX:survey-engine:auth-cache:jwks}
   links:
     public-base-url: ${SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL:https://survey.example.com}
+  payment:
+    sslcommerz:
+      enabled: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_ENABLED:true}
+      store-id: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_STORE_ID:spydo69b154147abf2}
+      store-password: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_STORE_PASSWORD:spydo69b154147abf2@ssl}
+      session-api-url: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_SESSION_API_URL:https://sandbox.sslcommerz.com/gwprocess/v4/api.php}
+      validation-api-url: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_VALIDATION_API_URL:https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php}
+      callback-base-url: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_CALLBACK_BASE_URL:${SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL:https://survey.example.com}}
+      result-page-path: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_RESULT_PAGE_PATH:/payment/checkout}
+      success-path: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_SUCCESS_PATH:/api/v1/public/payments/sslcommerz/success}
+      fail-path: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_FAIL_PATH:/api/v1/public/payments/sslcommerz/fail}
+      cancel-path: ${SURVEY_ENGINE_PAYMENT_SSLCOMMERZ_CANCEL_PATH:/api/v1/public/payments/sslcommerz/cancel}

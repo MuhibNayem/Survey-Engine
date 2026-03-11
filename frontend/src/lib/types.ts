@@ -582,6 +582,13 @@ export interface SubscriptionResponse {
     maxAdminUsers: number;
 }
 
+export interface CheckoutSessionResponse {
+    paymentUrl: string;
+    gatewayReference: string;
+    provider: string;
+    status: string;
+}
+
 export interface PlanDefinitionResponse {
     id: string;
     planCode: SubscriptionPlan;

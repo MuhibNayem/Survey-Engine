@@ -1,17 +1,28 @@
 package com.bracits.surveyengine.subscription.service;
 
-import com.bracits.surveyengine.subscription.entity.SubscriptionPlan;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
-import java.util.UUID;
-
 @Component
+@ConditionalOnProperty(prefix = "survey-engine.payment.sslcommerz", name = "enabled", havingValue = "false")
 public class MockPaymentGateway implements PaymentGateway {
 
     @Override
-    public PaymentResult charge(String tenantId, SubscriptionPlan plan, BigDecimal amount, String currency) {
-        String ref = "mock-" + tenantId + "-" + plan.name().toLowerCase() + "-" + UUID.randomUUID();
-        return new PaymentResult(true, ref);
+    public CheckoutSession initiateCheckout(CheckoutRequest request) {
+        return new CheckoutSession(
+                "https://sandbox.sslcommerz.com/mock/" + request.gatewayReference(),
+                request.gatewayReference(),
+                "mock-session-" + request.gatewayReference(),
+                "PENDING");
+    }
+
+    @Override
+    public ValidationResult validatePayment(ValidationRequest request) {
+        return new ValidationResult(true, request.gatewayReference(), request.validationReference(), "VALID");
+    }
+
+    @Override
+    public String providerName() {
+        return "MOCK";
     }
 }

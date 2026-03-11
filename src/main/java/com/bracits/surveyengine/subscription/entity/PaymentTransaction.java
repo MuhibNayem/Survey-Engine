@@ -45,6 +45,25 @@ public class PaymentTransaction {
     @Column(name = "gateway_reference", nullable = false, length = 255)
     private String gatewayReference;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan_code", length = 30)
+    private SubscriptionPlan planCode;
+
+    @Column(name = "checkout_source", length = 30)
+    private String checkoutSource;
+
+    @Column(name = "payment_provider", nullable = false, length = 50)
+    private String paymentProvider;
+
+    @Column(name = "gateway_session_key", length = 255)
+    private String gatewaySessionKey;
+
+    @Column(name = "validation_reference", length = 255)
+    private String validationReference;
+
+    @Column(name = "gateway_status", length = 100)
+    private String gatewayStatus;
+
     @Column(name = "amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 

@@ -5,56 +5,30 @@
     import { goto } from "$app/navigation";
     import * as Card from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
-    import { Input } from "$lib/components/ui/input";
-    import { Label } from "$lib/components/ui/label";
-    import { Badge } from "$lib/components/ui/badge";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { Confetti } from "$lib/components/confetti";
     import { ErrorBanner } from "$lib/components/error-banner";
     import {
-        CreditCard,
-        ShieldCheck,
-        LockKeyhole,
         ReceiptText,
         CheckCircle2,
         ArrowLeft,
+        LoaderCircle,
     } from "lucide-svelte";
     import type {
+        CheckoutSessionResponse,
         PlanDefinitionResponse,
         SubscriptionPlan,
-        SubscriptionResponse,
     } from "$lib/types";
 
     let loading = $state(true);
     let paying = $state(false);
     let error = $state<string | null>(null);
-    let paymentFailed = $state(false);
     let serverError = $state(false);
     let plan = $state<PlanDefinitionResponse | null>(null);
     let source = $state<"settings" | "onboarding">("settings");
-    
-    // Confetti celebration
+    let paymentStatus = $state<"idle" | "success" | "failed" | "canceled">("idle");
+    let gatewayReference = $state<string | null>(null);
     let showConfetti = $state(false);
-
-    let cardholderName = $state("");
-    let cardNumber = $state("");
-    let expiry = $state("");
-    let cvv = $state("");
-
-    function formatCardNumberInput(raw: string) {
-        const digitsOnly = raw.replace(/\D+/g, "").slice(0, 19);
-        return digitsOnly.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
-    }
-
-    function formatExpiryInput(raw: string) {
-        const digitsOnly = raw.replace(/\D+/g, "").slice(0, 4);
-        if (digitsOnly.length <= 2) return digitsOnly;
-        return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
-    }
-
-    function formatCvvInput(raw: string) {
-        return raw.replace(/\D+/g, "").slice(0, 4);
-    }
 
     function redirectBack() {
         if (source === "onboarding") {
@@ -64,61 +38,58 @@
         goto("/settings/subscription");
     }
 
-    function isCardInputValid() {
-        const digits = cardNumber.replace(/\s+/g, "");
-        const expiryRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
-        const cvvRegex = /^\d{3,4}$/;
-        return (
-            cardholderName.trim().length >= 3 &&
-            digits.length >= 12 &&
-            expiryRegex.test(expiry.trim()) &&
-            cvvRegex.test(cvv.trim())
-        );
+    function continueAfterSuccess() {
+        if (source === "onboarding") {
+            if (auth.user?.role === "SUPER_ADMIN") {
+                goto("/admin/dashboard");
+            } else {
+                goto("/dashboard");
+            }
+            return;
+        }
+        goto("/settings/subscription");
+    }
+
+    function statusMessage() {
+        if (!plan) return "";
+        switch (paymentStatus) {
+            case "success":
+                return `${plan.displayName} has been activated for your tenant.`;
+            case "failed":
+                return `Payment could not be completed for ${plan.displayName}. Please try again.`;
+            case "canceled":
+                return `Payment for ${plan.displayName} was canceled.`;
+            default:
+                return `You will be redirected to SSLCommerz to pay for ${plan.displayName}.`;
+        }
     }
 
     async function payAndUpgrade() {
         if (!plan) return;
-        if (!isCardInputValid()) {
-            error = "Please provide valid payment details.";
-            return;
-        }
 
         paying = true;
         error = null;
-        paymentFailed = false;
         serverError = false;
         try {
-            await api.post<SubscriptionResponse>(
+            const { data } = await api.post<CheckoutSessionResponse>(
                 "/admin/subscriptions/checkout",
                 {
                     planCode: plan.planCode,
+                    source,
                 },
             );
-
-            // 🎉 Celebrate successful payment!
-            showConfetti = true;
-
-            // Wait for confetti animation before redirecting
-            setTimeout(() => {
-                if (source === "onboarding") {
-                    if (auth.user?.role === "SUPER_ADMIN") {
-                        goto("/admin/dashboard");
-                    } else {
-                        goto("/dashboard");
-                    }
-                } else {
-                    goto("/settings/subscription");
-                }
-            }, 4500);
+            gatewayReference = data.gatewayReference;
+            if (!data.paymentUrl) {
+                error = "Payment session created, but no redirect URL was returned.";
+                return;
+            }
+            window.location.href = data.paymentUrl;
         } catch (err: any) {
             const status = err?.response?.status;
-            // Show banner only for 500-level server errors
             if (status >= 500) {
                 serverError = true;
             } else {
-                // Keep inline for 400-level (validation/auth)
-                paymentFailed = true;
-                error = err?.response?.data?.message || "Payment failed. Please check your card details.";
+                error = err?.response?.data?.message || "Unable to start payment. Please try again.";
             }
         } finally {
             paying = false;
@@ -135,21 +106,24 @@
         error = null;
         try {
             const params = new URLSearchParams(window.location.search);
-            const selectedPlanCode = params.get(
-                "planCode",
-            ) as SubscriptionPlan | null;
-            source =
-                params.get("source") === "onboarding"
-                    ? "onboarding"
-                    : "settings";
+            const selectedPlanCode = params.get("planCode") as SubscriptionPlan | null;
+            source = params.get("source") === "onboarding" ? "onboarding" : "settings";
+            const statusParam = params.get("paymentStatus");
+            gatewayReference = params.get("gatewayReference");
+
+            if (statusParam === "success" || statusParam === "failed" || statusParam === "canceled") {
+                paymentStatus = statusParam;
+                if (statusParam === "success") {
+                    showConfetti = true;
+                }
+            }
 
             if (!selectedPlanCode) {
                 error = "No plan selected for checkout.";
                 return;
             }
 
-            const { data } =
-                await api.get<PlanDefinitionResponse[]>("/admin/plans");
+            const { data } = await api.get<PlanDefinitionResponse[]>("/admin/plans");
             plan = data.find((p) => p.planCode === selectedPlanCode) ?? null;
             if (!plan) {
                 error = "Selected plan is unavailable.";
@@ -163,7 +137,7 @@
 </script>
 
 <svelte:head>
-    <title>Payment Checkout — Survey Engine</title>
+    <title>Payment Checkout - Survey Engine</title>
 </svelte:head>
 
 <div class="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 p-4 md:p-8">
@@ -175,19 +149,15 @@
                 </Button>
                 <div>
                     <h1 class="text-2xl font-bold text-foreground">Secure Checkout</h1>
-                    <p class="text-sm text-muted-foreground">
-                        Review plan details and complete your payment.
-                    </p>
                 </div>
             </div>
-            <Badge variant="secondary" class="w-fit">MVP Mock Gateway</Badge>
         </div>
 
         <ErrorBanner
             show={serverError}
             type="failure"
-            title="🔴 Server Error"
-            message="Our servers are experiencing issues. Please try again later."
+            title="Server Error"
+            message="The payment session could not be created. Please try again later."
             showRetry={true}
             onRetry={payAndUpgrade}
             onDismiss={() => (serverError = false)}
@@ -238,94 +208,45 @@
             <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
                 <Card.Root class="order-2 lg:order-1 border-border/70">
                     <Card.Header class="border-b border-border/60 pb-4">
-                        <Card.Title class="flex items-center gap-2">
-                            <CreditCard class="h-5 w-5 text-primary" />
-                            Payment Details
-                        </Card.Title>
-                        <Card.Description>
-                            Enter card details to complete checkout for <span class="font-medium text-foreground">{plan.displayName}</span>.
-                        </Card.Description>
+                        <Card.Title>Checkout</Card.Title>
+                        {#if paymentStatus !== "idle"}
+                            <Card.Description>{statusMessage()}</Card.Description>
+                        {/if}
                     </Card.Header>
                     <Card.Content class="space-y-5 pt-5">
-                        <div class="space-y-2">
-                            <Label for="cardholder">Cardholder Name</Label>
-                            <Input
-                                id="cardholder"
-                                bind:value={cardholderName}
-                                placeholder="John Doe"
-                                autocomplete="cc-name"
-                            />
-                        </div>
-                        <div class="space-y-2">
-                            <Label for="cardnum">Card Number</Label>
-                            <Input
-                                id="cardnum"
-                                bind:value={cardNumber}
-                                placeholder="4242 4242 4242 4242"
-                                inputmode="numeric"
-                                maxlength={23}
-                                autocomplete="cc-number"
-                                oninput={(e) => {
-                                    const target = e.currentTarget as HTMLInputElement;
-                                    cardNumber = formatCardNumberInput(target.value);
-                                }}
-                            />
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="space-y-2">
-                                <Label for="exp">Expiry (MM/YY)</Label>
-                                <Input
-                                    id="exp"
-                                    bind:value={expiry}
-                                    placeholder="12/30"
-                                    inputmode="numeric"
-                                    maxlength={5}
-                                    autocomplete="cc-exp"
-                                    oninput={(e) => {
-                                        const target = e.currentTarget as HTMLInputElement;
-                                        expiry = formatExpiryInput(target.value);
-                                    }}
-                                />
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="cvv">CVV</Label>
-                                <Input
-                                    id="cvv"
-                                    bind:value={cvv}
-                                    placeholder="123"
-                                    inputmode="numeric"
-                                    maxlength={4}
-                                    autocomplete="cc-csc"
-                                    oninput={(e) => {
-                                        const target = e.currentTarget as HTMLInputElement;
-                                        cvv = formatCvvInput(target.value);
-                                    }}
-                                />
-                            </div>
+                        <div class="rounded-lg border border-border/60 p-4">
+                            <p class="text-lg font-semibold text-foreground">{plan.displayName}</p>
+                            <p class="text-sm text-muted-foreground">{plan.currency} {plan.price} every {plan.billingCycleDays} days</p>
                         </div>
 
-                        <div class="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-                            <div class="flex items-center gap-2 text-foreground">
-                                <LockKeyhole class="h-3.5 w-3.5 text-emerald-600" />
-                                <span class="font-medium">Secure simulation mode</span>
+                        {#if paymentStatus === "success"}
+                            <div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700">
+                                Your subscription is active now. Continue to your workspace.
                             </div>
-                            <p class="mt-1">
-                                No real card processing occurs in MVP. Payment data is validated client-side for demo flow only.
-                            </p>
-                        </div>
+                        {:else if paymentStatus === "failed" || paymentStatus === "canceled"}
+                            <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                                The plan was not activated. Please try again.
+                            </div>
+                        {/if}
                     </Card.Content>
                     <Card.Footer class="flex flex-col-reverse gap-2 border-t border-border/60 pt-4 sm:flex-row sm:justify-end">
                         <Button variant="outline" onclick={redirectBack} disabled={paying}>
-                            Cancel
+                            Back
                         </Button>
-                        <Button onclick={payAndUpgrade} disabled={paying}>
-                            {#if paying}
-                                <span class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-                                Processing...
-                            {:else}
-                                Pay {plan.currency} {plan.price} & Activate
-                            {/if}
-                        </Button>
+                        {#if paymentStatus === "success"}
+                            <Button onclick={continueAfterSuccess}>
+                                Continue
+                            </Button>
+                        {:else}
+                            <Button onclick={payAndUpgrade} disabled={paying}>
+                                {#if paying}
+                                    <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+                                    Redirecting...
+                                {:else}
+                                    Pay
+                                {/if}
+                            </Button>
+                        {/if}
                     </Card.Footer>
                 </Card.Root>
 
@@ -348,8 +269,8 @@
                                 <span>{plan.billingCycleDays} days</span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span class="text-muted-foreground">Tax</span>
-                                <span>{plan.currency} 0.00</span>
+                                <span class="text-muted-foreground">Gateway</span>
+                                <span>SSLCommerz sandbox</span>
                             </div>
                             <div class="border-t border-border/70 pt-3">
                                 <div class="flex items-center justify-between text-base font-semibold text-foreground">
@@ -399,22 +320,11 @@
                             {/if}
                         </Card.Content>
                     </Card.Root>
-
-                    <div class="rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
-                        <div class="flex items-center gap-2 text-foreground">
-                            <ShieldCheck class="h-3.5 w-3.5 text-emerald-600" />
-                            <span class="font-medium">Protected checkout</span>
-                        </div>
-                        <p class="mt-1">
-                            Session is authenticated and plan checkout is scoped to your tenant.
-                        </p>
-                    </div>
                 </div>
             </div>
         {/if}
     </div>
 
-    <!-- 🎉 Confetti Celebration for Successful Payment -->
     {#if showConfetti}
         <Confetti
             fire={showConfetti}
@@ -422,10 +332,10 @@
             spread={100}
             startVelocity={55}
             duration={4000}
-            colors={['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#FFD700', '#06b6d4']}
+            colors={['#10b981', '#3b82f6', '#f59e0b', '#06b6d4']}
             showBanner={true}
-            title="🎉 Payment Successful!"
-            message="Your subscription has been activated. Welcome to the premium experience!"
+            title="Payment Successful!"
+            message="Your subscription has been activated."
             gravity={0.9}
             onComplete={() => (showConfetti = false)}
         />
