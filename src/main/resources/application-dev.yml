@@ -46,6 +46,21 @@ logging:
     org.hibernate.SQL: DEBUG
 
 survey-engine:
+  auth:
+    responder:
+      cookie:
+        secure: false
+        same-site: Lax
+      csrf:
+        enabled: true
+        cookie-name: responder_xsrf
+        header-name: X-Responder-Csrf
+        secret: dev-responder-csrf-secret
+      exchange:
+        enforce-origin-allowlist: false
+        allow-missing-origin: true
+        rate-limit-enabled: true
+        rate-limit-per-minute: 120
   security:
     cookies:
       secure: false

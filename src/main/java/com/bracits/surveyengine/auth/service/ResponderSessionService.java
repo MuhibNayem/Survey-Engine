@@ -1,13 +1,15 @@
 package com.bracits.surveyengine.auth.service;
 
+import com.bracits.surveyengine.auth.config.ResponderSecurityProperties;
 import com.bracits.surveyengine.auth.dto.ResponderAccessIdentity;
 import com.bracits.surveyengine.auth.entity.ResponderSession;
 import com.bracits.surveyengine.auth.repository.ResponderSessionRepository;
 import com.bracits.surveyengine.campaign.entity.CampaignSettings;
 import com.bracits.surveyengine.campaign.repository.CampaignSettingsRepository;
+import com.bracits.surveyengine.common.exception.BusinessException;
+import com.bracits.surveyengine.common.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,9 +20,12 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 @Service
 @RequiredArgsConstructor
@@ -31,10 +36,11 @@ public class ResponderSessionService {
 
     private final ResponderSessionRepository responderSessionRepository;
     private final CampaignSettingsRepository campaignSettingsRepository;
+    private final ResponderSecurityProperties responderSecurityProperties;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
-    public ResponseCookie createSessionCookie(
+    public List<ResponseCookie> createSessionCookies(
             HttpServletRequest request,
             String tenantId,
             UUID campaignId,
@@ -56,7 +62,9 @@ public class ResponderSessionService {
                 .createdAt(now)
                 .build());
 
-        return buildCookie(request, rawToken, timeout);
+        return List.of(
+                buildSessionCookie(request, rawToken, timeout),
+                buildCsrfCookie(request, rawToken, timeout));
     }
 
     @Transactional
@@ -95,18 +103,26 @@ public class ResponderSessionService {
                 .build());
     }
 
-    public ResponseCookie clearSessionCookie(HttpServletRequest request) {
-        return ResponseCookie.from(COOKIE_NAME, "")
-                .httpOnly(true)
-                .secure(isSecure(request))
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(Duration.ZERO)
-                .build();
+    public List<ResponseCookie> clearSessionCookies(HttpServletRequest request) {
+        return List.of(
+                ResponseCookie.from(COOKIE_NAME, "")
+                        .httpOnly(true)
+                        .secure(resolveSecureCookie(request))
+                        .sameSite(responderSecurityProperties.getCookie().getSameSite())
+                        .path("/")
+                        .maxAge(Duration.ZERO)
+                        .build(),
+                ResponseCookie.from(responderSecurityProperties.getCsrf().getCookieName(), "")
+                        .httpOnly(false)
+                        .secure(resolveSecureCookie(request))
+                        .sameSite(responderSecurityProperties.getCookie().getSameSite())
+                        .path("/")
+                        .maxAge(Duration.ZERO)
+                        .build());
     }
 
     @Transactional
-    public ResponseCookie revokeSessionCookie(
+    public List<ResponseCookie> revokeSessionCookies(
             HttpServletRequest request,
             String tenantId,
             UUID campaignId) {
@@ -121,7 +137,31 @@ public class ResponderSessionService {
                         responderSessionRepository.save(session);
                     });
         }
-        return clearSessionCookie(request);
+        return clearSessionCookies(request);
+    }
+
+    public void enforceCsrfForSessionMutation(HttpServletRequest request) {
+        if (!responderSecurityProperties.getCsrf().isEnabled()) {
+            return;
+        }
+        String rawToken = readCookieValue(request);
+        if (rawToken == null || rawToken.isBlank()) {
+            return;
+        }
+
+        String headerName = responderSecurityProperties.getCsrf().getHeaderName();
+        String headerToken = request.getHeader(headerName);
+        String cookieToken = readCookieByName(request, responderSecurityProperties.getCsrf().getCookieName());
+        String expectedToken = buildCsrfToken(rawToken);
+
+        if (headerToken == null || headerToken.isBlank()
+                || cookieToken == null || cookieToken.isBlank()
+                || !constantTimeEquals(headerToken, cookieToken)
+                || !constantTimeEquals(headerToken, expectedToken)) {
+            throw new BusinessException(
+                    ErrorCode.ACCESS_DENIED,
+                    "Invalid responder CSRF token");
+        }
     }
 
     private Duration sessionTimeout(UUID campaignId) {
@@ -144,14 +184,63 @@ public class ResponderSessionService {
         return null;
     }
 
-    private ResponseCookie buildCookie(HttpServletRequest request, String rawToken, Duration timeout) {
+    private String readCookieByName(HttpServletRequest request, String cookieName) {
+        if (request.getCookies() == null) {
+            return null;
+        }
+        for (var cookie : request.getCookies()) {
+            if (cookieName.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
+    }
+
+    private ResponseCookie buildSessionCookie(HttpServletRequest request, String rawToken, Duration timeout) {
         return ResponseCookie.from(COOKIE_NAME, rawToken)
                 .httpOnly(true)
-                .secure(isSecure(request))
-                .sameSite("Lax")
+                .secure(resolveSecureCookie(request))
+                .sameSite(responderSecurityProperties.getCookie().getSameSite())
                 .path("/")
                 .maxAge(timeout)
                 .build();
+    }
+
+    private ResponseCookie buildCsrfCookie(HttpServletRequest request, String rawToken, Duration timeout) {
+        return ResponseCookie.from(
+                        responderSecurityProperties.getCsrf().getCookieName(),
+                        buildCsrfToken(rawToken))
+                .httpOnly(false)
+                .secure(resolveSecureCookie(request))
+                .sameSite(responderSecurityProperties.getCookie().getSameSite())
+                .path("/")
+                .maxAge(timeout)
+                .build();
+    }
+
+    private String buildCsrfToken(String rawToken) {
+        String secret = responderSecurityProperties.getCsrf().getSecret();
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] hash = mac.doFinal(rawToken.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to generate responder CSRF token", e);
+        }
+    }
+
+    private boolean constantTimeEquals(String a, String b) {
+        byte[] first = a.getBytes(StandardCharsets.UTF_8);
+        byte[] second = b.getBytes(StandardCharsets.UTF_8);
+        return MessageDigest.isEqual(first, second);
+    }
+
+    private boolean resolveSecureCookie(HttpServletRequest request) {
+        if (responderSecurityProperties.getCookie().isSecure()) {
+            return true;
+        }
+        return isSecure(request);
     }
 
     private boolean isSecure(HttpServletRequest request) {

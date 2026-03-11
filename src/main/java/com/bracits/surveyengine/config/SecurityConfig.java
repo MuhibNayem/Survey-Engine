@@ -1,8 +1,10 @@
 package com.bracits.surveyengine.config;
 
+import com.bracits.surveyengine.auth.config.ResponderSecurityProperties;
 import com.bracits.surveyengine.admin.filter.JwtAuthenticationFilter;
 import com.bracits.surveyengine.common.exception.CustomAuthenticationEntryPoint;
 import com.bracits.surveyengine.subscription.service.SubscriptionEnforcementFilter;
+import org.springframework.security.config.Customizer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +20,9 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Security configuration with engine-owned JWT authentication.
@@ -40,15 +45,18 @@ public class SecurityConfig {
         private final SubscriptionEnforcementFilter subscriptionEnforcementFilter;
         private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
         private final com.bracits.surveyengine.admin.filter.CsrfCookieFilter csrfCookieFilter;
+        private final ResponderSecurityProperties responderSecurityProperties;
 
         public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                               SubscriptionEnforcementFilter subscriptionEnforcementFilter,
                               CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
-                              com.bracits.surveyengine.admin.filter.CsrfCookieFilter csrfCookieFilter) {
+                              com.bracits.surveyengine.admin.filter.CsrfCookieFilter csrfCookieFilter,
+                              ResponderSecurityProperties responderSecurityProperties) {
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
                 this.subscriptionEnforcementFilter = subscriptionEnforcementFilter;
                 this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
                 this.csrfCookieFilter = csrfCookieFilter;
+                this.responderSecurityProperties = responderSecurityProperties;
         }
 
         @Bean
@@ -78,6 +86,14 @@ public class SecurityConfig {
                                                                 "/openapi.yaml",
                                                                 "/openapi.yml",
                                                                 "/openapi.ymal"))
+                                .headers(headers -> headers
+                                                .frameOptions(frame -> frame.disable())
+                                                .referrerPolicy(referrer -> referrer.policy(
+                                                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.SAME_ORIGIN))
+                                                .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).preload(true).maxAgeInSeconds(31536000))
+                                                .contentSecurityPolicy(csp -> csp.policyDirectives(frameAncestorsDirective()))
+                                                .xssProtection(Customizer.withDefaults())
+                                                .contentTypeOptions(Customizer.withDefaults()))
                                 .exceptionHandling(exception -> exception
                                                 .authenticationEntryPoint(customAuthenticationEntryPoint))
                                 .sessionManagement(session -> session
@@ -122,6 +138,14 @@ public class SecurityConfig {
                                 .addFilterAfter(csrfCookieFilter, org.springframework.security.web.authentication.www.BasicAuthenticationFilter.class);
 
                 return http.build();
+        }
+
+        private String frameAncestorsDirective() {
+                List<String> origins = new ArrayList<>();
+                origins.add("'self'");
+                origins.addAll(responderSecurityProperties.getExchange().getAllowedOrigins());
+                String frameAncestors = "frame-ancestors " + String.join(" ", origins);
+                return frameAncestors + "; object-src 'none'; base-uri 'self'";
         }
 
         @Bean

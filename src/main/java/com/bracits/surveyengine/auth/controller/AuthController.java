@@ -99,20 +99,17 @@ public class AuthController {
             HttpServletRequest httpRequest) {
         OidcCallbackResponse response = oidcResponderAuthService.callback(state, code, baseUrl(httpRequest));
         if (response.getRedirectUrl() != null) {
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(
-                            org.springframework.http.HttpHeaders.SET_COOKIE,
-                            responderSessionService.createSessionCookie(
-                                    httpRequest,
-                                    response.getTenantId(),
-                                    response.getCampaignId(),
-                                    ResponderAccessIdentity.builder()
-                                            .respondentId(response.getRespondentId())
-                                            .email(response.getEmail())
-                                            .build())
-                                    .toString())
-                    .location(URI.create(response.getRedirectUrl()))
-                    .build();
+            ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.FOUND);
+            responderSessionService.createSessionCookies(
+                            httpRequest,
+                            response.getTenantId(),
+                            response.getCampaignId(),
+                            ResponderAccessIdentity.builder()
+                                    .respondentId(response.getRespondentId())
+                                    .email(response.getEmail())
+                                    .build())
+                    .forEach(cookie -> builder.header(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString()));
+            return builder.location(URI.create(response.getRedirectUrl())).build();
         }
         return ResponseEntity.ok(response);
     }

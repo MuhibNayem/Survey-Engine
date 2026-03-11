@@ -23,7 +23,7 @@ This is intentionally operational and sequence-driven for product, onboarding, a
 5. Campaign Lifecycle Flow
 6. Tenant Auth Profile Lifecycle Flow
 7. Private Responder OIDC Flow
-8. Private Responder Signed Token Flow
+8. Private Responder Signed Token and Embedded Session Exchange Flow
 9. Response Lifecycle Flow
 10. Automated Scoring Lifecycle Flow (Default)
 11. Reporting and Advanced Analytics Flow
@@ -34,6 +34,7 @@ This is intentionally operational and sequence-driven for product, onboarding, a
 16. Audit Log Query Flow
 17. **NEW: Enterprise Feature Management Flow**
 18. **NEW: First-Time User Onboarding Flow**
+19. **NEW: Comprehensive Engine Operations Runbook**
 
 ---
 
@@ -516,15 +517,16 @@ Authenticate private responders through subscriber SSO, establish a stable respo
 
 ---
 
-## 8. Private Responder Signed Token Flow (Fallback)
+## 8. Private Responder Signed Token and Embedded Session Exchange Flow (Recommended for Embed)
 
 ### Goal
-Support private responder auth when subscriber cannot use direct OIDC flow.
+Support secure private responder auth for embedded tenant UX without forcing responder-visible re-login redirects.
 
 ### Preconditions
 1. Campaign `authMode=PRIVATE` and active.
 2. Tenant auth profile set to `SIGNED_LAUNCH_TOKEN`.
 3. Subscriber system can issue signed JWT with required claims.
+4. Tenant frontend can pass launch token to survey runtime (query param or secure handoff).
 
 ### Step-by-step
 
@@ -538,20 +540,55 @@ Support private responder auth when subscriber cannot use direct OIDC flow.
 - How: Sign with shared secret and include required claims (`jti`, exp, mapped identity claims).
 - Result: Token ready for response submit.
 
-3. Responder submits answers (`POST /api/v1/responses` with `responderToken`).
-- Why: Submit private response through trusted credential.
-- How: Include campaignId, answers, responderToken.
-- Result: Token validation pipeline runs.
+3. Survey runtime exchanges launch credential for first-party responder session (`POST /api/v1/public/campaigns/{campaignId}/auth/exchange`).
+- Why: Avoid sending launch token repeatedly on every draft/save/submit call and remove visible re-auth prompts in embeds.
+- How: Send `responderToken` (or one-time `responderAccessCode`) once. Engine validates trust and returns `Set-Cookie: responder_session=...`.
+- Result: Stable campaign-scoped responder session cookie is established.
 
-4. Engine validates token and mapping.
+4. Runtime checks authenticated session (`GET /api/v1/public/campaigns/{campaignId}/auth/session`).
+- Why: Frontend needs deterministic auth state after exchange, refresh, and return navigation.
+- How: Call session endpoint with cookie context.
+- Result: Private responder enters survey flow without additional login.
+
+5. Draft/save/submit proceed using responder session.
+- Save draft: `POST /api/v1/public/campaigns/{campaignId}/responses/draft`
+- Final submit: `POST /api/v1/responses`
+- Why: Preserve private access guarantees with low-friction UX.
+- How: Access mode enforcement resolves identity from session first; token replay not required per request.
+- Result: Embedded responder experience is seamless while keeping auth guarantees.
+
+6. Engine still enforces strict token checks during exchange.
 - Why: Prevent forged/replayed/expired identity assertions.
-- How: Verify signature, issuer, audience, expiry, replay (`jti`), and required mapped claims.
-- Result: Valid token proceeds; invalid token rejected.
+- How: Verify signature, issuer, audience, expiry, replay (`jti`), and required mapped claims before issuing session.
+- Result: Invalid credentials never produce responder session.
 
-5. Store and lock response on success.
-- Why: Preserve final submitted state integrity.
-- How: Persist submission and apply lock state.
-- Result: Response accepted in private mode.
+7. Enterprise embed hardening (recommended for production).
+- Why: Limit credential-exchange surface to trusted tenant origins and ensure cross-site iframe cookie compatibility.
+- How:
+  - Configure responder cookie for embed-safe transport:
+    - `SURVEY_ENGINE_AUTH_RESPONDER_COOKIE_SAME_SITE=None`
+    - `SURVEY_ENGINE_AUTH_RESPONDER_COOKIE_SECURE=true`
+  - Enforce exchange origin allowlist:
+    - `SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_ENFORCE_ORIGIN_ALLOWLIST=true`
+    - `SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_ALLOWED_ORIGINS=https://tenant.example.com,https://app.tenant.example.com`
+    - `SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_ALLOW_MISSING_ORIGIN=false`
+  - Enable exchange abuse throttling:
+    - `SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_RATE_LIMIT_ENABLED=true`
+    - `SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_RATE_LIMIT_PER_MINUTE=30`
+  - Enable session-bound responder CSRF for private write actions:
+    - `SURVEY_ENGINE_AUTH_RESPONDER_CSRF_ENABLED=true`
+    - `SURVEY_ENGINE_AUTH_RESPONDER_CSRF_COOKIE_NAME=responder_xsrf`
+    - `SURVEY_ENGINE_AUTH_RESPONDER_CSRF_HEADER_NAME=X-Responder-Csrf`
+    - `SURVEY_ENGINE_AUTH_RESPONDER_CSRF_SECRET=<strong-random-secret>`
+  - Audit exchange outcomes for investigations:
+    - Success action: `RESPONDER_AUTH_EXCHANGE_SUCCEEDED`
+    - Failure action: `RESPONDER_AUTH_EXCHANGE_FAILED`
+- Result: Session exchange only succeeds from approved embed origins; responder session cookie remains browser-compliant in cross-site embed flows.
+
+8. Run operations controls and edge policy from runbook.
+- Why: Backend controls are necessary but not sufficient without proxy/WAF/monitoring alignment.
+- How: Apply the deployment checklist in `docs/mvp/enterprise-embed-auth-operations-runbook.md`.
+- Result: Production rollout remains secure and operable under real traffic and attack conditions.
 
 ---
 
@@ -1059,3 +1096,24 @@ Provide seamless onboarding experience for new users with guided tours, contextu
 - Backend persistence prevents data loss on browser clear.
 - Tenant-level configuration allows enterprises to customize onboarding.
 - Analytics track onboarding effectiveness and drop-off points.
+
+---
+
+## 19. Comprehensive Engine Operations Runbook (NEW)
+
+### Goal
+Provide a single operations guide covering all implemented engine features, deployment controls, security hardening, observability, and incident playbooks.
+
+### Runbook location
+1. `docs/mvp/engine-operations-runbook.md`
+
+### What it includes
+1. Platform and environment operations (deploy, rollback, backups, DR).
+2. Feature-by-feature operational procedures across all lifecycle domains.
+3. Security and hardening controls for admin and responder flows.
+4. Monitoring, alerting, and incident response runbooks.
+5. Production acceptance and change governance checklist.
+
+### Recommended usage
+1. Use lifecycle flow sections for implementation sequencing.
+2. Use the comprehensive runbook for day-2 operations and production governance.

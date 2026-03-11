@@ -758,6 +758,24 @@
         }
     }
 
+    function clearConsumedResponderToken(): void {
+        responderToken = null;
+        if (typeof window === "undefined") return;
+        const url = new URL(window.location.href);
+        let updated = false;
+        if (url.searchParams.has("token")) {
+            url.searchParams.delete("token");
+            updated = true;
+        }
+        if (url.searchParams.has("responderToken")) {
+            url.searchParams.delete("responderToken");
+            updated = true;
+        }
+        if (updated) {
+            replaceState(url, page.state);
+        }
+    }
+
     function clearDraftSession(): void {
         if (typeof window === "undefined") return;
         window.localStorage.removeItem(getDraftStorageKey());
@@ -926,6 +944,36 @@
             privateSessionAuthenticated = Boolean(data?.authenticated);
         } catch {
             privateSessionAuthenticated = false;
+        }
+    }
+
+    async function exchangePrivateCredentialForSession(): Promise<void> {
+        if (!campaign || campaign.authMode !== "PRIVATE") return;
+        if (privateSessionAuthenticated) return;
+
+        const token = responderToken?.trim() || undefined;
+        const accessCode = responderAccessCode?.trim() || undefined;
+        if (!token && !accessCode) return;
+
+        try {
+            const { data } = await api.post<ResponderSessionStatusResponse>(
+                `/public/campaigns/${campaignId}/auth/exchange`,
+                {
+                    responderToken: token,
+                    responderAccessCode: accessCode,
+                },
+            );
+            privateSessionAuthenticated = Boolean(data?.authenticated);
+            if (privateSessionAuthenticated) {
+                if (accessCode) {
+                    clearConsumedAccessCode();
+                }
+                if (token) {
+                    clearConsumedResponderToken();
+                }
+            }
+        } catch {
+            // Keep legacy credential path as fallback.
         }
     }
 
@@ -1138,6 +1186,7 @@
             );
             campaign = previewRes.data;
             await loadPrivateSessionStatus();
+            await exchangePrivateCredentialForSession();
             if (campaign.authMode === "PRIVATE" && privateSessionAuthenticated && responderAccessCode) {
                 clearConsumedAccessCode();
             }

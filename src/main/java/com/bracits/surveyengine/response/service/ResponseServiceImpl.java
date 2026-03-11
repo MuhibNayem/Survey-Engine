@@ -95,6 +95,10 @@ public class ResponseServiceImpl implements ResponseService {
                     "Campaign %s is not active".formatted(campaign.getId()));
         }
 
+        if (campaign.getAuthMode() == AuthMode.PRIVATE) {
+            responderSessionService.enforceCsrfForSessionMutation(httpServletRequest);
+        }
+
         // 2. Enforce access mode (PUBLIC vs PRIVATE)
         enforceAccessMode(campaign, request, requestedResponse);
         SurveyResponse existingResponse = resolveOpenResponse(campaign, request, requestedResponse);
@@ -164,6 +168,10 @@ public class ResponseServiceImpl implements ResponseService {
         if (campaign.getStatus() != CampaignStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.CAMPAIGN_NOT_ACTIVE,
                     "Campaign %s is not active".formatted(campaign.getId()));
+        }
+
+        if (campaign.getAuthMode() == AuthMode.PRIVATE) {
+            responderSessionService.enforceCsrfForSessionMutation(httpServletRequest);
         }
 
         enforceAccessMode(campaign, request, requestedResponse);

@@ -2,6 +2,7 @@ package com.bracits.surveyengine.config;
 
 import com.bracits.surveyengine.auth.config.AuthCacheNames;
 import com.bracits.surveyengine.auth.config.AuthCacheProperties;
+import com.bracits.surveyengine.auth.config.ResponderSecurityProperties;
 import com.bracits.surveyengine.search.config.SearchCacheNames;
 import com.bracits.surveyengine.search.config.SearchProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,7 +22,7 @@ import java.util.Map;
 
 @Configuration
 @EnableCaching
-@EnableConfigurationProperties({ AuthCacheProperties.class, SearchProperties.class })
+@EnableConfigurationProperties({ AuthCacheProperties.class, SearchProperties.class, ResponderSecurityProperties.class })
 public class RedisCacheConfig {
 
     @Bean

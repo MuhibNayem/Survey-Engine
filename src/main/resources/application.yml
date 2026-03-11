@@ -64,6 +64,21 @@ springdoc:
 
 survey-engine:
   auth:
+    responder:
+      cookie:
+        secure: ${SURVEY_ENGINE_AUTH_RESPONDER_COOKIE_SECURE:true}
+        same-site: ${SURVEY_ENGINE_AUTH_RESPONDER_COOKIE_SAME_SITE:Lax}
+      csrf:
+        enabled: ${SURVEY_ENGINE_AUTH_RESPONDER_CSRF_ENABLED:true}
+        cookie-name: ${SURVEY_ENGINE_AUTH_RESPONDER_CSRF_COOKIE_NAME:responder_xsrf}
+        header-name: ${SURVEY_ENGINE_AUTH_RESPONDER_CSRF_HEADER_NAME:X-Responder-Csrf}
+        secret: ${SURVEY_ENGINE_AUTH_RESPONDER_CSRF_SECRET:change-me-in-production}
+      exchange:
+        enforce-origin-allowlist: ${SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_ENFORCE_ORIGIN_ALLOWLIST:false}
+        allow-missing-origin: ${SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_ALLOW_MISSING_ORIGIN:false}
+        allowed-origins: ${SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_ALLOWED_ORIGINS:}
+        rate-limit-enabled: ${SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_RATE_LIMIT_ENABLED:true}
+        rate-limit-per-minute: ${SURVEY_ENGINE_AUTH_RESPONDER_EXCHANGE_RATE_LIMIT_PER_MINUTE:30}
     cache:
       oidc-metadata:
         ttl: ${SURVEY_ENGINE_AUTH_CACHE_OIDC_METADATA_TTL:24h}

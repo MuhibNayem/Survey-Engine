@@ -28,6 +28,16 @@ function hasXsrfCookie(): boolean {
         .some((cookie) => cookie.startsWith('XSRF-TOKEN='));
 }
 
+function readCookieValue(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+        .split(';')
+        .map((cookie) => cookie.trim())
+        .find((cookie) => cookie.startsWith(`${name}=`));
+    if (!match) return null;
+    return decodeURIComponent(match.substring(name.length + 1));
+}
+
 async function ensureCsrfCookie() {
     if (typeof window === 'undefined' || hasXsrfCookie()) return;
 
@@ -48,11 +58,26 @@ api.interceptors.request.use(async (config) => {
     const method = (config.method || 'get').toLowerCase();
     const isMutation = method === 'post' || method === 'put' || method === 'patch' || method === 'delete';
     const isAuthEndpoint = config.url?.includes('/admin/auth/');
+    const isResponderMutation =
+        isMutation &&
+        (
+            config.url?.includes('/public/campaigns/') ||
+            config.url === '/responses' ||
+            config.url?.startsWith('/responses/')
+        );
 
     if (isMutation && !isAuthEndpoint) {
         await ensureCsrfCookie();
         // Axios native xsrfCookieName/xsrfHeaderName handles the token mapping automatically 
         // as long as the cookie has been rendered by the server.
+    }
+
+    if (isResponderMutation) {
+        const responderCsrf = readCookieValue('responder_xsrf');
+        if (responderCsrf) {
+            config.headers = config.headers ?? {};
+            config.headers['X-Responder-Csrf'] = responderCsrf;
+        }
     }
 
     return config;
