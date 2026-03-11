@@ -19,6 +19,7 @@
         PlanDefinitionResponse,
         SubscriptionPlan,
     } from "$lib/types";
+    import { currencySymbol, formatAmount, formatMoney } from "$lib/utils/currency";
 
     let loading = $state(true);
     let paying = $state(false);
@@ -216,7 +217,7 @@
                     <Card.Content class="space-y-5 pt-5">
                         <div class="rounded-lg border border-border/60 p-4">
                             <p class="text-lg font-semibold text-foreground">{plan.displayName}</p>
-                            <p class="text-sm text-muted-foreground">{plan.currency} {plan.price} every {plan.billingCycleDays} days</p>
+                            <p class="text-sm text-muted-foreground"><span class="text-[0.95em]">{currencySymbol(plan.currency)}</span>{formatAmount(plan.price, plan.currency)} every {plan.billingCycleDays} days</p>
                         </div>
 
                         {#if paymentStatus === "success"}
@@ -262,7 +263,7 @@
                         <Card.Content class="space-y-4 pt-5 text-sm">
                             <div class="flex items-center justify-between">
                                 <span class="text-muted-foreground">Base plan</span>
-                                <span class="font-medium">{plan.currency} {plan.price}</span>
+                                <span class="font-medium"><span class="text-[0.95em]">{currencySymbol(plan.currency)}</span>{formatAmount(plan.price, plan.currency)}</span>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-muted-foreground">Billing cycle</span>
@@ -275,7 +276,7 @@
                             <div class="border-t border-border/70 pt-3">
                                 <div class="flex items-center justify-between text-base font-semibold text-foreground">
                                     <span>Due today</span>
-                                    <span>{plan.currency} {plan.price}</span>
+                                    <span><span class="text-[0.95em]">{currencySymbol(plan.currency)}</span>{formatAmount(plan.price, plan.currency)}</span>
                                 </div>
                             </div>
 

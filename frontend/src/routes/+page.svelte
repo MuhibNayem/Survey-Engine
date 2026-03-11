@@ -20,17 +20,38 @@
     } from "lucide-svelte";
 
     import logo from "$lib/assets/logo.png";
+    import api from "$lib/api";
+    import type { PlanDefinitionResponse } from "$lib/types";
+    import { currencySymbol, formatAmount } from "$lib/utils/currency";
+    import { Skeleton } from "$lib/components/ui/skeleton";
+    import {
+        defaultHomeSiteContent,
+        normalizeHomeSiteContent,
+        type HomeSiteContent,
+    } from "$lib/site-content";
+
     let landingRoot: HTMLDivElement | null = null;
+    let apiPlans = $state<PlanDefinitionResponse[]>([]);
+    let loadingPlans = $state(true);
+    let homeContent = $state<HomeSiteContent>(defaultHomeSiteContent());
 
     onMount(() => {
-        if (auth.isAuthenticated) {
-            if (auth.user?.role === "SUPER_ADMIN") {
-                goto("/admin/dashboard");
-            } else {
-                goto("/dashboard");
-            }
-            return;
-        }
+        api.get<PlanDefinitionResponse[]>("/admin/plans")
+            .then(({ data }) => {
+                if (data?.length) apiPlans = data;
+            })
+            .catch(() => {})
+            .finally(() => {
+                loadingPlans = false;
+            });
+
+        api.get("/public/site-content/HOME")
+            .then(({ data }) => {
+                if (data?.published && data?.content) {
+                    homeContent = normalizeHomeSiteContent(data.content);
+                }
+            })
+            .catch(() => {});
 
         if (!landingRoot) return;
         const prefersReducedMotion = window.matchMedia(
@@ -133,115 +154,140 @@
         };
     });
 
-    const features = [
-        {
-            icon: FileText,
-            title: "Smart Survey Builder",
-            description:
-                "Create multi-page surveys with versioned questions, categories, and skip logic.",
-            color: "text-blue-500",
-            bg: "bg-blue-500/10",
-        },
-        {
-            icon: Shield,
-            title: "Enterprise Authentication",
-            description:
-                "SSO, OIDC/PKCE, signed tokens — support any identity provider out of the box.",
-            color: "text-emerald-500",
-            bg: "bg-emerald-500/10",
-        },
-        {
-            icon: Megaphone,
-            title: "Campaign Management",
-            description:
-                "Deploy surveys with quotas, IP restrictions, device dedup, and 6 distribution channels.",
-            color: "text-orange-500",
-            bg: "bg-orange-500/10",
-        },
-        {
-            icon: BarChart3,
-            title: "Weighted Scoring Engine",
-            description:
-                "Multi-dimensional scoring with category weights, normalization, and real-time analytics.",
-            color: "text-purple-500",
-            bg: "bg-purple-500/10",
-        },
-        {
-            icon: Users,
-            title: "Multi-Tenant SaaS",
-            description:
-                "Complete tenant isolation, subscription plans, and quota enforcement built-in.",
-            color: "text-pink-500",
-            bg: "bg-pink-500/10",
-        },
-        {
-            icon: Zap,
-            title: "Auto-Locking & Audit",
-            description:
-                "Responses auto-lock on submit. Full lifecycle audit trail with reopen tracking.",
-            color: "text-amber-500",
-            bg: "bg-amber-500/10",
-        },
-    ];
+    const iconMap = {
+        FileText,
+        Shield,
+        Megaphone,
+        BarChart3,
+        Users,
+        Zap,
+        Globe,
+    } as const;
 
-    const plans = [
-        {
-            name: "Basic",
-            price: "Free",
-            period: "14-day trial",
-            description: "Get started with core survey features",
-            features: [
-                "5 Active Campaigns",
-                "100 Responses / Campaign",
-                "2 Admin Users",
-                "Public Surveys",
-                "Basic Analytics",
-            ],
-            cta: "Start Free Trial",
-            popular: false,
-        },
-        {
-            name: "Pro",
-            price: "$49",
-            period: "/month",
-            description: "For growing teams that need advanced features",
-            features: [
-                "25 Active Campaigns",
-                "1,000 Responses / Campaign",
-                "10 Admin Users",
-                "Private + SSO Auth",
-                "Weighted Scoring",
-                "Custom Branding",
-                "Priority Support",
-            ],
-            cta: "Get Started",
-            popular: true,
-        },
-        {
-            name: "Enterprise",
-            price: "Custom",
-            period: "contact us",
-            description: "Unlimited scale with dedicated support",
-            features: [
-                "Unlimited Campaigns",
-                "Unlimited Responses",
-                "Unlimited Admin Users",
-                "Custom SSO / OIDC",
-                "Advanced Analytics",
-                "SLA Guarantee",
-                "Dedicated Account Manager",
-            ],
-            cta: "Contact Sales",
-            popular: false,
-        },
-    ];
+    const features = $derived(
+        homeContent.featureSection.items.map((feature) => ({
+            ...feature,
+            icon: iconMap[feature.icon as keyof typeof iconMap] ?? FileText,
+        })),
+    );
+
+    interface PlanDisplay {
+        code: string;
+        name: string;
+        description: string;
+        price: string;
+        priceSymbol?: string;
+        priceAmount?: string;
+        period: string;
+        popular: boolean;
+        cta: string;
+        features: string[];
+    }
+
+    function buildPlans(apiData: PlanDefinitionResponse[]): PlanDisplay[] {
+        const defaults: PlanDisplay[] = [
+            {
+                code: "BASIC",
+                name: "Basic",
+                price: "Free",
+                priceSymbol: "",
+                priceAmount: "Free",
+                period: "14-day trial",
+                description: "Get started with core survey features",
+                features: [
+                    "5 Active Campaigns",
+                    "100 Responses / Campaign",
+                    "2 Admin Users",
+                    "Public Surveys",
+                    "Basic Analytics",
+                ],
+                cta: "Start Free Trial",
+                popular: false,
+            },
+            {
+                code: "PRO",
+                name: "Pro",
+                price: "$49",
+                priceSymbol: "$",
+                priceAmount: "49",
+                period: "per month",
+                description: "For growing teams that need advanced features",
+                features: [
+                    "25 Active Campaigns",
+                    "1,000 Responses / Campaign",
+                    "10 Admin Users",
+                    "Private + SSO Auth",
+                    "Weighted Scoring",
+                    "Custom Branding",
+                    "Priority Support",
+                ],
+                cta: "Get Started",
+                popular: true,
+            },
+            {
+                code: "ENTERPRISE",
+                name: "Enterprise",
+                price: "Custom",
+                priceSymbol: "",
+                priceAmount: "Custom",
+                period: "contact us",
+                description: "Unlimited scale with dedicated support",
+                features: [
+                    "Unlimited Campaigns",
+                    "Unlimited Responses",
+                    "Unlimited Admin Users",
+                    "Custom SSO / OIDC",
+                    "Advanced Analytics",
+                    "SLA Guarantee",
+                    "Dedicated Account Manager",
+                ],
+                cta: "Contact Sales",
+                popular: false,
+            },
+        ];
+
+        if (!apiData.length) return defaults;
+
+        return apiData.map((p) => {
+            const fallback =
+                defaults.find((d) => d.code === p.planCode) ?? defaults[0];
+            
+            const pSymbol = p.price === 0 ? "" : currencySymbol(p.currency);
+            const pAmount = p.price === 0 ? "Free" : formatAmount(p.price, p.currency);
+            const fmtPrice = (v: number, currency: string) =>
+                v === 0 ? "Free" : `${currencySymbol(currency)}${formatAmount(v, currency)}`;
+            
+            const formatLimit = (v: number | null) => v == null ? "Unlimited" : v.toLocaleString();
+            
+            // Override the first 3 lines with actual limits
+            const displayFeatures = [
+                `${formatLimit(p.maxCampaigns)} Active Campaigns`,
+                `${formatLimit(p.maxResponsesPerCampaign)} Responses / Campaign`,
+                `${formatLimit(p.maxAdminUsers)} Admin Users`,
+                ...fallback.features.slice(3)
+            ];
+
+            return {
+                ...fallback,
+                code: p.planCode,
+                name: p.displayName || fallback.name,
+                price: fmtPrice(p.price, p.currency),
+                priceSymbol: pSymbol,
+                priceAmount: pAmount,
+                period: p.price === 0 ? `${p.trialDays}-day trial` : "per month",
+                features: displayFeatures,
+            };
+        });
+    }
+
+    const plans = $derived(buildPlans(apiPlans));
 </script>
 
 <svelte:head>
-    <title>Survey Engine — Enterprise Survey Platform</title>
+    <title>{homeContent.seo.title}</title>
     <meta
         name="description"
-        content="Build, deploy, and analyze surveys at scale. Multi-tenant SaaS with enterprise authentication, weighted scoring, and real-time analytics."
+        content={homeContent.seo.description}
     />
 </svelte:head>
 
@@ -253,6 +299,19 @@
         <div class="ag-blob ag-blob-c"></div>
         <div class="ag-spotlight"></div>
     </div>
+
+{#if homeContent.announcement.enabled && homeContent.announcement.text}
+<div class="relative z-20 border-b border-border/60 bg-background/90 backdrop-blur">
+    <div class="mx-auto flex max-w-7xl items-center justify-center gap-3 px-6 py-3 text-sm text-foreground">
+        <span>{homeContent.announcement.text}</span>
+        {#if homeContent.announcement.linkLabel && homeContent.announcement.linkUrl}
+            <a class="font-medium text-primary hover:underline" href={homeContent.announcement.linkUrl}>
+                {homeContent.announcement.linkLabel}
+            </a>
+        {/if}
+    </div>
+</div>
+{/if}
 
 <!-- Hero Section -->
 <div class="relative overflow-hidden ag-layer" data-ag-reveal>
@@ -274,11 +333,18 @@
         </a>
         <div class="flex items-center gap-3">
             <Button variant="ghost" href="/docs/api">API Docs</Button>
-            <Button variant="ghost" href="/login">Sign in</Button>
-            <Button href="/register">
-                Get Started
-                <ArrowRight class="ml-1 h-4 w-4" />
-            </Button>
+            {#if auth.isAuthenticated}
+                <Button variant="default" href={auth.user?.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard"}>
+                    Dashboard
+                    <ArrowRight class="ml-1 h-4 w-4" />
+                </Button>
+            {:else}
+                <Button variant="ghost" href="/login">Sign in</Button>
+                <Button href="/register">
+                    Get Started
+                    <ArrowRight class="ml-1 h-4 w-4" />
+                </Button>
+            {/if}
         </div>
     </nav>
 
@@ -288,31 +354,36 @@
     >
         <Badge variant="secondary" class="mb-6 px-4 py-1.5 text-sm">
             <Star class="mr-1 h-3.5 w-3.5 text-amber-500" />
-            Now with OIDC/PKCE Authentication
+            {homeContent.hero.badge}
         </Badge>
 
         <h1
             class="ag-headline text-5xl font-extrabold tracking-tight text-foreground sm:text-6xl lg:text-7xl"
         >
-            Surveys that
+            {homeContent.hero.title}
             <span
                 class="text-transparent bg-clip-text bg-gradient-to-r from-primary via-purple-500 to-pink-500"
             >
-                scale
+                {homeContent.hero.highlight}
             </span>
         </h1>
 
         <p class="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground leading-relaxed">
-            Build, deploy, and analyze surveys with enterprise-grade
-            authentication, weighted scoring, and multi-tenant isolation — all
-            from a single platform.
+            {homeContent.hero.description}
         </p>
 
         <div class="mt-10 flex items-center justify-center gap-4">
-            <Button size="lg" class="px-8 py-6 text-base" href="/register">
-                Start Free Trial
-                <ArrowRight class="ml-2 h-5 w-5" />
-            </Button>
+            {#if auth.isAuthenticated}
+                <Button size="lg" class="px-8 py-6 text-base" href={auth.user?.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard"}>
+                    Go to Dashboard
+                    <ArrowRight class="ml-2 h-5 w-5" />
+                </Button>
+            {:else}
+                <Button size="lg" class="px-8 py-6 text-base" href="/register">
+                    Start Free Trial
+                    <ArrowRight class="ml-2 h-5 w-5" />
+                </Button>
+            {/if}
             <Button
                 variant="outline"
                 size="lg"
@@ -332,21 +403,35 @@
         </div>
 
         <p class="mt-4 text-sm text-muted-foreground">
-            No credit card required · 14-day free trial · Cancel anytime
+            {homeContent.hero.footnote}
         </p>
     </div>
 </div>
+
+<section class="py-10 ag-layer" data-ag-reveal>
+    <div class="max-w-6xl mx-auto px-6 lg:px-8">
+        <p class="mb-6 text-center text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            {homeContent.logoStrip.title}
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+            {#each homeContent.logoStrip.logos as logoItem}
+                <div class="rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm font-medium text-muted-foreground">
+                    {logoItem.label}
+                </div>
+            {/each}
+        </div>
+    </div>
+</section>
 
 <!-- Features Grid -->
 <section class="py-24 bg-muted/30 ag-layer" data-ag-reveal>
     <div class="max-w-7xl mx-auto px-6 lg:px-8">
         <div class="text-center mb-16">
             <h2 class="text-3xl font-bold text-foreground sm:text-4xl">
-                Everything you need to run surveys at scale
+                {homeContent.featureSection.title}
             </h2>
             <p class="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-                From question banks to weighted scoring — every feature is built
-                for multi-tenant enterprise use.
+                {homeContent.featureSection.description}
             </p>
         </div>
 
@@ -381,63 +466,71 @@
     <div class="max-w-7xl mx-auto px-6 lg:px-8">
         <div class="text-center mb-16">
             <h2 class="text-3xl font-bold text-foreground sm:text-4xl">
-                Simple, transparent pricing
+                {homeContent.pricingPreview.title}
             </h2>
             <p class="mt-4 text-lg text-muted-foreground">
-                Start free, scale as you grow.
+                {homeContent.pricingPreview.description}
             </p>
         </div>
 
         <div class="grid gap-8 lg:grid-cols-3 max-w-5xl mx-auto">
-            {#each plans as plan}
-                <Card.Root
-                    class="ag-card relative {plan.popular
-                        ? 'border-primary shadow-xl shadow-primary/10'
-                        : 'border-border/50'}"
-                >
-                    {#if plan.popular}
-                        <div class="absolute -top-3 left-1/2 -translate-x-1/2">
-                            <Badge class="px-3 py-1">Most Popular</Badge>
-                        </div>
-                    {/if}
-                    <Card.Header class="text-center pb-2">
-                        <Card.Title class="text-xl">{plan.name}</Card.Title>
-                        <Card.Description>{plan.description}</Card.Description>
-                    </Card.Header>
-                    <Card.Content class="text-center pb-4">
-                        <div class="mt-2 mb-6">
-                            <span class="text-4xl font-bold text-foreground"
-                                >{plan.price}</span
-                            >
-                            <span class="text-muted-foreground text-sm ml-1"
-                                >{plan.period}</span
-                            >
-                        </div>
-                        <ul class="space-y-3 text-left">
-                            {#each plan.features as feat}
-                                <li class="flex items-center gap-2 text-sm">
-                                    <CheckCircle2
-                                        class="h-4 w-4 text-emerald-500 shrink-0"
-                                    />
-                                    <span class="text-muted-foreground"
-                                        >{feat}</span
+                {#each plans as plan}
+                    <Card.Root
+                        class="ag-card flex flex-col relative {plan.popular
+                            ? 'border-primary shadow-xl shadow-primary/10 bg-card z-10 scale-[1.02]'
+                            : 'border-border/50 bg-card/50'}"
+                    >
+                        {#if plan.popular}
+                            <div class="absolute -top-[14px] left-0 right-0 flex justify-center z-20">
+                                <Badge class="bg-gradient-to-r from-primary to-purple-500 text-white shadow-md border-0 px-3 py-1 uppercase tracking-widest text-[10px]">Most Popular</Badge>
+                            </div>
+                        {/if}
+                        <Card.Header class="text-center pb-2 pt-8">
+                            <Card.Title class="text-xl">{plan.name}</Card.Title>
+                            <Card.Description>{plan.description}</Card.Description>
+                        </Card.Header>
+                        <Card.Content class="text-center pb-8 flex-1">
+                            <div class="mt-2 mb-6 flex items-baseline justify-center gap-1 flex-wrap">
+                                {#if plan.priceSymbol}
+                                    <span class="text-2xl font-bold text-muted-foreground">{plan.priceSymbol}</span>
+                                    <span class="text-4xl font-extrabold tracking-tighter text-foreground leading-none">{plan.priceAmount}</span>
+                                {:else}
+                                    <span class="text-4xl font-extrabold tracking-tighter text-foreground leading-none">{plan.priceAmount || plan.price}</span>
+                                {/if}
+                                {#if plan.price !== "Free" && plan.price !== "Custom"}
+                                    <span class="text-sm font-medium text-muted-foreground whitespace-nowrap"
+                                        >/{plan.period.replace(
+                                            "per ",
+                                            "",
+                                        )}</span
                                     >
-                                </li>
-                            {/each}
-                        </ul>
-                    </Card.Content>
-                    <Card.Footer>
-                        <Button
-                            variant={plan.popular ? "default" : "outline"}
-                            class="w-full"
-                            href="/register"
-                        >
-                            {plan.cta}
-                            <ChevronRight class="ml-1 h-4 w-4" />
-                        </Button>
-                    </Card.Footer>
-                </Card.Root>
-            {/each}
+                                {/if}
+                            </div>
+                            <ul class="space-y-3 text-left">
+                                {#each plan.features as feat}
+                                    <li class="flex items-start gap-2 text-sm">
+                                        <CheckCircle2
+                                            class="h-4 w-4 text-emerald-500 shrink-0 mt-0.5"
+                                        />
+                                        <span class="text-muted-foreground"
+                                            >{feat}</span
+                                        >
+                                    </li>
+                                {/each}
+                            </ul>
+                        </Card.Content>
+                        <Card.Footer class="mt-auto pb-8">
+                            <Button
+                                variant={plan.popular ? "default" : "outline"}
+                                class="w-full"
+                                href="/register"
+                            >
+                                {plan.cta}
+                                <ChevronRight class="ml-1 h-4 w-4" />
+                            </Button>
+                        </Card.Footer>
+                    </Card.Root>
+                {/each}
         </div>
     </div>
 </section>
@@ -449,14 +542,14 @@
 >
     <div class="max-w-3xl mx-auto px-6 text-center">
         <h2 class="text-3xl font-bold text-foreground sm:text-4xl">
-            Ready to get started?
+            {homeContent.cta.title}
         </h2>
         <p class="mt-4 text-lg text-muted-foreground">
-            Create your account in seconds. No credit card required.
+            {homeContent.cta.description}
         </p>
         <div class="mt-8">
-            <Button size="lg" class="px-10 py-6 text-base" href="/register">
-                Start Your Free Trial
+            <Button size="lg" class="px-10 py-6 text-base" href={homeContent.cta.primaryCtaUrl}>
+                {homeContent.cta.primaryCtaLabel}
                 <ArrowRight class="ml-2 h-5 w-5" />
             </Button>
         </div>
@@ -624,7 +717,6 @@
         --ag-mx: 50%;
         --ag-my: 50%;
         position: relative;
-        overflow: hidden;
         transform-style: preserve-3d;
         transform: perspective(1200px) rotateX(var(--ag-rx)) rotateY(var(--ag-ry));
         transition:

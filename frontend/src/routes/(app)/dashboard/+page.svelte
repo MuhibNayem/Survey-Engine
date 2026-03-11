@@ -11,6 +11,7 @@
 	import { EmptyState } from '$lib/components/empty-state';
 	import { Confetti } from '$lib/components/confetti';
 	import { ErrorBanner } from '$lib/components/error-banner';
+	import { currencySymbol, formatAmount } from '$lib/utils/currency';
 	import {
 		HelpCircle,
 		FolderKanban,
@@ -284,7 +285,7 @@
                             </Badge>
                         </div>
                         <p class="text-xs text-muted-foreground">
-                            {subscription.maxCampaigns ?? "∞"} campaigns · {subscription.maxResponsesPerCampaign ??
+                            <span class="text-[0.95em]">{currencySymbol(subscription.currency)}</span>{formatAmount(subscription.planPrice, subscription.currency)} · {subscription.maxCampaigns ?? "∞"} campaigns · {subscription.maxResponsesPerCampaign ??
                                 "∞"} responses/campaign
                         </p>
                     </div>

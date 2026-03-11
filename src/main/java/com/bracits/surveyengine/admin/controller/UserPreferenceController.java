@@ -24,7 +24,7 @@ public class UserPreferenceController {
      * Get all preferences for the current user.
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER')")
     public ResponseEntity<UserPreferenceDTO> getPreferences() {
         var prefs = preferenceService.getPreferences();
         
@@ -39,7 +39,7 @@ public class UserPreferenceController {
      * Check if a specific feature/tour is completed.
      */
     @GetMapping("/{featureKey}/completed")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER')")
     public ResponseEntity<Map<String, Boolean>> isFeatureCompleted(
             @PathVariable String featureKey) {
         boolean completed = preferenceService.isFeatureCompleted(featureKey);
@@ -50,7 +50,7 @@ public class UserPreferenceController {
      * Mark a feature/tour as completed.
      */
     @PostMapping("/{featureKey}/complete")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER')")
     public ResponseEntity<Void> setFeatureCompleted(
             @PathVariable String featureKey,
             @RequestParam(defaultValue = "true") boolean completed) {
@@ -62,7 +62,7 @@ public class UserPreferenceController {
      * Update a specific preference.
      */
     @PatchMapping("/{key}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER')")
     public ResponseEntity<Void> setPreference(
             @PathVariable String key,
             @RequestBody String value) {
@@ -74,7 +74,7 @@ public class UserPreferenceController {
      * Update multiple preferences at once.
      */
     @PatchMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER')")
     public ResponseEntity<Void> updatePreferences(
             @RequestBody Map<String, String> preferences) {
         preferenceService.updatePreferences(preferences);
@@ -85,7 +85,7 @@ public class UserPreferenceController {
      * Reset all preferences (show all tours/tooltips again).
      */
     @DeleteMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'EDITOR', 'VIEWER')")
     public ResponseEntity<Void> resetPreferences() {
         preferenceService.resetPreferences();
         return ResponseEntity.ok().build();

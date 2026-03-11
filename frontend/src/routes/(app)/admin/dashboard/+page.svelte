@@ -13,6 +13,7 @@
         TrendingUp,
         ShieldAlert,
         Clock3,
+        Globe,
     } from "lucide-svelte";
     import api from "$lib/api";
     import type {
@@ -221,6 +222,24 @@
                         <p class="font-medium text-foreground">System Plans</p>
                         <p class="text-xs text-muted-foreground">
                             Configure pricing and feature toggles
+                        </p>
+                    </div>
+                </Button>
+
+                <Button
+                    variant="outline"
+                    class="h-auto justify-start gap-4 p-4 border-border/50 hover:border-primary/50 transition-colors"
+                    href="/admin/site-content"
+                >
+                    <div
+                        class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 shrink-0"
+                    >
+                        <Globe class="h-5 w-5 text-amber-500" />
+                    </div>
+                    <div class="text-left">
+                        <p class="font-medium text-foreground">Site Content</p>
+                        <p class="text-xs text-muted-foreground">
+                            Edit landing page, pricing, and public announcements
                         </p>
                     </div>
                 </Button>

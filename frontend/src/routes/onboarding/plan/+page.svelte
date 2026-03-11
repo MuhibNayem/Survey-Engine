@@ -14,6 +14,7 @@
         PlanDefinitionResponse,
         SubscriptionResponse,
     } from "$lib/types";
+    import { formatMoney } from "$lib/utils/currency";
 
     let loading = $state(true);
     let error = $state<string | null>(null);
@@ -179,7 +180,7 @@
                         <Card.Header>
                             <Card.Title>{plan.displayName}</Card.Title>
                             <Card.Description
-                                >{plan.currency} {plan.price}</Card.Description
+                                >{formatMoney(plan.price, plan.currency)}</Card.Description
                             >
                         </Card.Header>
                         <Card.Content class="space-y-4">

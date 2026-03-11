@@ -21,6 +21,10 @@
         }
         themePreferences.hydrateFromBackend();
     });
+
+    const shouldLoadRuntimeFeatures = $derived(
+        auth.user?.role !== "SUPER_ADMIN"
+    );
 </script>
 
 {#if auth.isAuthenticated}
@@ -67,6 +71,8 @@
 
         <!-- Global Command Palette -->
         <CommandPalette bind:open={commandPaletteOpen} />
-        <OnboardingOrchestrator />
+        {#if shouldLoadRuntimeFeatures}
+            <OnboardingOrchestrator />
+        {/if}
     </div>
 {/if}

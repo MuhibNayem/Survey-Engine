@@ -8,9 +8,16 @@
     import { onMount } from "svelte";
     import logo from "$lib/assets/logo.png";
     import { Skeleton } from "$lib/components/ui/skeleton";
+    import { currencySymbol, formatAmount } from "$lib/utils/currency";
+    import {
+        defaultPricingSiteContent,
+        normalizePricingSiteContent,
+        type PricingSiteContent,
+    } from "$lib/site-content";
 
     let apiPlans = $state<PlanDefinitionResponse[]>([]);
     let loading = $state(true);
+    let pricingContent = $state<PricingSiteContent>(defaultPricingSiteContent());
 
     onMount(async () => {
         try {
@@ -22,6 +29,15 @@
         } finally {
             loading = false;
         }
+
+        try {
+            const { data } = await api.get("/public/site-content/PRICING");
+            if (data?.published && data?.content) {
+                pricingContent = normalizePricingSiteContent(data.content);
+            }
+        } catch {
+            /* use defaults */
+        }
     });
 
     interface PlanDisplay {
@@ -29,6 +45,8 @@
         name: string;
         description: string;
         price: string;
+        priceSymbol?: string;
+        priceAmount?: string;
         period: string;
         highlight: boolean;
         cta: string;
@@ -48,6 +66,8 @@
                 description:
                     "Perfect for individuals and small teams getting started.",
                 price: "Free",
+                priceSymbol: "",
+                priceAmount: "Free",
                 period: "14-day trial",
                 highlight: false,
                 cta: "Start Free Trial",
@@ -64,6 +84,8 @@
                 description:
                     "For growing organizations that need advanced features.",
                 price: "$49",
+                priceSymbol: "$",
+                priceAmount: "49",
                 period: "per month",
                 highlight: true,
                 cta: "Get Started",
@@ -79,6 +101,8 @@
                 name: "Enterprise",
                 description: "Unlimited scale with dedicated support and SLA.",
                 price: "Custom",
+                priceSymbol: "",
+                priceAmount: "Custom",
                 period: "contact us",
                 highlight: false,
                 cta: "Contact Sales",
@@ -98,12 +122,19 @@
                 defaults.find((d) => d.code === p.planCode) ?? defaults[0];
             const fmt = (v: number | null) =>
                 v == null ? "Unlimited" : v.toLocaleString();
-            const fmtPrice = (v: number) => (v === 0 ? "Free" : `$${v}`);
+            
+            const pSymbol = p.price === 0 ? "" : currencySymbol(p.currency);
+            const pAmount = p.price === 0 ? "Free" : formatAmount(p.price, p.currency);
+            const fmtPrice = (v: number, currency: string) =>
+                v === 0 ? "Free" : `${currencySymbol(currency)}${formatAmount(v, currency)}`;
+            
             return {
                 ...fallback,
                 code: p.planCode,
                 name: p.displayName || fallback.name,
-                price: fmtPrice(p.price),
+                price: fmtPrice(p.price, p.currency),
+                priceSymbol: pSymbol,
+                priceAmount: pAmount,
                 period:
                     p.price === 0 ? `${p.trialDays}-day trial` : "per month",
                 limits: {
@@ -212,14 +243,27 @@
 </script>
 
 <svelte:head>
-    <title>Pricing — Survey Engine</title>
+    <title>{pricingContent.seo.title}</title>
     <meta
         name="description"
-        content="Simple, transparent pricing. Start free, upgrade as you grow."
+        content={pricingContent.seo.description}
     />
 </svelte:head>
 
 <div class="min-h-screen bg-background selection:bg-primary/20">
+    {#if pricingContent.announcement.enabled && pricingContent.announcement.text}
+        <div class="border-b border-border/60 bg-background/90 backdrop-blur">
+            <div class="mx-auto flex max-w-7xl items-center justify-center gap-3 px-6 py-3 text-sm text-foreground">
+                <span>{pricingContent.announcement.text}</span>
+                {#if pricingContent.announcement.linkLabel && pricingContent.announcement.linkUrl}
+                    <a href={pricingContent.announcement.linkUrl} class="font-medium text-primary hover:underline">
+                        {pricingContent.announcement.linkLabel}
+                    </a>
+                {/if}
+            </div>
+        </div>
+    {/if}
+
     <!-- Nav (Glassmorphism) -->
     <nav
         class="sticky top-0 z-50 bg-background/60 backdrop-blur-xl border-b border-white/5 shadow-sm"
@@ -282,22 +326,21 @@
                     class="mr-2 h-3.5 w-3.5 text-purple-500 animate-pulse"
                 />
                 <span class="font-medium"
-                    >14-day free trial · No credit card required</span
+                    >{pricingContent.hero.badge}</span
                 >
             </Badge>
             <h1
                 class="text-5xl font-extrabold text-foreground sm:text-7xl tracking-tighter max-w-3xl mx-auto leading-tight"
             >
-                Plans tailored for <br /><span
+                {pricingContent.hero.title} <br /><span
                     class="text-transparent bg-clip-text bg-gradient-to-r from-primary via-purple-500 to-pink-500"
-                    >every team</span
+                    >{pricingContent.hero.highlight}</span
                 >
             </h1>
             <p
                 class="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed font-medium"
             >
-                Start free, securely gather insights, and scale seamlessly with
-                a plan designed to grow with your organization.
+                {pricingContent.hero.description}
             </p>
         </div>
     </section>
@@ -385,15 +428,17 @@
                             <!-- Price -->
                             <div class="mb-8">
                                 <div
-                                    class="flex items-baseline gap-1.5 border-b border-border/40 pb-6"
+                                    class="flex items-baseline gap-1.5 border-b border-border/40 pb-6 flex-wrap"
                                 >
-                                    <span
-                                        class="text-6xl font-extrabold tracking-tighter text-foreground"
-                                        >{plan.price}</span
-                                    >
+                                    {#if plan.priceSymbol}
+                                        <span class="text-2xl font-bold text-muted-foreground">{plan.priceSymbol}</span>
+                                        <span class="text-4xl font-extrabold tracking-tighter text-foreground leading-none">{plan.priceAmount}</span>
+                                    {:else}
+                                        <span class="text-4xl font-extrabold tracking-tighter text-foreground leading-none">{plan.priceAmount || plan.price}</span>
+                                    {/if}
                                     {#if plan.price !== "Free" && plan.price !== "Custom"}
                                         <span
-                                            class="text-base font-medium text-muted-foreground"
+                                            class="text-sm font-medium text-muted-foreground ml-1 whitespace-nowrap"
                                             >/{plan.period.replace(
                                                 "per ",
                                                 "",
@@ -598,6 +643,21 @@
             {/each}
         </div>
 
+        <div class="mt-20 rounded-3xl border border-border/60 bg-card/30 p-8 backdrop-blur-md">
+            <div class="mx-auto max-w-3xl text-center">
+                <h2 class="text-3xl font-bold tracking-tight text-foreground">{pricingContent.faq.title}</h2>
+                <p class="mt-3 text-muted-foreground">{pricingContent.faq.description}</p>
+            </div>
+            <div class="mx-auto mt-10 max-w-4xl space-y-4">
+                {#each pricingContent.faq.items as item}
+                    <div class="rounded-2xl border border-border/50 bg-background/70 p-5">
+                        <h3 class="text-base font-semibold text-foreground">{item.question}</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+                    </div>
+                {/each}
+            </div>
+        </div>
+
         <!-- Bottom CTA -->
         <div class="mt-24 text-center relative">
             <div
@@ -606,13 +666,12 @@
             <h2
                 class="text-3xl font-bold text-foreground mb-6 relative z-10 tracking-tight"
             >
-                Ready to transform your data collection?
+                {pricingContent.cta.title}
             </h2>
             <p
                 class="text-lg text-muted-foreground mb-10 max-w-xl mx-auto font-medium relative z-10"
             >
-                Join thousands of organizations building high-conversion surveys
-                with Survey Engine.
+                {pricingContent.cta.description}
             </p>
             <div
                 class="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
@@ -620,24 +679,27 @@
                 <Button
                     size="lg"
                     class="px-10 py-6 text-base font-semibold rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all hover:-translate-y-1"
-                    href="/register"
+                    href={pricingContent.cta.primaryCtaUrl}
                 >
-                    Start Your Free Trial
+                    {pricingContent.cta.primaryCtaLabel}
                     <ArrowRight class="ml-2 h-5 w-5" />
                 </Button>
-                <Button
-                    size="lg"
-                    variant="outline"
-                    class="px-10 py-6 text-base font-semibold rounded-xl"
-                    href="/contact"
-                >
-                    Contact Sales
-                </Button>
+                {#if pricingContent.cta.secondaryCtaLabel && pricingContent.cta.secondaryCtaUrl}
+                    <Button
+                        size="lg"
+                        variant="outline"
+                        class="px-10 py-6 text-base font-semibold rounded-xl"
+                        href={pricingContent.cta.secondaryCtaUrl}
+                    >
+                        {pricingContent.cta.secondaryCtaLabel}
+                    </Button>
+                {/if}
             </div>
-            <p class="text-muted-foreground text-sm mt-8 opacity-70">
-                All plans include SSL encryption, daily backups, and a 99.9%
-                uptime SLA.
-            </p>
+            {#if pricingContent.cta.footnote}
+                <p class="text-muted-foreground text-sm mt-8 opacity-70">
+                    {pricingContent.cta.footnote}
+                </p>
+            {/if}
         </div>
     </section>
 </div>

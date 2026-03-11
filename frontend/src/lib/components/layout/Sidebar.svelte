@@ -15,6 +15,7 @@
         UserX,
         Activity,
         ToggleRight,
+        Globe,
     } from "lucide-svelte";
     import * as Tooltip from "$lib/components/ui/tooltip";
     import { auth } from "$lib/stores/auth.svelte";
@@ -41,6 +42,7 @@
     const superAdminItems = [
         { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
         { href: "/admin/tenants", label: "Tenants", icon: Users },
+        { href: "/admin/site-content", label: "Site Content", icon: Globe },
         { href: "/admin/plans", label: "System Plans", icon: ShieldAlert },
         { href: "/admin/features", label: "Features", icon: ToggleRight },
         { href: "/admin/audit-logs", label: "Audit Logs", icon: Activity },

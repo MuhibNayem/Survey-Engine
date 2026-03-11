@@ -24,6 +24,7 @@
         CampaignResponse,
         PageResponse,
     } from "$lib/types";
+    import { currencySymbol, formatAmount, formatMoney } from "$lib/utils/currency";
 
     let subscription = $state<SubscriptionResponse | null>(null);
     let plans = $state<PlanDefinitionResponse[]>([]);
@@ -232,8 +233,7 @@
                                 >
                             </div>
                             <p class="text-sm text-muted-foreground">
-                                {subscription.currency}
-                                {subscription.planPrice} / cycle
+                                <span class="text-[0.95em]">{currencySymbol(subscription.currency)}</span>{formatAmount(subscription.planPrice, subscription.currency)} / cycle
                             </p>
                         </div>
 
@@ -370,7 +370,7 @@
                         <Card.Header>
                             <Card.Title>{plan.displayName}</Card.Title>
                             <Card.Description
-                                >{plan.currency} {plan.price}</Card.Description
+                                >{formatMoney(plan.price, plan.currency)}</Card.Description
                             >
                         </Card.Header>
                         <Card.Content class="space-y-4">
