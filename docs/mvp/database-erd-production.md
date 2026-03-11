@@ -13,6 +13,9 @@ It covers all tables currently in the project, including:
 4. Feature management/onboarding domains.
 5. Audit and operational domains.
 
+Schema-rich source (columns/types/constraints) is also provided in DBML:
+`docs/mvp/database-erd-production.dbml`
+
 ## Reading Guide
 1. `PK` = Primary key.
 2. `FK` = Physical database foreign key.
@@ -307,4 +310,3 @@ erDiagram
    - `survey_question(question_version_id, question_id)`
    - `answer(question_version_id, question_id)`
 3. For private responder flows, session tables (`responder_session`) are intentionally decoupled from strict FK constraints to support operational revocation and low-friction auth exchange handling.
-

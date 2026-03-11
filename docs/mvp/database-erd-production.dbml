@@ -1,0 +1,648 @@
+Project survey_engine_production_erd {
+  database_type: 'PostgreSQL'
+  Note: 'Survey Engine production schema from Flyway V1..V34'
+}
+
+Table tenant {
+  id varchar(255) [pk]
+  name varchar(255) [not null]
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+}
+
+Table admin_user {
+  id uuid [pk]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255) [not null]
+  full_name varchar(255) [not null]
+  role varchar(30) [not null, default: 'ADMIN']
+  tenant_id varchar(255) [not null]
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+  first_login boolean [not null, default: true]
+  last_login_at timestamptz
+}
+
+Table refresh_token {
+  id uuid [pk]
+  token varchar(255) [not null, unique]
+  user_id uuid [not null]
+  expires_at timestamp [not null]
+  revoked boolean [not null, default: false]
+}
+
+Table user_preference {
+  id uuid [pk]
+  user_id uuid [not null, unique]
+  tenant_id varchar(255) [not null]
+  preferences jsonb [not null]
+  created_by varchar(255)
+  created_at timestamptz [not null]
+  updated_by varchar(255)
+  updated_at timestamptz [not null]
+}
+
+Table audit_log {
+  id bigserial [pk]
+  entity_type varchar(100) [not null]
+  entity_id varchar(255) [not null]
+  action varchar(50) [not null]
+  actor varchar(255) [not null]
+  reason text
+  before_value jsonb
+  after_value jsonb
+  created_at timestamp [not null]
+  tenant_id varchar(255)
+  ip_address varchar(45)
+}
+
+Table question {
+  id uuid [pk]
+  text text [not null]
+  type varchar(30) [not null]
+  max_score numeric(10,2) [not null]
+  current_version int [not null, default: 1]
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+  tenant_id varchar(255) [not null]
+  option_config text
+}
+
+Table question_version {
+  id uuid [pk]
+  question_id uuid [not null]
+  version_number int [not null]
+  text text [not null]
+  type varchar(30) [not null]
+  max_score numeric(10,2) [not null]
+  created_at timestamp [not null]
+  option_config text
+
+  indexes {
+    (question_id, version_number) [unique]
+    (id, question_id) [unique]
+  }
+}
+
+Table category {
+  id uuid [pk]
+  name varchar(255) [not null]
+  description text
+  current_version int [not null, default: 1]
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+  tenant_id varchar(255) [not null]
+}
+
+Table category_version {
+  id uuid [pk]
+  category_id uuid [not null]
+  version_number int [not null]
+  name varchar(255) [not null]
+  description text
+  created_at timestamp [not null]
+
+  indexes {
+    (category_id, version_number) [unique]
+  }
+}
+
+Table category_question_mapping {
+  id uuid [pk]
+  category_version_id uuid [not null]
+  question_id uuid [not null]
+  question_version_id uuid [not null]
+  sort_order int [not null]
+  weight numeric(5,2)
+}
+
+Table survey {
+  id uuid [pk]
+  title varchar(500) [not null]
+  description text
+  lifecycle_state varchar(30) [not null, default: 'DRAFT']
+  current_version int [not null, default: 1]
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+  tenant_id varchar(255) [not null]
+
+  indexes {
+    (id, tenant_id) [unique]
+  }
+}
+
+Table survey_page {
+  id uuid [pk]
+  survey_id uuid [not null]
+  title varchar(500)
+  sort_order int [not null]
+}
+
+Table survey_question {
+  id uuid [pk]
+  page_id uuid [not null]
+  question_id uuid [not null]
+  question_version_id uuid
+  category_id uuid
+  sort_order int [not null]
+  mandatory boolean [not null, default: false]
+  answer_config text
+  category_version_id uuid
+  category_weight_percentage numeric(5,2)
+}
+
+Table skip_logic_rule {
+  id uuid [pk]
+  survey_id uuid [not null]
+  source_question_id uuid [not null]
+  condition_operator varchar(30) [not null]
+  condition_value varchar(500) [not null]
+  target_page_id uuid
+  target_question_id uuid
+  sort_order int [not null, default: 0]
+}
+
+Table survey_snapshot {
+  id uuid [pk]
+  survey_id uuid [not null]
+  version_number int [not null]
+  snapshot_data jsonb [not null]
+  published_by varchar(255) [not null]
+  published_at timestamp [not null]
+
+  indexes {
+    (survey_id, version_number) [unique]
+  }
+}
+
+Table campaign {
+  id uuid [pk]
+  name varchar(500) [not null]
+  description text
+  survey_id uuid [not null]
+  survey_snapshot_id uuid
+  auth_mode varchar(30) [not null, default: 'PUBLIC']
+  status varchar(30) [not null, default: 'DRAFT']
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+  tenant_id varchar(255) [not null]
+  default_weight_profile_id uuid
+
+  indexes {
+    (id, tenant_id) [unique]
+  }
+}
+
+Table campaign_settings {
+  id uuid [pk]
+  campaign_id uuid [not null, unique]
+  password varchar(255)
+  captcha_enabled boolean [not null, default: false]
+  one_response_per_device boolean [not null, default: false]
+  ip_restriction_enabled boolean [not null, default: false]
+  email_restriction_enabled boolean [not null, default: false]
+  response_quota int
+  close_date timestamp
+  session_timeout_minutes int [default: 60]
+  show_question_numbers boolean [not null, default: true]
+  show_progress_indicator boolean [not null, default: true]
+  allow_back_button boolean [not null, default: true]
+  start_message text
+  finish_message text
+  header_html text
+  footer_html text
+  collect_name boolean [not null, default: false]
+  collect_email boolean [not null, default: false]
+  collect_phone boolean [not null, default: false]
+  collect_address boolean [not null, default: false]
+}
+
+Table distribution_channel {
+  id uuid [pk]
+  campaign_id uuid [not null]
+  channel_type varchar(30) [not null]
+  channel_value text [not null]
+  created_at timestamp [not null]
+}
+
+Table theme_template {
+  id uuid [pk]
+  name varchar(255) [not null]
+  primary_color varchar(7)
+  secondary_color varchar(7)
+  background_color varchar(7)
+  font_family varchar(100)
+  logo_url varchar(500)
+  css_override text
+  is_system boolean [not null, default: true]
+}
+
+Table survey_theme {
+  id uuid [pk]
+  campaign_id uuid [not null, unique]
+  template_id uuid
+  primary_color_override varchar(7)
+  secondary_color_override varchar(7)
+  background_color_override varchar(7)
+  font_family_override varchar(100)
+  logo_url_override varchar(500)
+  css_override text
+  theme_config text
+}
+
+Table data_collection_field {
+  id uuid [pk]
+  campaign_settings_id uuid [not null]
+  field_key varchar(50) [not null]
+  label varchar(100) [not null]
+  field_type varchar(20) [not null, default: 'TEXT']
+  required boolean [not null, default: false]
+  sort_order int [not null, default: 0]
+  enabled boolean [not null, default: true]
+}
+
+Table weight_profile {
+  id uuid [pk]
+  name varchar(255) [not null]
+  campaign_id uuid [not null]
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+  tenant_id varchar(255) [not null]
+}
+
+Table category_weight {
+  id uuid [pk]
+  weight_profile_id uuid [not null]
+  category_id uuid [not null]
+  weight_percentage numeric(5,2) [not null]
+}
+
+Table survey_response {
+  id uuid [pk]
+  campaign_id uuid [not null]
+  survey_snapshot_id uuid [not null]
+  respondent_identifier varchar(500)
+  respondent_ip varchar(45)
+  respondent_device_fingerprint varchar(500)
+  status varchar(30) [not null, default: 'IN_PROGRESS']
+  started_at timestamp [not null]
+  submitted_at timestamp
+  locked_at timestamp
+  tenant_id varchar(255) [not null]
+  weight_profile_id uuid
+  weighted_total_score numeric(10,4)
+  scored_at timestamp
+  respondent_metadata jsonb
+}
+
+Table answer {
+  id uuid [pk]
+  survey_response_id uuid [not null]
+  question_id uuid [not null]
+  question_version_id uuid
+  value text
+  score numeric(10,2)
+  remark text
+
+  indexes {
+    (survey_response_id, question_id) [unique]
+  }
+}
+
+Table reopen_audit {
+  id uuid [pk]
+  survey_response_id uuid [not null]
+  reopened_by varchar(255) [not null]
+  reason text [not null]
+  reopened_at timestamp [not null]
+  reopen_window_minutes int
+}
+
+Table auth_profile {
+  id uuid [pk]
+  tenant_id varchar(255) [not null, unique]
+  auth_mode varchar(30) [not null, default: 'PUBLIC_ANONYMOUS']
+  issuer varchar(500)
+  audience varchar(500)
+  jwks_endpoint varchar(500)
+  clock_skew_seconds int [not null, default: 30]
+  token_ttl_seconds int [not null, default: 3600]
+  signing_secret varchar(500)
+  active_key_version int [not null, default: 1]
+  fallback_policy varchar(30) [not null, default: 'SSO_REQUIRED']
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+  oidc_discovery_url varchar(1000)
+  oidc_client_id varchar(500)
+  oidc_client_secret varchar(1000)
+  oidc_redirect_uri varchar(1000)
+  oidc_scopes varchar(500)
+}
+
+Table claim_mapping {
+  id uuid [pk]
+  auth_profile_id uuid [not null]
+  external_claim varchar(255) [not null]
+  internal_field varchar(255) [not null]
+  required boolean [not null, default: false]
+
+  indexes {
+    (auth_profile_id, internal_field) [unique]
+  }
+}
+
+Table auth_config_audit {
+  id uuid [pk]
+  auth_profile_id uuid [not null]
+  action varchar(50) [not null]
+  changed_by varchar(255) [not null]
+  before_value text
+  after_value text
+  changed_at timestamp [not null]
+}
+
+Table auth_token_replay {
+  id uuid [pk]
+  tenant_id varchar(255) [not null]
+  jti varchar(255) [not null]
+  expires_at timestamp [not null]
+  used_at timestamp [not null]
+
+  indexes {
+    (tenant_id, jti) [unique]
+  }
+}
+
+Table oidc_auth_state {
+  id uuid [pk]
+  state varchar(255) [not null, unique]
+  tenant_id varchar(255) [not null]
+  campaign_id uuid [not null]
+  nonce varchar(255) [not null]
+  return_path varchar(1000)
+  expires_at timestamp [not null]
+  used_at timestamp
+  code_verifier varchar(255)
+}
+
+Table responder_access_code {
+  id uuid [pk]
+  access_code varchar(255) [not null, unique]
+  tenant_id varchar(255) [not null]
+  campaign_id uuid [not null]
+  respondent_id varchar(500) [not null]
+  email varchar(500)
+  expires_at timestamp [not null]
+  used_at timestamp
+  created_at timestamp [not null]
+}
+
+Table responder_session {
+  id uuid [pk]
+  session_hash varchar(128) [not null, unique]
+  tenant_id varchar(255) [not null]
+  campaign_id uuid [not null]
+  respondent_id varchar(255) [not null]
+  email varchar(255)
+  expires_at timestamptz [not null]
+  last_accessed_at timestamptz [not null]
+  created_at timestamptz [not null]
+  revoked_at timestamptz
+}
+
+Table tenant_subscription {
+  id uuid [pk]
+  tenant_id varchar(255) [not null, unique]
+  plan varchar(30) [not null]
+  status varchar(30) [not null]
+  current_period_start timestamp [not null]
+  current_period_end timestamp [not null]
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+}
+
+Table payment_transaction {
+  id uuid [pk]
+  tenant_id varchar(255) [not null]
+  subscription_id uuid [not null]
+  status varchar(30) [not null]
+  gateway_reference varchar(255) [not null]
+  amount numeric(12,2) [not null]
+  currency varchar(10) [not null]
+  processed_at timestamp [not null]
+}
+
+Table plan_definition {
+  id uuid [pk]
+  plan_code varchar(30) [not null, unique]
+  display_name varchar(255) [not null]
+  price numeric(12,2) [not null]
+  currency varchar(10) [not null]
+  billing_cycle_days int [not null]
+  trial_days int [not null]
+  max_campaigns int
+  max_responses_per_campaign int
+  max_admin_users int
+  active boolean [not null, default: true]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+  weight_profiles_enabled boolean [not null, default: false]
+  signed_token_enabled boolean [not null, default: false]
+  sso_enabled boolean [not null, default: false]
+  custom_branding_enabled boolean [not null, default: false]
+  device_fingerprint_enabled boolean [not null, default: false]
+  api_access_enabled boolean [not null, default: false]
+}
+
+Table plan_feature {
+  id uuid [pk]
+  feature_code varchar(100) [not null, unique]
+  category varchar(100) [not null]
+  name varchar(255) [not null]
+  description varchar(500)
+  display_order int [not null]
+  created_by varchar(255) [not null]
+  created_at timestamp [not null]
+  updated_by varchar(255)
+  updated_at timestamp
+}
+
+Table plan_definition_features {
+  plan_definition_id uuid [not null]
+  feature_id uuid [not null]
+
+  indexes {
+    (plan_definition_id, feature_id) [pk]
+  }
+}
+
+Table feature_definition {
+  id uuid [pk]
+  feature_key varchar(100) [not null, unique]
+  feature_type varchar(50) [not null, default: 'TOUR']
+  category varchar(100) [not null, default: 'GENERAL']
+  name varchar(255) [not null]
+  description text
+  enabled boolean [not null, default: true]
+  rollout_percentage int [not null, default: 100]
+  min_plan varchar(50) [not null, default: 'BASIC']
+  roles jsonb [not null]
+  platforms jsonb [not null]
+  metadata jsonb [not null]
+  created_by varchar(255) [not null]
+  created_at timestamptz [not null]
+  updated_by varchar(255)
+  updated_at timestamptz [not null]
+}
+
+Table tenant_feature_config {
+  id uuid [pk]
+  tenant_id varchar(255) [not null]
+  feature_id uuid [not null]
+  enabled boolean [not null, default: true]
+  rollout_percentage int
+  custom_metadata jsonb [not null]
+  created_by varchar(255) [not null]
+  created_at timestamptz [not null]
+  updated_by varchar(255)
+  updated_at timestamptz [not null]
+
+  indexes {
+    (tenant_id, feature_id) [unique]
+  }
+}
+
+Table user_feature_access {
+  id uuid [pk]
+  user_id uuid [not null]
+  tenant_id varchar(255) [not null]
+  feature_id uuid [not null]
+  accessed boolean [not null, default: false]
+  completed boolean [not null, default: false]
+  access_count int [not null, default: 0]
+  last_accessed_at timestamptz
+  completed_at timestamptz
+  metadata jsonb [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  created_by varchar(255) [not null, default: 'SYSTEM']
+  updated_by varchar(255)
+
+  indexes {
+    (user_id, feature_id) [unique]
+  }
+}
+
+// Physical FK relationships
+Ref: admin_user.tenant_id > tenant.id
+Ref: refresh_token.user_id > admin_user.id
+Ref: user_preference.user_id > admin_user.id
+Ref: user_preference.tenant_id > tenant.id
+
+Ref: question.tenant_id > tenant.id
+Ref: question_version.question_id > question.id
+
+Ref: category.tenant_id > tenant.id
+Ref: category_version.category_id > category.id
+Ref: category_question_mapping.category_version_id > category_version.id
+Ref: category_question_mapping.question_id > question.id
+Ref: category_question_mapping.question_version_id > question_version.id
+
+Ref: survey.tenant_id > tenant.id
+Ref: survey_page.survey_id > survey.id
+Ref: survey_question.page_id > survey_page.id
+Ref: survey_question.question_id > question.id
+Ref: survey_question.question_version_id > question_version.id
+Ref: survey_question.category_id > category.id
+Ref: survey_question.category_version_id > category_version.id
+Ref: skip_logic_rule.survey_id > survey.id
+Ref: skip_logic_rule.source_question_id > question.id
+Ref: skip_logic_rule.target_question_id > question.id
+Ref: skip_logic_rule.target_page_id > survey_page.id
+Ref: survey_snapshot.survey_id > survey.id
+
+Ref: campaign.survey_id > survey.id
+Ref: campaign.survey_snapshot_id > survey_snapshot.id
+Ref: campaign.tenant_id > tenant.id
+Ref: campaign.default_weight_profile_id > weight_profile.id
+Ref: campaign_settings.campaign_id > campaign.id
+Ref: distribution_channel.campaign_id > campaign.id
+Ref: survey_theme.campaign_id > campaign.id
+Ref: survey_theme.template_id > theme_template.id
+Ref: data_collection_field.campaign_settings_id > campaign_settings.id
+
+Ref: weight_profile.campaign_id > campaign.id
+Ref: weight_profile.tenant_id > tenant.id
+Ref: category_weight.weight_profile_id > weight_profile.id
+Ref: category_weight.category_id > category.id
+
+Ref: survey_response.campaign_id > campaign.id
+Ref: survey_response.survey_snapshot_id > survey_snapshot.id
+Ref: survey_response.tenant_id > tenant.id
+Ref: survey_response.weight_profile_id > weight_profile.id
+Ref: answer.survey_response_id > survey_response.id
+Ref: answer.question_id > question.id
+Ref: answer.question_version_id > question_version.id
+Ref: reopen_audit.survey_response_id > survey_response.id
+
+Ref: auth_profile.tenant_id > tenant.id
+Ref: claim_mapping.auth_profile_id > auth_profile.id
+Ref: auth_config_audit.auth_profile_id > auth_profile.id
+Ref: auth_token_replay.tenant_id > tenant.id
+Ref: oidc_auth_state.tenant_id > tenant.id
+Ref: responder_access_code.tenant_id > tenant.id
+
+Ref: tenant_subscription.tenant_id > tenant.id
+Ref: payment_transaction.tenant_id > tenant.id
+Ref: payment_transaction.subscription_id > tenant_subscription.id
+Ref: plan_definition_features.plan_definition_id > plan_definition.id
+Ref: plan_definition_features.feature_id > plan_feature.id
+
+Ref: tenant_feature_config.feature_id > feature_definition.id
+Ref: user_feature_access.feature_id > feature_definition.id
+
+// Composite FK relationships
+Ref: campaign.(survey_id, tenant_id) > survey.(id, tenant_id)
+Ref: weight_profile.(campaign_id, tenant_id) > campaign.(id, tenant_id)
+Ref: survey_response.(campaign_id, tenant_id) > campaign.(id, tenant_id)
+Ref: oidc_auth_state.(campaign_id, tenant_id) > campaign.(id, tenant_id)
+Ref: responder_access_code.(campaign_id, tenant_id) > campaign.(id, tenant_id)
+Ref: survey_question.(question_version_id, question_id) > question_version.(id, question_id)
+Ref: answer.(question_version_id, question_id) > question_version.(id, question_id)
+
+// Logical (application-enforced) relationships (not physical FK)
+// Ref: responder_session.tenant_id > tenant.id
+// Ref: responder_session.campaign_id > campaign.id
+// Ref: tenant_feature_config.tenant_id > tenant.id
+// Ref: user_feature_access.user_id > admin_user.id
+// Ref: user_feature_access.tenant_id > tenant.id
+// Ref: tenant_subscription.plan > plan_definition.plan_code
