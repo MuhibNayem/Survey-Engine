@@ -408,17 +408,18 @@ export interface CampaignPreviewResponse {
 
 export type DistributionChannelType =
     | 'PUBLIC_LINK'
-    | 'PRIVATE_LINK'
-    | 'HTML_EMBED'
-    | 'WORDPRESS_EMBED'
-    | 'JS_EMBED'
-    | 'EMAIL';
+    | 'PRIVATE_LINK';
 
 export interface DistributionChannelResponse {
     id: string;
     campaignId: string;
     channelType: DistributionChannelType;
     channelValue: string;
+    channelTitle?: string | null;
+    channelNote?: string | null;
+    requestPayloadExample?: string | null;
+    frontendExample?: string | null;
+    backendExample?: string | null;
     createdAt: string;
 }
 

@@ -1,6 +1,5 @@
 <script lang="ts">
     import { auth } from "$lib/stores/auth.svelte";
-    import { goto } from "$app/navigation";
     import { onMount } from "svelte";
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
@@ -15,7 +14,6 @@
         Users,
         FileText,
         Megaphone,
-        Star,
         ChevronRight,
     } from "lucide-svelte";
 
@@ -23,7 +21,6 @@
     import api from "$lib/api";
     import type { PlanDefinitionResponse } from "$lib/types";
     import { currencySymbol, formatAmount } from "$lib/utils/currency";
-    import { Skeleton } from "$lib/components/ui/skeleton";
     import Autoplay from "embla-carousel-autoplay";
     import * as Carousel from "$lib/components/ui/carousel/index.js";
     import {
@@ -1058,8 +1055,7 @@
             background-color 0.32s ease;
         animation: agCardIn 850ms cubic-bezier(0.16, 1, 0.3, 1) both;
         animation-delay: var(--ag-card-delay, 0ms);
-        box-shadow: 0 26px 60px -46px color-mix(in oklab, var(--foreground)
-                    36%, transparent);
+        box-shadow: 0 26px 60px -46px color-mix(in oklab, var(--foreground) 36%, transparent);
     }
 
     :global(.ag-card)::after {
@@ -1207,7 +1203,8 @@
     /* ─────────────────────────── PREMIUM HERO ──────────────────────────── */
     .agent-hero {
         background: var(--background);
-        border-bottom: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
+        border-bottom: 1px solid
+            color-mix(in oklab, var(--border) 40%, transparent);
         position: relative;
         min-height: 100vh;
         display: flex;
@@ -1331,10 +1328,12 @@
     @keyframes pulse {
         0%,
         100% {
-            box-shadow: 0 0 6px color-mix(in oklab, var(--primary) 40%, transparent);
+            box-shadow: 0 0 6px
+                color-mix(in oklab, var(--primary) 40%, transparent);
         }
         50% {
-            box-shadow: 0 0 14px color-mix(in oklab, var(--primary) 80%, transparent);
+            box-shadow: 0 0 14px
+                color-mix(in oklab, var(--primary) 80%, transparent);
         }
     }
 
@@ -1380,11 +1379,7 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.8125rem 1.75rem;
-        background: linear-gradient(
-            135deg,
-            var(--primary),
-            hsl(263 70% 50%)
-        );
+        background: linear-gradient(135deg, var(--primary), hsl(263 70% 50%));
         color: white;
         font-size: 0.9375rem;
         font-weight: 600;
@@ -1397,7 +1392,8 @@
     }
     .hero-btn-primary:hover {
         transform: translateY(-1px);
-        box-shadow: 0 8px 28px color-mix(in oklab, var(--primary) 45%, transparent);
+        box-shadow: 0 8px 28px
+            color-mix(in oklab, var(--primary) 45%, transparent);
     }
     .hero-btn-secondary {
         display: inline-flex;
@@ -1565,8 +1561,10 @@
     /* Logo strip */
     .logo-strip {
         padding: 2.5rem 0;
-        border-top: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
-        border-bottom: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
+        border-top: 1px solid
+            color-mix(in oklab, var(--border) 40%, transparent);
+        border-bottom: 1px solid
+            color-mix(in oklab, var(--border) 40%, transparent);
     }
     .logo-strip-label {
         text-align: center;
@@ -1763,7 +1761,8 @@
             border-color 0.2s;
     }
     .testimonial-card:hover {
-        box-shadow: 0 8px 32px color-mix(in oklab, var(--primary) 8%, transparent);
+        box-shadow: 0 8px 32px
+            color-mix(in oklab, var(--primary) 8%, transparent);
         border-color: color-mix(in oklab, var(--primary) 20%, transparent);
     }
     .t-quote-mark {

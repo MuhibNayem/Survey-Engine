@@ -2120,6 +2120,16 @@
         color: var(--survey-primary);
     }
 
+    .survey-option-card--selected:hover {
+        border-color: var(--survey-primary);
+        background: color-mix(in srgb, var(--survey-primary) 14%, var(--survey-card));
+        color: var(--survey-primary);
+    }
+
+    .survey-option-card--selected .survey-option-text {
+        color: var(--survey-primary);
+    }
+
     .survey-radio-dot {
         border-color: color-mix(in srgb, var(--survey-border) 65%, transparent);
         background: color-mix(in srgb, var(--survey-card) 96%, white);
@@ -2158,6 +2168,12 @@
     }
 
     .survey-rating-button--selected {
+        border-color: var(--survey-primary);
+        background: var(--survey-primary);
+        color: var(--survey-primary-text);
+    }
+
+    .survey-rating-button--selected:hover {
         border-color: var(--survey-primary);
         background: var(--survey-primary);
         color: var(--survey-primary-text);

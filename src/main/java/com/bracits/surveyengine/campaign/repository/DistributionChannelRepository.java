@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface DistributionChannelRepository extends JpaRepository<DistributionChannel, UUID> {
     List<DistributionChannel> findByCampaignId(UUID campaignId);
+    void deleteByCampaignId(UUID campaignId);
 }

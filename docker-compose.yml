@@ -77,6 +77,8 @@ services:
       RABBITMQ_USERNAME: guest
       RABBITMQ_PASSWORD: guest
       SURVEY_ENGINE_JWT_SECRET: survey-engine-default-secret-key-change-in-production-minimum-32-chars
+      SURVEY_ENGINE_LINKS_PUBLIC_BASE_URL: http://localhost:5173
+      SURVEY_ENGINE_LINKS_PUBLIC_API_BASE_URL: http://localhost:8080
     ports:
       - "8080:8080"
 

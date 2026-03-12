@@ -20,6 +20,7 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,21 +47,26 @@ public class SecurityConfig {
         private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
         private final com.bracits.surveyengine.admin.filter.CsrfCookieFilter csrfCookieFilter;
         private final ResponderSecurityProperties responderSecurityProperties;
+        private final CorsConfigurationSource corsConfigurationSource;
 
         public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                               SubscriptionEnforcementFilter subscriptionEnforcementFilter,
                               CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
                               com.bracits.surveyengine.admin.filter.CsrfCookieFilter csrfCookieFilter,
-                              ResponderSecurityProperties responderSecurityProperties) {
+                              ResponderSecurityProperties responderSecurityProperties,
+                              CorsConfigurationSource corsConfigurationSource) {
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
                 this.subscriptionEnforcementFilter = subscriptionEnforcementFilter;
                 this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
                 this.csrfCookieFilter = csrfCookieFilter;
                 this.responderSecurityProperties = responderSecurityProperties;
+                this.corsConfigurationSource = corsConfigurationSource;
         }
 
         @Bean
         public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+                http.cors(cors -> cors.configurationSource(corsConfigurationSource));
+                
                 CookieCsrfTokenRepository csrfRepo = CookieCsrfTokenRepository.withHttpOnlyFalse();
                 csrfRepo.setCookiePath("/");
 

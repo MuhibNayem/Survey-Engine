@@ -15,5 +15,10 @@ public class DistributionChannelResponse {
     private UUID campaignId;
     private DistributionChannelType channelType;
     private String channelValue;
+    private String channelTitle;
+    private String channelNote;
+    private String requestPayloadExample;
+    private String frontendExample;
+    private String backendExample;
     private Instant createdAt;
 }
